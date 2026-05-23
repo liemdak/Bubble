@@ -1,0 +1,12 @@
+{
+  "name": "Bubble",
+  "short_name": "Bubble",
+  "description": "Send stablecoins by just typing",
+  "start_url": "/chat",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#a3e635",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
+  ]
+}

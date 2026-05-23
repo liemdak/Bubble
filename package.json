@@ -9,14 +9,30 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.1",
+    "@circle-fin/developer-controlled-wallets": "^10.3.1",
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.106.0",
+    "@tailwindcss/postcss": "^4.3.0",
+    "@zxing/browser": "^0.2.0",
+    "ai": "^6.0.185",
+    "framer-motion": "^12.39.0",
+    "jose": "^6.2.3",
+    "lucide-react": "^1.16.0",
+    "next": "14.2.35",
+    "postcss": "^8.5.15",
+    "qrcode": "^1.5.4",
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.35"
+    "tailwindcss": "^4.3.0",
+    "viem": "^2.50.4"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18",
-    "@types/react-dom": "^18"
+    "@types/react-dom": "^18",
+    "typescript": "^5"
   }
 }
