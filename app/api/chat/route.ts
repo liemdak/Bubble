@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     // ── Balance shortcut — bypass AI, always fetch real data ─────────
     if (/balance|how much|số dư|xem số dư|kiểm tra ví|check.*balance|my balance|wallet balance/i.test(message)) {
-      const msg = await fetchRealBalance(circleWalletId)
+      const msg = await fetchRealBalance(circleWalletId, userAddress)
       return NextResponse.json({ type: 'text', message: msg })
     }
 
@@ -81,13 +81,27 @@ export async function POST(req: NextRequest) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function fetchRealBalance(circleWalletId: string | null): Promise<string> {
+async function fetchRealBalance(
+  circleWalletId: string | null,
+  userAddress: string | null = null,
+): Promise<string> {
   try {
-    if (!circleWalletId || !process.env.CIRCLE_API_KEY) {
-      return '💰 Wallet not set up yet.\n\nGet free testnet USDC at faucet.circle.com → select Arc Testnet.'
+    if (!process.env.CIRCLE_API_KEY) {
+      return '💰 Wallet not configured yet.'
     }
+
+    // Auto-find wallet if session is missing it
+    let walletId = circleWalletId
+    if (!walletId && userAddress) {
+      walletId = await findOrCreateWallet(userAddress)
+    }
+
+    if (!walletId) {
+      return '💰 Could not locate your wallet. Please visit the Balance tab to set it up.'
+    }
+
     const { getSingleWalletBalance } = await import('@/lib/circle/balance')
-    const balances = await getSingleWalletBalance(circleWalletId)
+    const balances = await getSingleWalletBalance(walletId)
 
     if (balances.length === 0) {
       return '💰 Your wallet is empty on Arc Testnet.\n\nGet free USDC at faucet.circle.com → select Arc Testnet.'
@@ -97,6 +111,31 @@ async function fetchRealBalance(circleWalletId: string | null): Promise<string> 
     return `💰 Your balances on Arc Testnet:\n${lines.join('\n')}`
   } catch {
     return '💰 Could not fetch balance right now. Please try again.'
+  }
+}
+
+async function findOrCreateWallet(address: string): Promise<string | null> {
+  try {
+    const { getCircleClient } = await import('@/lib/circle/client')
+    const client = getCircleClient()
+
+    const list = await client.listWallets({ pageSize: 50 })
+    const found = list.data?.wallets?.find(w => w.refId === address.toLowerCase())
+    if (found?.id) return found.id
+
+    const setRes = await client.createWalletSet({ name: `Bubble:${address.slice(0, 8)}` })
+    const walletSetId = setRes.data?.walletSet?.id
+    if (!walletSetId) return null
+
+    const walletRes = await client.createWallets({
+      walletSetId,
+      blockchains: ['ARC-TESTNET'],
+      count: 1,
+      metadata: [{ name: address, refId: address.toLowerCase() }],
+    })
+    return walletRes.data?.wallets?.[0]?.id ?? null
+  } catch {
+    return null
   }
 }
 
@@ -136,7 +175,7 @@ async function handleGroq(
 
     // Non-confirmation tools — handle directly
     if (fnName === 'get_balance') {
-      return NextResponse.json({ type: 'text', message: await fetchRealBalance(circleWalletId) })
+      return NextResponse.json({ type: 'text', message: await fetchRealBalance(circleWalletId, userAddress) })
     }
 
     if (fnName === 'get_rate') {

@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth/session'
+import { getSession, createSession } from '@/lib/auth/session'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * GET /api/balance
- * Uses session circleWalletId to fetch only the current user's wallet (1 API call).
- * Falls back to unified (all wallets) if no walletId in session.
- */
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession()
-    const circleWalletId = session?.circleWalletId
     const userAddress = session?.address
+    let circleWalletId = session?.circleWalletId
 
-    // ── Fast path: 1 API call for the user's specific wallet ──────────
+    // ── If session has no wallet ID, try to find/create one ──────────
+    if (!circleWalletId && userAddress && process.env.CIRCLE_API_KEY) {
+      circleWalletId = await findOrCreateWallet(userAddress) ?? undefined
+
+      // Persist wallet ID into session so next request is fast
+      if (circleWalletId && session) {
+        await createSession({ ...session, circleWalletId })
+      }
+    }
+
+    // ── Fetch this user's wallet balance (1 API call) ─────────────────
     if (circleWalletId) {
       const { getSingleWalletBalance } = await import('@/lib/circle/balance')
       const balances = await getSingleWalletBalance(circleWalletId)
@@ -45,7 +50,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // ── Explicit walletId query param (admin use) ──────────────────────
+    // ── Explicit walletId query param ─────────────────────────────────
     const walletId = req.nextUrl.searchParams.get('walletId')
     if (walletId) {
       const { getSingleWalletBalance } = await import('@/lib/circle/balance')
@@ -53,7 +58,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ type: 'single', walletId, balances })
     }
 
-    // ── No wallet in session ───────────────────────────────────────────
+    // ── No wallet at all ──────────────────────────────────────────────
     return NextResponse.json({
       type: 'unified',
       wallets: [],
@@ -62,23 +67,59 @@ export async function GET(req: NextRequest) {
       totalUsyc: '0.00',
       totalEquivalent: '0.00',
       fetchedAt: new Date().toISOString(),
-      _info: 'No Circle wallet linked to this session yet.',
     })
 
   } catch (err) {
     const raw = err instanceof Error ? err.message : 'Balance fetch failed'
     console.error('[/api/balance]', err)
 
-    // Friendlier error messages
     let message = raw
-    if (raw.toLowerCase().includes('rate')) {
-      message = 'Too many requests — please wait a moment and try again.'
-    } else if (raw.toLowerCase().includes('unauthorized') || raw.toLowerCase().includes('401')) {
-      message = 'Circle API key is invalid. Check CIRCLE_API_KEY in Vercel settings.'
-    } else if (raw.toLowerCase().includes('api key')) {
-      message = 'Circle API key not configured. Add CIRCLE_API_KEY to Vercel environment variables.'
-    }
+    if (raw.toLowerCase().includes('rate'))        message = 'Too many requests — please wait a moment and try again.'
+    else if (raw.toLowerCase().includes('401'))    message = 'Circle API key is invalid.'
+    else if (raw.toLowerCase().includes('api key')) message = 'Circle API key not configured.'
 
     return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+/**
+ * Find existing Circle wallet for this address (by refId),
+ * or create a new one on Arc Testnet.
+ */
+async function findOrCreateWallet(address: string): Promise<string | null> {
+  try {
+    const { getCircleClient } = await import('@/lib/circle/client')
+    const client = getCircleClient()
+
+    // 1. Look for existing wallet by refId = address
+    const list = await client.listWallets({ pageSize: 50 })
+    const found = list.data?.wallets?.find(
+      w => w.refId === address.toLowerCase()
+    )
+    if (found?.id) {
+      console.log('[balance] Found existing wallet:', found.id)
+      return found.id
+    }
+
+    // 2. None found — create a new one
+    const setRes = await client.createWalletSet({
+      name: `Bubble:${address.slice(0, 8)}`,
+    })
+    const walletSetId = setRes.data?.walletSet?.id
+    if (!walletSetId) return null
+
+    const walletRes = await client.createWallets({
+      walletSetId,
+      blockchains: ['ARC-TESTNET'],
+      count: 1,
+      metadata: [{ name: address, refId: address.toLowerCase() }],
+    })
+
+    const walletId = walletRes.data?.wallets?.[0]?.id ?? null
+    console.log('[balance] Created new wallet:', walletId)
+    return walletId
+  } catch (err) {
+    console.error('[findOrCreateWallet]', err)
+    return null
   }
 }
