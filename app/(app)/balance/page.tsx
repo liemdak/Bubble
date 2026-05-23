@@ -393,9 +393,11 @@ function ErrorCard({ message }: { message: string }) {
     }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>Failed to load balance</div>
       <div style={{ fontSize: 13 }}>{message}</div>
-      <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
-        Make sure CIRCLE_API_KEY and CIRCLE_ENTITY_SECRET are set in .env.local
-      </div>
+      {message.toLowerCase().includes('wait') && (
+        <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
+          Circle API rate limit reached. Click Refresh in 30 seconds.
+        </div>
+      )}
     </div>
   )
 }
