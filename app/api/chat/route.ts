@@ -87,60 +87,18 @@ export async function POST(req: NextRequest) {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function fetchRealBalance(
-  circleWalletId: string | null,
+  _circleWalletId: string | null,
   userAddress: string | null = null,
 ): Promise<string> {
   try {
-    if (!process.env.CIRCLE_API_KEY) {
-      return '💰 Wallet not configured yet.'
+    if (!userAddress) {
+      return '💰 No wallet connected. Please log in first.'
     }
-
-    // Auto-find wallet if session is missing it
-    let walletId = circleWalletId
-    if (!walletId && userAddress) {
-      walletId = await findOrCreateWallet(userAddress)
-    }
-
-    if (!walletId) {
-      return '💰 Could not locate your wallet. Please visit the Balance tab to set it up.'
-    }
-
-    const { getSingleWalletBalance } = await import('@/lib/circle/balance')
-    const balances = await getSingleWalletBalance(walletId)
-
-    if (balances.length === 0) {
-      return '💰 Your wallet is empty on Arc Testnet.\n\nGet free USDC at faucet.circle.com → select Arc Testnet.'
-    }
-
-    const lines = balances.map((b) => `• ${b.token}: ${parseFloat(b.amount).toFixed(2)}`)
-    return `💰 Your balances on Arc Testnet:\n${lines.join('\n')}`
+    const { readWalletBalances, formatBalanceMessage } = await import('@/lib/viem/balanceReader')
+    const balances = await readWalletBalances(userAddress)
+    return formatBalanceMessage(balances, userAddress)
   } catch {
     return '💰 Could not fetch balance right now. Please try again.'
-  }
-}
-
-async function findOrCreateWallet(address: string): Promise<string | null> {
-  try {
-    const { getCircleClient } = await import('@/lib/circle/client')
-    const client = getCircleClient()
-
-    const list = await client.listWallets({ pageSize: 50 })
-    const found = list.data?.wallets?.find(w => w.refId === address.toLowerCase())
-    if (found?.id) return found.id
-
-    const setRes = await client.createWalletSet({ name: `Bubble:${address.slice(0, 8)}` })
-    const walletSetId = setRes.data?.walletSet?.id
-    if (!walletSetId) return null
-
-    const walletRes = await client.createWallets({
-      walletSetId,
-      blockchains: ['ARC-TESTNET'],
-      count: 1,
-      metadata: [{ name: address, refId: address.toLowerCase() }],
-    })
-    return walletRes.data?.wallets?.[0]?.id ?? null
-  } catch {
-    return null
   }
 }
 
