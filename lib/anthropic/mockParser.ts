@@ -36,6 +36,14 @@ export type ParseResult =
 export function parseIntent(message: string): ParseResult {
   const msg = message.toLowerCase().trim()
 
+  // ── GREETING ──────────────────────────────────────────────────────
+  if (/^(hi|hello|hey|chào|xin chào|alo|howdy|sup|yo|hola|bonjour)\b/i.test(msg)) {
+    return {
+      type: 'text',
+      message: `Hey! 👋 I'm Bubble — your payment assistant.\n\nTry: "send 50 USDC to Mike", "check my balance", or "swap 100 USDC to EURC".`,
+    }
+  }
+
   // ── SEND ──────────────────────────────────────────────────────────
   // "send 100 usdc to mike", "send 50 to sarah", "send usdc 20 alice"
   const sendRe = /send\s+([\d.]+)?\s*(usdc|eurc|usyc)?\s*(?:to\s+)?(\w+)?(?:\s+([\d.]+))?\s*(usdc|eurc|usyc)?/i
