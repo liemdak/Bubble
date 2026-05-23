@@ -1,13 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseIntent } from '@/lib/anthropic/mockParser'
-import { SYSTEM_PROMPT } from '@/lib/gemini/systemPrompt'
-import { PAYMENT_TOOLS } from '@/lib/gemini/tools'
 import { getSession } from '@/lib/auth/session'
 import type { ConfirmationCard } from '@/types/intent'
 
+const SYSTEM_PROMPT = `You are Bubble — a friendly payment assistant for stablecoin transfers.
+
+LANGUAGE: Always respond in the same language the user writes in. Vietnamese → Vietnamese. English → English.
+
+GREETINGS: If the user greets you (hello, hi, chào, xin chào, hey, etc.), reply warmly in 1 sentence, say you help with stablecoin payments, then give a quick example.
+
+SCOPE — You ONLY help with:
+- Sending USDC, EURC, or USYC to contacts or wallet addresses → use send_payment
+- Checking wallet balance → use get_balance
+- Swapping tokens (USDC ↔ EURC ↔ USYC) → use swap_tokens
+- Bridging across chains (Arc, Ethereum, Solana, Base) → use bridge_tokens
+- Exchange rates → use get_rate
+- Managing contacts → use manage_contact
+- Gas fees, Arc network info → answer directly
+
+OUT OF SCOPE: For anything unrelated, reply in user's language:
+- English: "I'm a payment assistant. Try: 'send 50 USDC to Mike' or 'check my balance'."
+- Vietnamese: "Mình chỉ hỗ trợ thanh toán stablecoin. Thử: 'gửi 50 USDC cho Mike' hoặc 'kiểm tra số dư'."
+
+RULES:
+- Never invent wallet addresses
+- Always use a tool call for payment actions
+- If a contact name is not found, ask the user to provide their wallet address
+- Be concise — 1-2 sentences max for text replies
+- Gas on Arc ≈ $0.006, sponsored automatically
+- Default chain: arc`
+
 export async function POST(req: NextRequest) {
   try {
-    const { message, history = [] } = await req.json()
+    const { message } = await req.json()
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ type: 'text', message: 'No message received.' }, { status: 400 })
     }
@@ -26,26 +51,24 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── Balance shortcut (works in both Gemini + mock mode) ──────────
+    // ── Balance shortcut — bypass AI, always fetch real data ─────────
     if (/balance|how much|số dư|xem số dư|kiểm tra ví|check.*balance|my balance|wallet balance/i.test(message)) {
       const msg = await fetchRealBalance(circleWalletId)
       return NextResponse.json({ type: 'text', message: msg })
     }
 
-    // ── Gemini mode ──────────────────────────────────────────────────
-    if (process.env.GEMINI_API_KEY) {
+    // ── Groq (primary) ───────────────────────────────────────────────
+    if (process.env.GROQ_API_KEY) {
       try {
-        return await handleGemini(message, history, userAddress, circleWalletId)
-      } catch (geminiErr) {
-        console.error('[/api/chat] Gemini error — falling back to mock:', geminiErr)
-        // Fall through to mock parser
+        return await handleGroq(message, userAddress, circleWalletId)
+      } catch (err) {
+        console.error('[/api/chat] Groq error — falling back to mock:', err)
       }
     }
 
     // ── Mock parser (fallback) ───────────────────────────────────────
-    await new Promise((r) => setTimeout(r, 400))
-    const result = parseIntent(message)
-    return NextResponse.json(result)
+    await new Promise((r) => setTimeout(r, 300))
+    return NextResponse.json(parseIntent(message))
 
   } catch (err) {
     console.error('[/api/chat]', err)
@@ -56,7 +79,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function fetchRealBalance(circleWalletId: string | null): Promise<string> {
   try {
@@ -72,49 +95,51 @@ async function fetchRealBalance(circleWalletId: string | null): Promise<string> 
 
     const lines = balances.map((b) => `• ${b.token}: ${parseFloat(b.amount).toFixed(2)}`)
     return `💰 Your balances on Arc Testnet:\n${lines.join('\n')}`
-  } catch (err) {
-    console.error('[fetchRealBalance]', err)
-    return '💰 Could not fetch balance right now. Please try again in a moment.'
+  } catch {
+    return '💰 Could not fetch balance right now. Please try again.'
   }
 }
 
-async function handleGemini(
+async function handleGroq(
   message: string,
-  _history: unknown[],
   userAddress: string | null,
   circleWalletId: string | null,
 ) {
-  const { getGeminiModel } = await import('@/lib/gemini/client')
-  const model = getGeminiModel()
+  const { getGroqClient } = await import('@/lib/groq/client')
+  const { PAYMENT_TOOLS } = await import('@/lib/groq/tools')
+  const groq = getGroqClient()
 
-  const systemWithContext = userAddress
-    ? `${SYSTEM_PROMPT}\n\nUser's wallet address: ${userAddress}`
+  const system = userAddress
+    ? `${SYSTEM_PROMPT}\n\nUser wallet address: ${userAddress}`
     : SYSTEM_PROMPT
 
-  const chat = model.startChat({
-    systemInstruction: systemWithContext,
+  const completion = await groq.chat.completions.create({
+    model: 'llama-3.1-8b-instant',
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: message },
+    ],
     tools: PAYMENT_TOOLS,
-    history: [],
+    tool_choice: 'auto',
+    temperature: 0.1,
+    max_tokens: 512,
   })
 
-  const result = await chat.sendMessage(message)
-  const response = result.response
+  const choice = completion.choices[0]
+  const toolCalls = choice.message.tool_calls
 
-  const candidate = response.candidates?.[0]
-  const parts = candidate?.content?.parts ?? []
-  const fnCall = parts.find((p) => p.functionCall)?.functionCall
+  if (toolCalls && toolCalls.length > 0) {
+    const call = toolCalls[0]
+    const fnName = call.function.name
+    let args: Record<string, string> = {}
+    try { args = JSON.parse(call.function.arguments) } catch { /* ignore */ }
 
-  if (fnCall) {
-    const args = fnCall.args as Record<string, string>
-
-    // get_balance → fetch real data, no confirm card needed
-    if (fnCall.name === 'get_balance') {
-      const msg = await fetchRealBalance(circleWalletId)
-      return NextResponse.json({ type: 'text', message: msg })
+    // Non-confirmation tools — handle directly
+    if (fnName === 'get_balance') {
+      return NextResponse.json({ type: 'text', message: await fetchRealBalance(circleWalletId) })
     }
 
-    // get_rate → return live rate text
-    if (fnCall.name === 'get_rate') {
+    if (fnName === 'get_rate') {
       const tokenIn  = args.token_in  ?? 'USDC'
       const tokenOut = args.token_out ?? 'EURC'
       const amount   = parseFloat(args.amount ?? '1')
@@ -128,85 +153,73 @@ async function handleGemini(
       })
     }
 
-    // manage_contact → stub until Supabase contacts land
-    if (fnCall.name === 'manage_contact') {
+    if (fnName === 'manage_contact') {
       if (args.action === 'list') {
-        return NextResponse.json({ type: 'text', message: 'You have no contacts yet. Add one: "add Mike 0x1234..."' })
+        return NextResponse.json({ type: 'text', message: 'No contacts yet. Add one: "add Mike 0x1234..."' })
       }
       if (args.action === 'add' && args.name && args.wallet_address) {
-        return NextResponse.json({ type: 'text', message: `✓ Got it! Contact feature is coming soon. For now, send directly: "send 50 USDC to ${args.wallet_address}"` })
+        return NextResponse.json({ type: 'text', message: `✓ Got it! Contacts feature coming soon. For now send directly: "send 50 USDC to ${args.wallet_address}"` })
       }
-      return NextResponse.json({ type: 'text', message: 'Contact feature coming soon. You can send directly to any wallet address.' })
+      return NextResponse.json({ type: 'text', message: 'Contacts feature coming soon. You can send to any wallet address directly.' })
     }
 
-    // send / swap / bridge → require user confirmation
-    const card: ConfirmationCard = buildConfirmCard(fnCall.name, args)
+    // Confirmation-required actions
+    const card = buildConfirmCard(fnName, args)
     return NextResponse.json({ type: 'confirm', card })
   }
 
-  const text = response.text()
+  const text = choice.message.content ?? 'I didn\'t understand that. Try: "send 50 USDC to Mike".'
   return NextResponse.json({ type: 'text', message: text })
 }
 
 function buildConfirmCard(intentType: string, args: Record<string, string>): ConfirmationCard {
-  const gasFormatted = '$0.006'
+  const gas = '$0.006'
   switch (intentType) {
     case 'send_payment': {
       const amount = args.amount ?? '0'
-      const token  = args.token  ?? 'USDC'
+      const token  = (args.token ?? 'USDC') as 'USDC' | 'EURC' | 'USYC'
       return {
         intent: {
           type: 'send_payment',
           recipient_name:    args.recipient_name,
           recipient_address: args.recipient_address,
-          amount,
-          token: token as 'USDC' | 'EURC' | 'USYC',
+          amount, token,
           chain: (args.chain ?? 'arc') as 'arc',
         },
         resolved_address: args.recipient_address
           ? `${args.recipient_address.slice(0, 6)}...${args.recipient_address.slice(-4)}`
           : undefined,
-        gas_fee:      gasFormatted,
+        gas_fee:      gas,
         total_display: `≈ ${(parseFloat(amount) + 0.006).toFixed(3)} ${token}`,
       }
     }
     case 'swap_tokens': {
       const amountIn = args.amount_in ?? '0'
-      const tokenIn  = args.token_in  ?? 'USDC'
-      const tokenOut = args.token_out ?? 'EURC'
+      const tokenIn  = (args.token_in  ?? 'USDC') as 'USDC' | 'EURC' | 'USYC'
+      const tokenOut = (args.token_out ?? 'EURC') as 'USDC' | 'EURC' | 'USYC'
       const rate = tokenIn === 'USDC' && tokenOut === 'EURC' ? 0.92 : 1.08
       return {
-        intent: {
-          type:      'swap_tokens',
-          token_in:  tokenIn  as 'USDC' | 'EURC' | 'USYC',
-          token_out: tokenOut as 'USDC' | 'EURC' | 'USYC',
-          amount_in: amountIn,
-          chain:     (args.chain ?? 'arc') as 'arc',
-        },
-        gas_fee:      gasFormatted,
+        intent: { type: 'swap_tokens', token_in: tokenIn, token_out: tokenOut, amount_in: amountIn, chain: 'arc' },
+        gas_fee:      gas,
         total_display: `≈ ${(parseFloat(amountIn) * rate).toFixed(2)} ${tokenOut}`,
       }
     }
     case 'bridge_tokens': {
       const amount  = args.amount   ?? '0'
-      const toChain = args.to_chain ?? 'ethereum'
+      const toChain = (args.to_chain ?? 'ethereum') as 'arc' | 'ethereum' | 'solana' | 'base'
       return {
         intent: {
-          type:       'bridge_tokens',
+          type: 'bridge_tokens',
           token:      (args.token ?? 'USDC') as 'USDC' | 'EURC',
           amount,
           from_chain: (args.from_chain ?? 'arc') as 'arc',
-          to_chain:   toChain as 'arc' | 'ethereum' | 'solana' | 'base',
+          to_chain:   toChain,
         },
-        gas_fee:      gasFormatted,
+        gas_fee:      gas,
         total_display: `${amount} ${args.token ?? 'USDC'} → ${toChain.toUpperCase()} (~20s)`,
       }
     }
     default:
-      return {
-        intent:        { type: 'get_balance', token: 'all', chain: 'arc' },
-        gas_fee:       '$0',
-        total_display: '—',
-      }
+      return { intent: { type: 'get_balance', token: 'all', chain: 'arc' }, gas_fee: '$0', total_display: '—' }
   }
 }
