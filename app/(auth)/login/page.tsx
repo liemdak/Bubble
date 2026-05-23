@@ -1,54 +1,100 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BubbleLogo } from '@/components/ui/BubbleLogo'
+
+// EIP-6963 types — multi-wallet discovery standard
+interface EIP6963ProviderInfo {
+  rdns:  string
+  uuid:  string
+  name:  string
+  icon:  string   // data URI
+}
+interface EIP6963Provider {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+}
+interface EIP6963Detail {
+  info:     EIP6963ProviderInfo
+  provider: EIP6963Provider
+}
 
 type Step = 'idle' | 'connecting' | 'signing' | 'verifying' | 'done' | 'error'
 
 function LoginCard() {
-  const router = useRouter()
+  const router      = useRouter()
   const searchParams = useSearchParams()
-  const from = searchParams.get('from') ?? '/chat'
+  const from        = searchParams.get('from') ?? '/chat'
 
-  const [step, setStep] = useState<Step>('idle')
-  const [error, setError] = useState<string | null>(null)
+  const [step,     setStep]     = useState<Step>('idle')
+  const [error,    setError]    = useState<string | null>(null)
+  const [wallets,  setWallets]  = useState<EIP6963Detail[]>([])
+  const [selected, setSelected] = useState<EIP6963Detail | null>(null)
+  const [stepLabel, setStepLabel] = useState('')
 
-  async function handleConnect() {
-    setError(null)
+  // ── Discover wallets via EIP-6963 ────────────────────────────────
+  useEffect(() => {
+    const seen = new Set<string>()
+    const found: EIP6963Detail[] = []
 
-    const eth = (window as Window & {
-      ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> }
-    }).ethereum
-
-    if (!eth) {
-      setError('No wallet found. Please install MetaMask or another browser wallet.')
-      return
+    function onAnnounce(e: Event) {
+      const detail = (e as CustomEvent<EIP6963Detail>).detail
+      if (!detail?.info?.uuid || seen.has(detail.info.uuid)) return
+      seen.add(detail.info.uuid)
+      found.push(detail)
+      setWallets([...found])
     }
 
+    window.addEventListener('eip6963:announceProvider', onAnnounce)
+    window.dispatchEvent(new Event('eip6963:requestProvider'))
+
+    // Fallback: if no EIP-6963, detect legacy window.ethereum
+    const timer = setTimeout(() => {
+      if (found.length === 0) {
+        const eth = (window as unknown as { ethereum?: EIP6963Provider }).ethereum
+        if (eth) {
+          const legacy: EIP6963Detail = {
+            info: { rdns: 'legacy', uuid: 'legacy', name: 'Browser Wallet', icon: '' },
+            provider: eth,
+          }
+          setWallets([legacy])
+        }
+      }
+    }, 300)
+
+    return () => {
+      window.removeEventListener('eip6963:announceProvider', onAnnounce)
+      clearTimeout(timer)
+    }
+  }, [])
+
+  // ── Connect flow ─────────────────────────────────────────────────
+  async function handleConnect(wallet: EIP6963Detail) {
+    setSelected(wallet)
+    setError(null)
+
     try {
-      // 1. Connect wallet
       setStep('connecting')
-      const accounts = await eth.request({ method: 'eth_requestAccounts' }) as string[]
-      const address = accounts[0]
+      setStepLabel(`Connecting to ${wallet.info.name}…`)
+      const accounts = await wallet.provider.request({ method: 'eth_requestAccounts' }) as string[]
+      const address  = accounts[0]
       if (!address) throw new Error('No account selected')
 
-      // 2. Get nonce
       const nonceRes = await fetch(`/api/auth/nonce?address=${address}`)
       const { nonce, error: nonceErr } = await nonceRes.json()
       if (nonceErr) throw new Error(nonceErr)
 
-      // 3. Sign message (no gas)
       setStep('signing')
+      setStepLabel('Sign the message in your wallet…')
       const message = `Welcome to Bubble 🫧\n\nSign this message to connect your wallet. This does not cost any gas.\n\nWallet: ${address}\nNonce: ${nonce}`
-      const signature = await eth.request({
+      const signature = await wallet.provider.request({
         method: 'personal_sign',
         params: [message, address],
       }) as string
 
-      // 4. Verify + create session
       setStep('verifying')
-      const res = await fetch('/api/auth/verify', {
+      setStepLabel('Verifying…')
+      const res  = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, signature, nonce }),
@@ -56,7 +102,6 @@ function LoginCard() {
       const data = await res.json()
       if (!res.ok || !data.success) throw new Error(data.error ?? 'Verification failed')
 
-      // 5. Enter app
       setStep('done')
       router.push(from)
       router.refresh()
@@ -64,8 +109,7 @@ function LoginCard() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
       if (msg.toLowerCase().includes('rejected') || msg.toLowerCase().includes('denied')) {
-        setStep('idle')
-        return
+        setStep('idle'); setSelected(null); return
       }
       setError(msg)
       setStep('error')
@@ -74,84 +118,137 @@ function LoginCard() {
 
   const isLoading = ['connecting', 'signing', 'verifying', 'done'].includes(step)
 
-  const labels: Record<Step, string> = {
-    idle:       'Connect Wallet',
-    connecting: 'Connecting…',
-    signing:    'Check your wallet to sign…',
-    verifying:  'Verifying…',
-    done:       'Welcome! ✓',
-    error:      'Connect Wallet',
-  }
-
-  const icons: Record<Step, string> = {
-    idle:       '🦊',
-    connecting: '🔗',
-    signing:    '✍️',
-    verifying:  '⏳',
-    done:       '✓',
-    error:      '🦊',
-  }
-
   return (
     <div style={{
-      width: '100%',
-      maxWidth: 400,
+      width: '100%', maxWidth: 400,
       background: 'rgba(255,255,255,0.72)',
       backdropFilter: 'blur(24px)',
       WebkitBackdropFilter: 'blur(24px)',
       border: '1px solid rgba(255,255,255,0.85)',
-      borderRadius: 24,
-      padding: '40px 32px',
-      boxShadow: '0 8px 40px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.9)',
+      borderRadius: 24, padding: '36px 28px',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.9)',
     }}>
 
       {/* Logo */}
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-          <BubbleLogo size={52} />
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+          <BubbleLogo size={48} />
         </div>
-        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Bubble</div>
-        <div style={{ fontSize: 13, color: '#666', lineHeight: 1.55 }}>
-          Connect your wallet to get started.<br />No account needed.
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Connect your wallet</div>
+        <div style={{ fontSize: 12, color: '#777', lineHeight: 1.55 }}>
+          Sign in instantly — no account needed.
         </div>
       </div>
 
-      {/* Connect button */}
-      <button
-        onClick={handleConnect}
-        disabled={isLoading}
-        style={{
-          width: '100%',
-          padding: '14px 0',
-          background: isLoading ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.88)',
-          color: isLoading ? '#999' : '#fff',
-          border: 'none',
+      {/* Loading state */}
+      {isLoading ? (
+        <div style={{
+          padding: '20px 16px',
+          background: 'rgba(0,0,0,0.03)',
           borderRadius: 14,
-          fontSize: 15,
-          fontWeight: 700,
-          cursor: isLoading ? 'wait' : 'pointer',
-          fontFamily: 'inherit',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          transition: 'all 0.15s ease',
-          boxShadow: isLoading ? 'none' : '0 2px 12px rgba(0,0,0,0.18)',
-        }}
-      >
-        <span>{icons[step]}</span>
-        <span>{labels[step]}</span>
-      </button>
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 10 }}>
+            {step === 'signing' ? '✍️' : step === 'done' ? '✅' : '⏳'}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+            {step === 'done' ? 'Welcome!' : selected?.info.name}
+          </div>
+          <div style={{ fontSize: 12, color: '#888' }}>{stepLabel}</div>
 
-      {/* Progress indicator */}
-      {isLoading && step !== 'done' && (
-        <div style={{ marginTop: 12, display: 'flex', gap: 4, justifyContent: 'center' }}>
-          {(['connecting', 'signing', 'verifying'] as Step[]).map((s) => (
-            <div key={s} style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: step === s ? '#000' : 'rgba(0,0,0,0.15)',
-              transition: 'background 0.2s',
-            }} />
+          {step !== 'done' && (
+            <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 14 }}>
+              {(['connecting', 'signing', 'verifying'] as Step[]).map((s) => (
+                <div key={s} style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: step === s ? '#000' : 'rgba(0,0,0,0.12)',
+                  transition: 'background 0.2s',
+                }} />
+              ))}
+            </div>
+          )}
+        </div>
+
+      ) : wallets.length === 0 ? (
+        /* No wallet detected */
+        <div style={{
+          padding: '20px 16px', borderRadius: 14,
+          background: 'rgba(255,80,80,0.05)',
+          border: '1px solid rgba(255,80,80,0.15)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>🦊</div>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>No wallet detected</div>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+            Install a browser wallet extension to continue.
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {[
+              { name: 'MetaMask',       href: 'https://metamask.io/download/' },
+              { name: 'Rabby',          href: 'https://rabby.io' },
+              { name: 'Coinbase Wallet',href: 'https://www.coinbase.com/wallet/downloads' },
+            ].map(({ name, href }) => (
+              <a key={name} href={href} target="_blank" rel="noopener noreferrer" style={{
+                fontSize: 11, fontWeight: 600,
+                background: 'rgba(0,0,0,0.06)',
+                border: '1px solid rgba(0,0,0,0.1)',
+                borderRadius: 8, padding: '5px 10px',
+                textDecoration: 'none', color: '#333',
+              }}>
+                {name}
+              </a>
+            ))}
+          </div>
+        </div>
+
+      ) : (
+        /* Wallet list */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#999', marginBottom: 4, letterSpacing: '0.06em' }}>
+            DETECTED WALLETS
+          </div>
+          {wallets.map((w) => (
+            <button
+              key={w.info.uuid}
+              onClick={() => handleConnect(w)}
+              style={{
+                width: '100%', padding: '12px 14px',
+                background: 'rgba(255,255,255,0.8)',
+                border: '1px solid rgba(0,0,0,0.10)',
+                borderRadius: 12,
+                display: 'flex', alignItems: 'center', gap: 12,
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.12s',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(163,230,53,0.10)'
+                e.currentTarget.style.borderColor = 'rgba(163,230,53,0.4)'
+                e.currentTarget.style.transform = 'translateY(-1px)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.8)'
+                e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'
+                e.currentTarget.style.transform = 'none'
+              }}
+            >
+              {/* Wallet icon or fallback */}
+              {w.info.icon ? (
+                <img src={w.info.icon} alt={w.info.name} style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0 }} />
+              ) : (
+                <div style={{
+                  width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                  background: 'rgba(0,0,0,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 18,
+                }}>🦊</div>
+              )}
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{w.info.name}</div>
+                <div style={{ fontSize: 11, color: '#999' }}>Click to connect</div>
+              </div>
+              <div style={{ marginLeft: 'auto', fontSize: 16, color: '#ccc' }}>→</div>
+            </button>
           ))}
         </div>
       )}
@@ -159,51 +256,30 @@ function LoginCard() {
       {/* Error */}
       {error && (
         <div style={{
-          marginTop: 14,
-          padding: '10px 14px',
+          marginTop: 12, padding: '10px 14px',
           background: 'rgba(255,80,80,0.08)',
           border: '1px solid rgba(255,80,80,0.2)',
-          borderRadius: 10,
-          fontSize: 12,
-          color: '#c00',
-          lineHeight: 1.5,
+          borderRadius: 10, fontSize: 12, color: '#c00', lineHeight: 1.5,
         }}>
           {error}
+          <button
+            onClick={() => { setError(null); setStep('idle'); setSelected(null) }}
+            style={{ display: 'block', marginTop: 6, fontSize: 11, color: '#888', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
+          >
+            Try again
+          </button>
         </div>
       )}
 
-      {/* Steps explanation */}
-      <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {[
-          { icon: '🔗', label: 'Connect', text: 'MetaMask, Rainbow, Coinbase…' },
-          { icon: '✍️', label: 'Sign',    text: 'Prove ownership — zero gas cost' },
-          { icon: '⚡', label: 'In',      text: 'Enter Bubble instantly' },
-        ].map(({ icon, label, text }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: 'rgba(0,0,0,0.04)',
-              border: '1px solid rgba(0,0,0,0.06)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, flexShrink: 0,
-            }}>{icon}</div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700 }}>{label}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>{text}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Footer badge */}
+      {/* Footer */}
       <div style={{
-        marginTop: 24, paddingTop: 20,
+        marginTop: 20, paddingTop: 16,
         borderTop: '1px solid rgba(0,0,0,0.06)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         gap: 6, fontSize: 11, color: '#bbb',
       }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#a3e635' }} />
-        Built on Arc · Powered by Circle
+        Built on Arc · Powered by Circle · Sign is free
       </div>
     </div>
   )

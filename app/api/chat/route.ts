@@ -3,32 +3,37 @@ import { parseIntent } from '@/lib/anthropic/mockParser'
 import { getSession } from '@/lib/auth/session'
 import type { ConfirmationCard } from '@/types/intent'
 
-const SYSTEM_PROMPT = `You are Bubble — a friendly payment assistant for stablecoin transfers.
+const SYSTEM_PROMPT = `You are Bubble — a smart, friendly assistant built into a stablecoin payment app on Arc blockchain.
 
-LANGUAGE: Always respond in the same language the user writes in. Vietnamese → Vietnamese. English → English.
+LANGUAGE: Always respond in the same language the user writes in. Vietnamese → Vietnamese. English → English. Mix if they mix.
 
-GREETINGS: If the user greets you (hello, hi, chào, xin chào, hey, etc.), reply warmly in 1 sentence, say you help with stablecoin payments, then give a quick example.
+PERSONALITY: Warm, helpful, slightly playful. You can discuss anything — you're not limited to payments. Think of yourself as a knowledgeable friend who happens to be really good at crypto payments.
 
-SCOPE — You ONLY help with:
-- Sending USDC, EURC, or USYC to contacts or wallet addresses → use send_payment
-- Checking wallet balance → use get_balance
-- Swapping tokens (USDC ↔ EURC ↔ USYC) → use swap_tokens
-- Bridging across chains (Arc, Ethereum, Solana, Base) → use bridge_tokens
-- Exchange rates → use get_rate
-- Managing contacts → use manage_contact
-- Gas fees, Arc network info → answer directly
+PAYMENT CAPABILITIES (use tools for these):
+- Send USDC, EURC, USYC → send_payment
+- Check balance → get_balance
+- Swap tokens → swap_tokens
+- Bridge across chains → bridge_tokens
+- Exchange rates → get_rate
+- Manage contacts → manage_contact
+- Look up Arc docs, contracts, APIs → search_arc_docs
 
-OUT OF SCOPE: For anything unrelated, reply in user's language:
-- English: "I'm a payment assistant. Try: 'send 50 USDC to Mike' or 'check my balance'."
-- Vietnamese: "Mình chỉ hỗ trợ thanh toán stablecoin. Thử: 'gửi 50 USDC cho Mike' hoặc 'kiểm tra số dư'."
-
-RULES:
-- Never invent wallet addresses
-- Always use a tool call for payment actions
-- If a contact name is not found, ask the user to provide their wallet address
-- Be concise — 1-2 sentences max for text replies
+PAYMENT RULES:
+- Never invent wallet addresses — only use ones the user provides
+- Always use a tool call for payment actions (send, swap, bridge)
 - Gas on Arc ≈ $0.006, sponsored automatically
-- Default chain: arc`
+- Default chain: arc (fastest, sub-second)
+- Supported tokens: USDC, EURC, USYC
+- Supported chains: arc, ethereum, solana, base
+
+KNOWLEDGE:
+- Arc is an EVM blockchain built by Circle, optimized for stablecoin payments
+- Sub-second finality, ~$0.006 gas, gas sponsored by Circle
+- Circle CCTP enables trustless USDC bridging across chains
+- Circle Developer Controlled Wallets: server-side wallets created via Circle API
+- You have access to Arc docs via search_arc_docs tool
+
+Be concise but complete. For payments always confirm before executing.`
 
 export async function POST(req: NextRequest) {
   try {
@@ -202,6 +207,11 @@ async function handleGroq(
       return NextResponse.json({ type: 'text', message: 'Contacts feature coming soon. You can send to any wallet address directly.' })
     }
 
+    if (fnName === 'search_arc_docs') {
+      const result = await searchArcDocs(args.query ?? '')
+      return NextResponse.json({ type: 'text', message: result })
+    }
+
     // Confirmation-required actions
     const card = buildConfirmCard(fnName, args)
     return NextResponse.json({ type: 'confirm', card })
@@ -261,4 +271,62 @@ function buildConfirmCard(intentType: string, args: Record<string, string>): Con
     default:
       return { intent: { type: 'get_balance', token: 'all', chain: 'arc' }, gas_fee: '$0', total_display: '—' }
   }
+}
+
+/**
+ * Search Arc docs via Arc MCP server (JSON-RPC over HTTP).
+ * Falls back to curated answers if MCP is unreachable.
+ */
+async function searchArcDocs(query: string): Promise<string> {
+  try {
+    const res = await fetch('https://docs.arc.io/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: 'search_arc_docs',
+          arguments: { query },
+        },
+        id: 1,
+      }),
+      signal: AbortSignal.timeout(8000),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      const content = data?.result?.content
+      if (Array.isArray(content)) {
+        const text = content.map((c: { text?: string }) => c.text).filter(Boolean).join('\n\n')
+        if (text) return `📚 **Arc Docs**\n\n${text}`
+      }
+    }
+  } catch (err) {
+    console.error('[searchArcDocs] MCP fetch failed:', err)
+  }
+
+  // Curated fallback for common Arc questions
+  const q = query.toLowerCase()
+
+  if (q.includes('usdc') && (q.includes('address') || q.includes('contract'))) {
+    return '📚 **Arc Docs — USDC**\n\nUSDC on Arc Testnet: check https://docs.arc.io/arc/references/contract-addresses\n\nArc uses Circle\'s native USDC (not bridged). Gas fees are paid in USDC (~$0.006/tx), sponsored by Circle Gas Station for developer-controlled wallets.'
+  }
+  if (q.includes('gas') || q.includes('fee')) {
+    return '📚 **Arc Docs — Gas**\n\n• Gas token: USDC (native)\n• Cost: ~$0.006 per transaction\n• Circle Gas Station sponsors fees for developer-controlled wallets (zero cost to users)\n• No ETH needed on Arc'
+  }
+  if (q.includes('rpc') || q.includes('chain id') || q.includes('network')) {
+    return '📚 **Arc Docs — Network**\n\n• Chain ID: 5042002\n• RPC: https://rpc.testnet.arc.network\n• Explorer: https://testnet.arcscan.app\n• Block time: ~0.48s\n• Finality: deterministic, sub-second'
+  }
+  if (q.includes('cctp') || q.includes('bridge')) {
+    return '📚 **Arc Docs — CCTP Bridge**\n\nArc supports Circle CCTP v2 for bridging USDC:\n• Burn on source chain → Attestation → Mint on destination\n• ~20 second transfer time\n• Supported: Arc ↔ Ethereum, Base, Arbitrum, Optimism, Polygon, Avalanche, Solana'
+  }
+  if (q.includes('faucet') || q.includes('testnet') || q.includes('test usdc')) {
+    return '📚 **Arc Docs — Faucet**\n\nGet free testnet USDC:\n1. Go to https://faucet.circle.com\n2. Select "Arc Testnet"\n3. Enter your wallet address\n4. Receive 10 USDC instantly'
+  }
+
+  return `📚 **Arc Docs**\n\nI couldn't fetch live Arc docs for "${query}" right now.\n\nTry visiting: https://docs.arc.io\n\nOr ask me something specific like "Arc gas fees", "USDC contract address", "how to bridge", or "testnet RPC".`
 }

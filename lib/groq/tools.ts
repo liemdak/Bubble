@@ -13,7 +13,7 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
           recipient_address: { type: 'string', description: 'Wallet address starting with 0x' },
           amount:            { type: 'string', description: 'Amount as string, e.g. 50' },
           token:             { type: 'string', enum: ['USDC', 'EURC', 'USYC'] },
-          chain:             { type: 'string', enum: ['arc', 'ethereum', 'solana', 'base'], description: 'Default: arc' },
+          chain:             { type: 'string', enum: ['arc', 'ethereum', 'solana', 'base'] },
         },
         required: ['amount', 'token'],
       },
@@ -23,14 +23,14 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'swap_tokens',
-      description: 'Swap stablecoins on the same chain, e.g. 100 USDC to EURC',
+      description: 'Swap stablecoins on the same chain',
       parameters: {
         type: 'object',
         properties: {
           token_in:  { type: 'string', enum: ['USDC', 'EURC', 'USYC'] },
           token_out: { type: 'string', enum: ['USDC', 'EURC', 'USYC'] },
-          amount_in: { type: 'string', description: 'Amount to sell' },
-          chain:     { type: 'string', description: 'Default: arc' },
+          amount_in: { type: 'string' },
+          chain:     { type: 'string' },
         },
         required: ['token_in', 'token_out', 'amount_in'],
       },
@@ -61,8 +61,8 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
       parameters: {
         type: 'object',
         properties: {
-          token: { type: 'string', enum: ['USDC', 'EURC', 'USYC', 'all'], description: 'Default: all' },
-          chain: { type: 'string', description: 'Default: arc' },
+          token: { type: 'string', enum: ['USDC', 'EURC', 'USYC', 'all'] },
+          chain: { type: 'string' },
         },
       },
     },
@@ -77,7 +77,7 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
         properties: {
           token_in:  { type: 'string', enum: ['USDC', 'EURC', 'USYC'] },
           token_out: { type: 'string', enum: ['USDC', 'EURC', 'USYC'] },
-          amount:    { type: 'string', description: 'Amount to quote, default: 1' },
+          amount:    { type: 'string' },
         },
         required: ['token_in', 'token_out'],
       },
@@ -94,9 +94,23 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
           action:         { type: 'string', enum: ['add', 'lookup', 'list'] },
           name:           { type: 'string' },
           wallet_address: { type: 'string' },
-          chain:          { type: 'string', description: 'Default: arc' },
+          chain:          { type: 'string' },
         },
         required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_arc_docs',
+      description: 'Search Arc blockchain documentation for technical info: contract addresses, APIs, gas, CCTP, Arc network specs, Circle SDK usage, testnet details',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'What to look up in Arc docs' },
+        },
+        required: ['query'],
       },
     },
   },
