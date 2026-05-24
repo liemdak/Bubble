@@ -45,10 +45,13 @@ export async function POST(req: NextRequest) {
     const session = await getSession()
     const userAddress = session?.address ?? null
     const circleWalletId = session?.circleWalletId ?? null
+    // Circle wallet address = nơi funds thực sự nằm
+    const circleWalletAddress = session?.circleWalletAddress ?? null
 
-    // ── QR shortcut ──────────────────────────────────────────────────
+    // ── QR shortcut — hiển thị Circle wallet address để nhận tiền ────
     if (/\bqr\b|my qr|receive|payment link/i.test(message)) {
-      const address = userAddress ?? '0x0000000000000000000000000000000000000000'
+      // Dùng Circle wallet address (nơi nhận tiền), không phải MetaMask
+      const address = circleWalletAddress ?? userAddress ?? '0x0000000000000000000000000000000000000000'
       return NextResponse.json({
         type: 'qr',
         address,
@@ -56,16 +59,16 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── Balance shortcut — bypass AI, always fetch real data ─────────
+    // ── Balance shortcut — đọc từ Circle wallet ──────────────────────
     if (/balance|how much|số dư|xem số dư|kiểm tra ví|check.*balance|my balance|wallet balance/i.test(message)) {
-      const msg = await fetchRealBalance(circleWalletId, userAddress)
+      const msg = await fetchRealBalance(circleWalletId, circleWalletAddress ?? userAddress)
       return NextResponse.json({ type: 'text', message: msg })
     }
 
     // ── Groq (primary) ───────────────────────────────────────────────
     if (process.env.GROQ_API_KEY) {
       try {
-        return await handleGroq(message, userAddress, circleWalletId)
+        return await handleGroq(message, userAddress, circleWalletId, circleWalletAddress)
       } catch (err) {
         console.error('[/api/chat] Groq error — falling back to mock:', err)
       }
@@ -106,25 +109,34 @@ async function handleGroq(
   message: string,
   userAddress: string | null,
   circleWalletId: string | null,
+  circleWalletAddress: string | null = null,
 ) {
   const { getGroqClient } = await import('@/lib/groq/client')
   const { PAYMENT_TOOLS } = await import('@/lib/groq/tools')
   const groq = getGroqClient()
 
-  const system = userAddress
-    ? `${SYSTEM_PROMPT}\n\nUser wallet address: ${userAddress}`
-    : SYSTEM_PROMPT
+  // Cung cấp context đầy đủ cho AI: Circle wallet là nơi dùng để giao dịch
+  const walletContext = circleWalletAddress
+    ? `\n\nUser's Circle wallet (for transactions): ${circleWalletAddress}\nUser's MetaMask address (identity only): ${userAddress ?? 'not set'}`
+    : userAddress
+      ? `\n\nUser wallet address: ${userAddress}`
+      : ''
+
+  const system = SYSTEM_PROMPT + walletContext
+
+  // Giới hạn độ dài message để tránh spam
+  const safeMessage = message.slice(0, 2000)
 
   const completion = await groq.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
+    model: 'llama-3.3-70b-versatile',   // Upgrade: 70b chính xác hơn 8b
     messages: [
       { role: 'system', content: system },
-      { role: 'user', content: message },
+      { role: 'user', content: safeMessage },
     ],
     tools: PAYMENT_TOOLS,
     tool_choice: 'auto',
-    temperature: 0.1,
-    max_tokens: 512,
+    temperature: 0.1,    // Thấp = intent parsing ổn định
+    max_tokens: 1024,    // Tăng từ 512 cho Arc docs responses
   })
 
   const choice = completion.choices[0]

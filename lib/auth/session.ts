@@ -12,8 +12,9 @@ const SECRET = new TextEncoder().encode(
 const EXPIRES_IN = 60 * 60 * 24 * 7 // 7 days
 
 export interface Session {
-  address: string        // 0x wallet address — primary user ID
-  circleWalletId?: string
+  address: string              // MetaMask address — chỉ dùng để xác thực danh tính
+  circleWalletId?: string      // Circle dev wallet ID (để gọi Circle SDK)
+  circleWalletAddress?: string // Circle dev wallet address (để đọc balance on-chain)
   displayName?: string
 }
 

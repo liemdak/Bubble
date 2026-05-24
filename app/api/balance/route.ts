@@ -6,17 +6,23 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/balance
- * Reads token balances directly from Arc Testnet blockchain via viem.
- * Uses the user's connected wallet address (from session) — NOT Circle dev wallets.
+ * Reads token balances from Arc Testnet blockchain via viem.
+ *
+ * Address priority:
+ *  1. ?address= query param (explicit lookup)
+ *  2. session.circleWalletAddress (Circle dev wallet — where app funds live)
+ *  3. session.address (MetaMask address — fallback for users not yet set up)
  */
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession()
-    const userAddress = session?.address
 
-    // Allow explicit address override (for sharing/lookup)
     const queryAddress = req.nextUrl.searchParams.get('address')
-    const address = queryAddress ?? userAddress
+
+    // Use Circle wallet address as primary (funds live here after deposit)
+    const address = queryAddress
+      ?? session?.circleWalletAddress
+      ?? session?.address
 
     if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
       return NextResponse.json({
@@ -27,9 +33,11 @@ export async function GET(req: NextRequest) {
         totalUsyc: '0.00',
         totalEquivalent: '0.00',
         fetchedAt: new Date().toISOString(),
-        _info: 'No wallet address in session.',
+        _info: 'No wallet connected.',
       })
     }
+
+    const isCircleWallet = address === session?.circleWalletAddress
 
     // Read balances directly from blockchain
     const balances = await readWalletBalances(address)
@@ -46,12 +54,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       type: 'unified',
       address,
+      walletType: isCircleWallet ? 'circle' : 'metamask',
       wallets: [{
-        walletId: address,
+        walletId:   address,
         address,
         blockchain: 'ARC-TESTNET',
-        chain: 'arc',
-        balances: balances.map(b => ({
+        chain:      'arc',
+        balances:   balances.map(b => ({
           token:      b.token,
           amount:     b.amount,
           chain:      'arc',
@@ -59,12 +68,15 @@ export async function GET(req: NextRequest) {
           updateDate: new Date().toISOString(),
         })),
       }],
-      totalUsdc:      parseFloat(usdc).toFixed(2),
-      totalEurc:      parseFloat(eurc).toFixed(2),
-      totalUsyc:      parseFloat(usyc).toFixed(2),
+      totalUsdc:       parseFloat(usdc).toFixed(2),
+      totalEurc:       parseFloat(eurc).toFixed(2),
+      totalUsyc:       parseFloat(usyc).toFixed(2),
       totalEquivalent: equivalent,
-      fetchedAt: new Date().toISOString(),
-      contracts: TOKEN_CONTRACTS,
+      fetchedAt:       new Date().toISOString(),
+      contracts:       TOKEN_CONTRACTS,
+      // Pass both addresses to UI for deposit flow
+      circleWalletAddress: session?.circleWalletAddress,
+      metaMaskAddress:     session?.address,
     })
 
   } catch (err) {

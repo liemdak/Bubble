@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendTokens, waitForTx } from '@/lib/circle/transactions'
 import { getCircleClient } from '@/lib/circle/client'
+import { getSession } from '@/lib/auth/session'
 import type { PaymentIntent, SwapIntent, BridgeIntent } from '@/types/intent'
 
 /**
  * POST /api/execute
  * Executes a confirmed payment intent via Circle Developer-Controlled Wallets + App Kit.
  *
- * Body: { intent: PaymentIntent, resolved_address?: string }
- *
  * Security rules (enforced server-side):
- *  1. Address must match 0x + 40 hex chars
- *  2. Amount must be positive
- *  3. Token must be USDC | EURC | USYC
- *  4. walletId resolved from server (never trusted from client)
+ *  1. User must be authenticated (valid session)
+ *  2. Wallet resolved from session — never trusted from client body
+ *  3. Address validated (0x + 40 hex chars)
+ *  4. Amount validated (positive number)
+ *  5. Token validated (USDC | EURC | USYC)
  */
 export async function POST(req: NextRequest) {
   try {
+    // ── Auth check ────────────────────────────────────────────────────
+    const session = await getSession()
+    if (!session?.address) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
     const body = await req.json()
     const intent: PaymentIntent = body.intent
 
@@ -24,11 +30,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No intent provided' }, { status: 400 })
     }
 
+    // Pass session wallet info — never resolve from client body
+    const walletInfo = session.circleWalletId && session.circleWalletAddress
+      ? { id: session.circleWalletId, address: session.circleWalletAddress }
+      : null
+
     switch (intent.type) {
-      case 'send_payment':  return await executeSend(intent)
-      case 'swap_tokens':   return await executeSwap(intent)
-      case 'bridge_tokens': return await executeBridge(intent)
-      case 'get_balance':   return await executeBalance()
+      case 'send_payment':  return await executeSend(intent, walletInfo)
+      case 'swap_tokens':   return await executeSwap(intent, walletInfo)
+      case 'bridge_tokens': return await executeBridge(intent, walletInfo)
+      case 'get_balance':   return await executeBalance(walletInfo?.address ?? session.address)
       default:
         return NextResponse.json(
           { error: `Intent type '${(intent as PaymentIntent).type}' execution not yet implemented` },
@@ -44,7 +55,10 @@ export async function POST(req: NextRequest) {
 
 // ── Send ─────────────────────────────────────────────────────────────────────
 
-async function executeSend(intent: Extract<PaymentIntent, { type: 'send_payment' }>) {
+async function executeSend(
+  intent: Extract<PaymentIntent, { type: 'send_payment' }>,
+  sessionWallet: WalletInfo | null,
+) {
   // 1. Validate address
   const addr = intent.recipient_address
   if (!addr || !/^0x[0-9a-fA-F]{40}$/.test(addr)) {
@@ -66,11 +80,11 @@ async function executeSend(intent: Extract<PaymentIntent, { type: 'send_payment'
     return NextResponse.json({ error: 'Unsupported token' }, { status: 400 })
   }
 
-  // 4. Resolve the sending wallet from server (never trust client)
-  const wallet = await resolveUserWallet(intent.chain ?? 'arc')
+  // 4. Use wallet from session (already verified server-side) or fallback to API lookup
+  const wallet = sessionWallet ?? await resolveUserWallet(intent.chain ?? 'arc')
   if (!wallet) {
     return NextResponse.json(
-      { error: 'No Circle wallet found for this chain. Please set up a Circle wallet first.' },
+      { error: 'No Circle wallet found. Please log out and log in again to set up your wallet.' },
       { status: 404 }
     )
   }
@@ -104,7 +118,7 @@ async function executeSend(intent: Extract<PaymentIntent, { type: 'send_payment'
 
 // ── Swap ──────────────────────────────────────────────────────────────────────
 
-async function executeSwap(intent: SwapIntent) {
+async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null) {
   const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, SwapChain } = await import('@circle-fin/app-kit')
 
@@ -116,11 +130,11 @@ async function executeSwap(intent: SwapIntent) {
     return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
   }
 
-  // Resolve Circle wallet for Arc Testnet
-  const wallet = await resolveUserWallet(intent.chain ?? 'arc')
+  // Use wallet from session or fallback to API lookup
+  const wallet = sessionWallet ?? await resolveUserWallet(intent.chain ?? 'arc')
   if (!wallet) {
     return NextResponse.json({
-      error: 'No Circle developer wallet found. The app needs a Circle wallet to execute swaps.',
+      error: 'No Circle wallet found. Please log out and log in again.',
     }, { status: 404 })
   }
 
@@ -179,7 +193,7 @@ async function executeSwap(intent: SwapIntent) {
 
 // ── Bridge ────────────────────────────────────────────────────────────────────
 
-async function executeBridge(intent: BridgeIntent) {
+async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | null) {
   const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, BridgeChain } = await import('@circle-fin/app-kit')
 
@@ -198,11 +212,11 @@ async function executeBridge(intent: BridgeIntent) {
     }, { status: 400 })
   }
 
-  // Resolve Circle wallet (source chain)
-  const wallet = await resolveUserWallet(intent.from_chain ?? 'arc')
+  // Use wallet from session or fallback to API lookup
+  const wallet = sessionWallet ?? await resolveUserWallet(intent.from_chain ?? 'arc')
   if (!wallet) {
     return NextResponse.json({
-      error: 'No Circle developer wallet found for the source chain.',
+      error: 'No Circle wallet found. Please log out and log in again.',
     }, { status: 404 })
   }
 
@@ -264,18 +278,13 @@ async function executeBridge(intent: BridgeIntent) {
 
 // ── Balance shortcut ──────────────────────────────────────────────────────────
 
-async function executeBalance() {
+async function executeBalance(walletAddress: string) {
   try {
     const { readWalletBalances, formatBalanceMessage } = await import('@/lib/viem/balanceReader')
-    // This uses the Circle wallet address for context, but could be user wallet too
-    const wallet = await resolveUserWallet('arc')
-    if (!wallet?.address) {
-      return NextResponse.json({ txHash: null, message: '💰 No wallet configured.', status: 'complete' })
-    }
-    const balances = await readWalletBalances(wallet.address)
+    const balances = await readWalletBalances(walletAddress)
     return NextResponse.json({
       txHash:  null,
-      message: formatBalanceMessage(balances, wallet.address),
+      message: formatBalanceMessage(balances, walletAddress),
       status:  'complete',
     })
   } catch {

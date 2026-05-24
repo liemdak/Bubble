@@ -7,10 +7,11 @@ import { consumeNonce, buildSignMessage } from '@/lib/auth/nonce'
  * POST /api/auth/verify
  * Body: { address, signature, nonce }
  *
- * 1. Verify nonce is valid (one-time, not expired)
- * 2. Verify signature matches address
- * 3. Issue session cookie
- * 4. Create Circle wallet if first login (TODO: wire Firebase)
+ * Flow:
+ * 1. Verify nonce (one-time, 5-min expiry)
+ * 2. Verify MetaMask signature
+ * 3. Find or create Circle wallet for this user (persistent via refId)
+ * 4. Issue session cookie with both addresses
  */
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired nonce' }, { status: 401 })
     }
 
-    // 3. Verify the signature
+    // 3. Verify the MetaMask signature
     const message = buildSignMessage(address, nonce)
     const valid = await verifyMessage({
       address: address as `0x${string}`,
@@ -43,19 +44,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Signature verification failed' }, { status: 401 })
     }
 
-    // 4. Create/fetch user profile (Firestore — wired when Firebase config added)
-    const circleWalletId = await getOrCreateCircleWallet(address)
+    // 4. Find or create Circle wallet — permanently linked to this MetaMask address
+    const circleWallet = await getOrCreateCircleWallet(address)
 
-    // 5. Issue session cookie
+    // 5. Issue session cookie (7-day expiry)
     await createSession({
       address,
-      circleWalletId: circleWalletId ?? undefined,
+      circleWalletId:      circleWallet?.id,
+      circleWalletAddress: circleWallet?.address,
       displayName: `${address.slice(0, 6)}...${address.slice(-4)}`,
     })
 
     return NextResponse.json({
       success: true,
       address,
+      circleWalletAddress: circleWallet?.address,
       displayName: `${address.slice(0, 6)}...${address.slice(-4)}`,
     })
   } catch (err) {
@@ -64,42 +67,110 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// ── Circle Wallet helpers ────────────────────────────────────────────────────
+
+interface CircleWalletInfo {
+  id: string
+  address: string
+}
+
 /**
- * Get existing Circle wallet or create one for this address.
- * For now: creates a new wallet on Arc Testnet on first login.
- * Future: check Firestore first to avoid duplicate wallets.
+ * In-memory cache for the app's shared wallet set ID.
+ * One wallet set for all users — wallets are differentiated by refId.
  */
-async function getOrCreateCircleWallet(address: string): Promise<string | null> {
+let _appWalletSetId: string | null = null
+
+/**
+ * Get the app's shared wallet set, or create one if it doesn't exist.
+ * Uses CIRCLE_WALLET_SET_ID env var if provided (recommended for production).
+ */
+async function getAppWalletSetId(client: Awaited<ReturnType<typeof import('@/lib/circle/client')['getCircleClient']>>): Promise<string | null> {
+  // 1. Check env var (fastest path — set this in production)
+  if (process.env.CIRCLE_WALLET_SET_ID) {
+    return process.env.CIRCLE_WALLET_SET_ID
+  }
+
+  // 2. Return cached value
+  if (_appWalletSetId) return _appWalletSetId
+
+  // 3. List existing wallet sets → use first one
+  try {
+    const sets = await client.listWalletSets({ pageSize: 1 })
+    const existing = sets.data?.walletSets?.[0]
+    if (existing?.id) {
+      _appWalletSetId = existing.id
+      return _appWalletSetId
+    }
+  } catch {
+    // listWalletSets may not be available — fall through to create
+  }
+
+  // 4. Create a new shared wallet set for the app
+  const created = await client.createWalletSet({ name: 'BubblePay-Users' })
+  _appWalletSetId = created.data?.walletSet?.id ?? null
+  return _appWalletSetId
+}
+
+/**
+ * Find an existing Circle wallet for this MetaMask address, or create one.
+ *
+ * The refId = lowercase MetaMask address ensures the wallet is ALWAYS
+ * recoverable — even if session/DB is lost. This is the permanent link.
+ */
+async function getOrCreateCircleWallet(metaMaskAddress: string): Promise<CircleWalletInfo | null> {
   if (!process.env.CIRCLE_API_KEY || !process.env.CIRCLE_ENTITY_SECRET) {
+    console.warn('[getOrCreateCircleWallet] Circle credentials not set — skipping wallet creation')
     return null
   }
 
   try {
     const { getCircleClient } = await import('@/lib/circle/client')
     const client = getCircleClient()
+    const refId = metaMaskAddress.toLowerCase()
 
-    // Check if wallet already exists for this address tag
-    const existing = await client.listWallets({ pageSize: 50 })
-    const found = existing.data?.wallets?.find(
-      (w) => w.refId === address.toLowerCase()
-    )
-    if (found?.id) return found.id
-
-    // Create new wallet set + wallet for this user
-    const setRes = await client.createWalletSet({
-      name: `Bubble:${address.slice(0, 8)}`,
+    // ── Step 1: Find existing wallet by refId ──────────────────────────────
+    // List all wallets on ARC-TESTNET and find the one linked to this address
+    const listRes = await client.listWallets({
+      blockchain: 'ARC-TESTNET' as const,
+      pageSize: 50,
     })
-    const walletSetId = setRes.data?.walletSet?.id
-    if (!walletSetId) return null
 
+    const existing = listRes.data?.wallets?.find(
+      (w) => w.refId?.toLowerCase() === refId
+    )
+
+    if (existing?.id && existing?.address) {
+      console.log(`[Circle] Found existing wallet for ${refId.slice(0, 8)}... → ${existing.address.slice(0, 10)}...`)
+      return { id: existing.id, address: existing.address }
+    }
+
+    // ── Step 2: Get the app's shared wallet set ────────────────────────────
+    const walletSetId = await getAppWalletSetId(client)
+    if (!walletSetId) {
+      console.error('[getOrCreateCircleWallet] Could not get wallet set ID')
+      return null
+    }
+
+    // ── Step 3: Create new wallet for this user ────────────────────────────
     const walletRes = await client.createWallets({
       walletSetId,
       blockchains: ['ARC-TESTNET'],
       count: 1,
-      metadata: [{ name: address, refId: address.toLowerCase() }],
+      metadata: [{
+        name: `bubble-${metaMaskAddress.slice(0, 10)}`,
+        refId,   // ← permanent link: MetaMask address = refId
+      }],
     })
 
-    return walletRes.data?.wallets?.[0]?.id ?? null
+    const newWallet = walletRes.data?.wallets?.[0]
+    if (!newWallet?.id || !newWallet?.address) {
+      console.error('[getOrCreateCircleWallet] Wallet creation returned no data')
+      return null
+    }
+
+    console.log(`[Circle] Created new wallet for ${refId.slice(0, 8)}... → ${newWallet.address.slice(0, 10)}...`)
+    return { id: newWallet.id, address: newWallet.address }
+
   } catch (err) {
     console.error('[getOrCreateCircleWallet]', err)
     return null
