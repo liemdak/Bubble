@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendTokens, waitForTx } from '@/lib/circle/transactions'
 import { getCircleClient } from '@/lib/circle/client'
 import { getSession } from '@/lib/auth/session'
+import { recordTx } from '@/lib/redis/txHistory'
 import type { PaymentIntent, SwapIntent, BridgeIntent } from '@/types/intent'
 
 /**
@@ -35,10 +36,13 @@ export async function POST(req: NextRequest) {
       ? { id: session.circleWalletId, address: session.circleWalletAddress }
       : null
 
+    // userAddress dùng để ghi tx history
+    const userAddress = session.address
+
     switch (intent.type) {
-      case 'send_payment':  return await executeSend(intent, walletInfo)
-      case 'swap_tokens':   return await executeSwap(intent, walletInfo)
-      case 'bridge_tokens': return await executeBridge(intent, walletInfo)
+      case 'send_payment':  return await executeSend(intent, walletInfo, userAddress)
+      case 'swap_tokens':   return await executeSwap(intent, walletInfo, userAddress)
+      case 'bridge_tokens': return await executeBridge(intent, walletInfo, userAddress)
       case 'get_balance':   return await executeBalance(walletInfo?.address ?? session.address)
       default:
         return NextResponse.json(
@@ -58,6 +62,7 @@ export async function POST(req: NextRequest) {
 async function executeSend(
   intent: Extract<PaymentIntent, { type: 'send_payment' }>,
   sessionWallet: WalletInfo | null,
+  userAddress: string,
 ) {
   // 1. Validate address
   const addr = intent.recipient_address
@@ -108,8 +113,22 @@ async function executeSend(
     }
   }
 
+  const txHash = finalResult.txHash ?? finalResult.circleId
+
+  // Ghi lịch sử — non-blocking, không block response nếu Redis lỗi
+  void recordTx(userAddress, {
+    type:      'send',
+    status:    'complete',
+    toAddress: addr,
+    toName:    intent.recipient_name,
+    amount:    intent.amount,
+    token:     intent.token,
+    txHash,
+    arcScanUrl: finalResult.arcScanUrl,
+  })
+
   return NextResponse.json({
-    txHash:     finalResult.txHash ?? finalResult.circleId,
+    txHash,
     message:    `✅ Sent ${intent.amount} ${intent.token} successfully!`,
     arcScanUrl: finalResult.arcScanUrl,
     status:     finalResult.status,
@@ -118,7 +137,7 @@ async function executeSend(
 
 // ── Swap ──────────────────────────────────────────────────────────────────────
 
-async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null) {
+async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null, userAddress: string) {
   const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, SwapChain } = await import('@circle-fin/app-kit')
 
@@ -166,6 +185,17 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null)
     const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
     const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : undefined
 
+    void recordTx(userAddress, {
+      type:     'swap',
+      status:   'complete',
+      tokenIn:  intent.token_in,
+      tokenOut: intent.token_out,
+      amountIn: result.amountIn,
+      amountOut: result.amountOut,
+      txHash:   result.txHash,
+      arcScanUrl,
+    })
+
     return NextResponse.json({
       txHash:     result.txHash,
       message:    `✅ Swapped ${result.amountIn} ${intent.token_in} → ${result.amountOut ?? '?'} ${intent.token_out}`,
@@ -193,7 +223,7 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null)
 
 // ── Bridge ────────────────────────────────────────────────────────────────────
 
-async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | null) {
+async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | null, userAddress: string) {
   const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, BridgeChain } = await import('@circle-fin/app-kit')
 
@@ -256,6 +286,17 @@ async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | n
     const burnStep = result.steps.find((s) => s.txHash && s.state === 'success')
     const txHash = burnStep?.txHash
     const arcScanUrl = txHash ? `${explorerBase}/tx/${txHash}` : burnStep?.explorerUrl
+
+    void recordTx(userAddress, {
+      type:      'bridge',
+      status:    result.state === 'success' ? 'complete' : 'pending',
+      token:     'USDC',
+      amount:    intent.amount,
+      fromChain: intent.from_chain,
+      toChain:   intent.to_chain,
+      txHash,
+      arcScanUrl,
+    })
 
     return NextResponse.json({
       txHash,
