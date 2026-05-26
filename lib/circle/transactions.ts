@@ -52,7 +52,7 @@ export async function sendTokens(params: SendParams): Promise<TxResult> {
   const paddedAddr = params.destinationAddress.slice(2).toLowerCase().padStart(64, '0')
   const paddedAmt  = amountUnits.toString(16).padStart(64, '0')
   // transfer(address,uint256) selector = 0xa9059cbb
-  const calldata   = `0xa9059cbb${paddedAddr}${paddedAmt}`
+  const calldata = `0xa9059cbb${paddedAddr}${paddedAmt}` as `0x${string}`
 
   const res = await client.createContractExecutionTransaction({
     walletId:        params.walletId,
@@ -107,45 +107,3 @@ export async function waitForTx(circleId: string, maxWaitMs = 30_000): Promise<T
   throw new Error('Transaction timed out — check ArcScan manually')
 }
 
-/**
- * Resolve a Circle token ID by symbol + blockchain using the REST API.
- * Circle SDK has `getToken({ id })` but not a "find by symbol" method,
- * so we call the REST endpoint directly.
- * Caches results in memory for the process lifetime.
- */
-const _tokenCache = new Map<string, string>()
-
-async function resolveTokenId(symbol: string, blockchain: string): Promise<string | null> {
-  const cacheKey = `${symbol}:${blockchain}`
-  if (_tokenCache.has(cacheKey)) return _tokenCache.get(cacheKey)!
-
-  const apiKey = process.env.CIRCLE_API_KEY!
-  const url = `https://api.circle.com/v1/w3s/tokens?blockchain=${encodeURIComponent(blockchain)}&pageSize=50`
-
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-  })
-
-  if (!res.ok) {
-    console.error('[resolveTokenId] Circle tokens API error:', res.status, await res.text())
-    return null
-  }
-
-  const data = await res.json() as {
-    data?: { tokens?: Array<{ id: string; symbol: string; blockchain: string }> }
-  }
-
-  const token = (data.data?.tokens ?? []).find(
-    (t) => t.symbol.toUpperCase() === symbol.toUpperCase()
-  )
-
-  if (token?.id) {
-    _tokenCache.set(cacheKey, token.id)
-    return token.id
-  }
-
-  return null
-}
