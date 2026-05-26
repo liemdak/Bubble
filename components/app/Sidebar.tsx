@@ -52,13 +52,13 @@ export function Sidebar() {
         {/* Toggle button */}
         <button
           onClick={() => { playBubbleTap(); setOpen(true) }}
-          title="Open contacts"
+          title="Quick send"
           style={{
             width: 30, height: 30, borderRadius: 8,
             background: 'transparent', border: 'none',
             cursor: 'pointer', display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-            fontSize: 15, color: 'rgba(255,255,255,0.3)',
+            fontSize: 18, color: 'rgba(255,255,255,0.3)',
             transition: 'background 0.12s, color 0.12s',
           }}
           onMouseEnter={e => {
@@ -70,7 +70,7 @@ export function Sidebar() {
             e.currentTarget.style.color = 'rgba(255,255,255,0.3)'
           }}
         >
-          ☰
+          🫧
         </button>
 
         {/* Contact initials — quick jump */}
@@ -146,36 +146,20 @@ export function Sidebar() {
               <span style={{ fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)' }}>
                 CONTACTS
               </span>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Link
-                  href="/contacts"
-                  onClick={() => setOpen(false)}
-                  style={{
-                    background: '#38bdf8', border: 'none',
-                    borderRadius: 4, padding: '3px 8px',
-                    fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                    boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
-                    color: '#000', textDecoration: 'none',
-                    display: 'inline-flex', alignItems: 'center',
-                  }}
-                >
-                  + Add
-                </Link>
-                <button
-                  onClick={() => setOpen(false)}
-                  style={{
-                    background: 'none', border: 'none',
-                    fontSize: 18, color: 'rgba(255,255,255,0.25)', cursor: 'pointer',
-                    lineHeight: 1, padding: '0 2px',
-                    transition: 'color 0.12s',
-                    fontFamily: 'inherit',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
-                >
-                  ×
-                </button>
-              </div>
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  background: 'none', border: 'none',
+                  fontSize: 18, color: 'rgba(255,255,255,0.25)', cursor: 'pointer',
+                  lineHeight: 1, padding: '0 2px',
+                  transition: 'color 0.12s',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
+              >
+                ×
+              </button>
             </div>
 
             {/* Balance shortcut */}
