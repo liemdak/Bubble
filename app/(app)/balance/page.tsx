@@ -9,7 +9,7 @@ const TOKEN_CONTRACTS: Record<string, string> = {
   EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
   USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
 }
-const ARC_CHAIN_ID = '0x4CAEF2' // 5042002
+const ARC_CHAIN_ID = '0x4CEF52' // 5042002 (verified: 4*16^5 + 12*16^4 + 14*16^3 + 15*16^2 + 5*16 + 2 = 5042002)
 
 const TOKEN_COLOR: Record<string, string> = {
   USDC: '#2775CA',
