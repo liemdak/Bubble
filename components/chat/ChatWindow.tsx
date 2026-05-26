@@ -77,6 +77,38 @@ export function ChatWindow() {
 
   async function handleConfirm(card: ConfirmationCard, cardId: string) {
     setConfirmLoading(true)
+
+    // ── fund_agent: MetaMask ERC-20 transfer (client-side, no server needed) ──
+    if (card.intent.type === 'fund_agent') {
+      try {
+        const { fundAgentViaMetaMask } = await import('@/lib/metamask/fundAgent')
+        const txHash = await fundAgentViaMetaMask(
+          card.intent.agent_address,
+          card.intent.user_address,
+          card.intent.amount,
+          card.intent.token,
+        )
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(),
+          type: 'success',
+          txHash,
+          message: `${card.intent.amount} ${card.intent.token} sent to agent wallet!`,
+          arcScanUrl: `https://testnet.arcscan.app/tx/${txHash}`,
+        }))
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'MetaMask transaction failed.'
+        setMessages((prev) => prev.concat({
+          id: crypto.randomUUID(),
+          type: 'assistant',
+          content: `⚠️ ${msg}`,
+        }))
+      } finally {
+        setConfirmLoading(false)
+      }
+      return
+    }
+
+    // ── All other intents: POST to /api/execute (Circle agent wallet) ──────────
     try {
       const res = await fetch('/api/execute', {
         method: 'POST',

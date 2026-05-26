@@ -48,6 +48,30 @@ export async function POST(req: NextRequest) {
     // Circle wallet address = nơi funds thực sự nằm
     const circleWalletAddress = session?.circleWalletAddress ?? null
 
+    // ── Fund agent shortcut ───────────────────────────────────────────
+    // Detect: "nạp agent", "top up agent", "fund agent", "nạp ví agent", etc.
+    if (/nạp.*(agent|ví agent)|top[\s-]?up.*(agent|wallet)|fund.*(agent|wallet)|chuyển.*agent|(agent|ví agent).*(nạp|tiền)/i.test(message)) {
+      if (!circleWalletAddress) {
+        return NextResponse.json({ type: 'text', message: '⚠️ Agent wallet chưa được khởi tạo. Thử đăng xuất và đăng nhập lại nhé.' })
+      }
+      // Parse amount and token from message
+      const amountMatch = message.match(/(\d+(?:[.,]\d+)?)\s*(usdc|eurc|usyc)?/i)
+      const amount = amountMatch?.[1]?.replace(',', '.') ?? '10'
+      const token  = (amountMatch?.[2]?.toUpperCase() ?? 'USDC') as 'USDC' | 'EURC' | 'USYC'
+      const card: import('@/types/intent').ConfirmationCard = {
+        intent: {
+          type:          'fund_agent',
+          amount,
+          token,
+          agent_address: circleWalletAddress,
+          user_address:  userAddress ?? '',
+        },
+        gas_fee:      '$0.006',
+        total_display: `${amount} ${token} → Agent wallet`,
+      }
+      return NextResponse.json({ type: 'confirm', card })
+    }
+
     // ── QR shortcut — hiển thị Circle wallet address để nhận tiền ────
     if (/\bqr\b|my qr|receive|payment link/i.test(message)) {
       // Dùng Circle wallet address (nơi nhận tiền), không phải MetaMask

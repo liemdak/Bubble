@@ -47,6 +47,14 @@ export interface ContactIntent {
   chain: ChainName
 }
 
+export interface FundAgentIntent {
+  type: 'fund_agent'
+  amount: string
+  token: TokenSymbol
+  agent_address: string   // Circle wallet (destination)
+  user_address:  string   // MetaMask wallet (source)
+}
+
 export type PaymentIntent =
   | SendIntent
   | SwapIntent
@@ -54,6 +62,7 @@ export type PaymentIntent =
   | BalanceIntent
   | RateIntent
   | ContactIntent
+  | FundAgentIntent
 
 export interface ConfirmationCard {
   intent: PaymentIntent

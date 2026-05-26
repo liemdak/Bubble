@@ -16,6 +16,7 @@ const STRIP_COLORS: Record<string, string> = {
   send_payment:  '#2775CA',
   swap_tokens:   '#fbbf25',
   bridge_tokens: '#a3e635',
+  fund_agent:    '#a3e635',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -25,6 +26,7 @@ const ACTION_LABELS: Record<string, string> = {
   get_balance:    'Balance',
   get_rate:       'Rate',
   manage_contact: 'Contact',
+  fund_agent:     'Fund Agent',
 }
 
 export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: ConfirmCardProps) {
@@ -77,23 +79,37 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
 
       {/* Details */}
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-        <CardRow label="To" value={
-          intent.type === 'send_payment'
-            ? `${intent.recipient_name ?? ''} · ${resolved_address ?? intent.recipient_address ?? '—'}`
-            : '—'
-        } />
-        <CardRow label="Amount" value={
-          'amount' in intent
-            ? `${intent.amount} ${'token' in intent ? intent.token : ''}`
-            : 'amount_in' in intent
-            ? `${intent.amount_in} ${intent.token_in} → ${intent.token_out}`
-            : '—'
-        } />
-        <CardRow label="Gas" value={`~${gas_fee} (sponsored)`} />
-        <CardRow label="Chain" value={'chain' in intent ? intent.chain.toUpperCase() : 'ARC'} />
-        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 9 }}>
-          <CardRow label="Total" value={total_display} bold />
-        </div>
+        {intent.type === 'fund_agent' ? (
+          <>
+            <CardRow label="From"   value={`MetaMask · ${intent.user_address.slice(0,6)}...${intent.user_address.slice(-4)}`} />
+            <CardRow label="To"     value={`Agent wallet · ${intent.agent_address.slice(0,6)}...${intent.agent_address.slice(-4)}`} />
+            <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
+            <CardRow label="Via"    value="MetaMask (on-chain transfer)" />
+            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 9 }}>
+              <CardRow label="Total" value={total_display} bold />
+            </div>
+          </>
+        ) : (
+          <>
+            <CardRow label="To" value={
+              intent.type === 'send_payment'
+                ? `${intent.recipient_name ?? ''} · ${resolved_address ?? intent.recipient_address ?? '—'}`
+                : '—'
+            } />
+            <CardRow label="Amount" value={
+              'amount' in intent
+                ? `${intent.amount} ${'token' in intent ? intent.token : ''}`
+                : 'amount_in' in intent
+                ? `${intent.amount_in} ${intent.token_in} → ${intent.token_out}`
+                : '—'
+            } />
+            <CardRow label="Gas" value={`~${gas_fee} (sponsored)`} />
+            <CardRow label="Chain" value={'chain' in intent ? intent.chain.toUpperCase() : 'ARC'} />
+            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 9 }}>
+              <CardRow label="Total" value={total_display} bold />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Buttons */}
