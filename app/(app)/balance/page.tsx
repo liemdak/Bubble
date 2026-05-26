@@ -70,43 +70,37 @@ function DepositModal({
     setStatus('switching')
 
     // ── Step 1: Switch / add Arc Testnet ─────────────────────────────────────
+    // Try switching first; if chain isn't added yet, add it.
+    // Catch ALL errors from switchEthereumChain and fall through to addEthereumChain.
     try {
       await provider.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: ARC_CHAIN_ID }],
       })
-    } catch (switchErr: unknown) {
-      // Code 4902 = chain not added yet
-      const code = (switchErr as { code?: number })?.code
-      if (code === 4902 || code === -32603) {
-        try {
-          await provider.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId:   ARC_CHAIN_ID,
-              chainName: 'Arc Testnet',
-              nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-              rpcUrls: ['https://rpc.testnet.arc.network'],
-              blockExplorerUrls: ['https://testnet.arcscan.app'],
-            }],
-          })
-        } catch (addErr: unknown) {
-          const msg = addErr instanceof Error ? addErr.message : String(addErr)
-          setErrMsg(
-            msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel')
-              ? 'Please approve adding Arc Testnet in MetaMask and try again.'
-              : `Failed to add network: ${msg}`
-          )
-          setStatus('error')
-          return
-        }
-      } else {
-        const msg = switchErr instanceof Error ? switchErr.message : String(switchErr)
-        setErrMsg(
-          msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel')
-            ? 'Please approve the network switch to Arc Testnet and try again.'
-            : `Network switch failed: ${msg}`
-        )
+    } catch {
+      // Any error (4902 unrecognized, -32603 internal, etc.) → try to add the chain
+      try {
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId:   ARC_CHAIN_ID,
+            chainName: 'Arc Testnet',
+            // Arc's native gas token is USDC (6 decimals) — per Arc docs
+            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+            rpcUrls: [
+              'https://rpc.testnet.arc.network',
+              'https://rpc.blockdaemon.testnet.arc.network',
+              'https://rpc.drpc.testnet.arc.network',
+            ],
+            blockExplorerUrls: ['https://testnet.arcscan.app'],
+          }],
+        })
+      } catch (addErr: unknown) {
+        const msg = addErr instanceof Error ? addErr.message : String(addErr)
+        const isReject = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied')
+        setErrMsg(isReject
+          ? 'Please approve adding Arc Testnet in MetaMask and try again.'
+          : `Failed to add Arc Testnet: ${msg}`)
         setStatus('error')
         return
       }

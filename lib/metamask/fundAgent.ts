@@ -40,8 +40,13 @@ async function switchToArc(provider: EthProvider) {
       params: [{
         chainId:   ARC_CHAIN_ID,
         chainName: 'Arc Testnet',
-        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-        rpcUrls: ['https://rpc.testnet.arc.network'],
+        // Arc's native gas token is USDC (6 decimals) — per Arc docs
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+        rpcUrls: [
+          'https://rpc.testnet.arc.network',
+          'https://rpc.blockdaemon.testnet.arc.network',
+          'https://rpc.drpc.testnet.arc.network',
+        ],
         blockExplorerUrls: ['https://testnet.arcscan.app'],
       }],
     })
