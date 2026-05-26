@@ -4,14 +4,12 @@ import { useState } from 'react'
 import { playBubbleTap } from '@/lib/sounds'
 
 const ACTIONS = [
-  // prefillOnly=true → set input text, let user complete before sending
-  // prefillOnly=false → auto-send immediately
-  { label: '💸 Send',       prompt: 'Send  USDC to ',          accent: '#d2fae5', prefillOnly: true  },
-  { label: '🔄 Swap',       prompt: 'Swap  USDC to EURC',      accent: '#fae9ff', prefillOnly: true  },
-  { label: '🌉 Bridge',     prompt: 'Bridge  USDC to ',        accent: '#fef3c8', prefillOnly: true  },
-  { label: '🤖 Fund Agent', prompt: 'Nạp 10 USDC vào agent',   accent: '#ecfccb', prefillOnly: false },
-  { label: '📷 My QR',      prompt: 'Show my QR code',          accent: '#e0f2fe', prefillOnly: false },
-  { label: '💰 Balance',    prompt: 'Check my balance',         accent: '#d2fae5', prefillOnly: false },
+  { label: '💸 Send',       prompt: 'Send  USDC to ',        accent: 'rgba(163,230,53,0.25)',  prefillOnly: true  },
+  { label: '🔄 Swap',       prompt: 'Swap  USDC to EURC',    accent: 'rgba(250,233,255,0.2)',  prefillOnly: true  },
+  { label: '🌉 Bridge',     prompt: 'Bridge  USDC from arc to ethereum', accent: 'rgba(254,243,200,0.2)', prefillOnly: true  },
+  { label: '🤖 Fund Agent', prompt: 'Nạp 10 USDC vào agent', accent: 'rgba(163,230,53,0.2)',   prefillOnly: false },
+  { label: '📷 My QR',      prompt: 'Show my QR code',        accent: 'rgba(224,242,254,0.18)', prefillOnly: false },
+  { label: '💰 Balance',    prompt: 'Check my balance',       accent: 'rgba(163,230,53,0.15)', prefillOnly: false },
 ]
 
 interface QuickActionsProps {
@@ -33,19 +31,15 @@ function ActionChip({
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
       style={{
-        background: hover ? accent : '#ffffff',
-        color: '#000',
-        border: `1.5px solid ${hover ? 'rgba(0,0,0,0.12)' : '#e8e8e8'}`,
+        background: hover ? accent : 'rgba(255,255,255,0.07)',
+        color: '#fff',
+        border: `1px solid ${hover ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`,
         borderRadius: 100,
         padding: '6px 14px',
         fontSize: 12,
         fontWeight: 600,
         cursor: 'pointer',
-        boxShadow: pressed
-          ? 'none'
-          : hover
-          ? 'rgb(10,10,13) 2px 2px 0px 0px'
-          : 'rgb(10,10,13) 1px 1px 0px 0px',
+        boxShadow: pressed ? 'none' : hover ? 'rgb(10,10,13) 2px 2px 0px 0px' : 'none',
         whiteSpace: 'nowrap',
         fontFamily: 'inherit',
         flexShrink: 0,
@@ -65,9 +59,10 @@ export function QuickActions({ onAction, onPrefill }: QuickActionsProps) {
       gap: 7,
       overflowX: 'auto',
       padding: '7px 14px',
-      borderTop: '1px solid rgba(0,0,0,0.05)',
-      background: 'rgba(255,255,255,0.7)',
-      backdropFilter: 'blur(10px)',
+      borderTop: '1px solid rgba(255,255,255,0.06)',
+      background: 'rgba(6,6,15,0.5)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
       scrollbarWidth: 'none',
       flexShrink: 0,
     }}>

@@ -44,10 +44,12 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       style={{
-        background: '#ffffff',
-        border: '1.5px solid #e0e0e0',
-        borderRadius: 12,
-        boxShadow: 'rgb(10,10,13) 3px 3px 0px 0px',
+        background: 'rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: 16,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         overflow: 'hidden',
         marginBottom: 8,
         maxWidth: 340,
@@ -58,20 +60,20 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
         borderLeft: `4px solid ${stripColor}`,
         padding: '12px 14px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid #f5f5f5',
-        background: '#fafafa',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(255,255,255,0.04)',
       }}>
-        <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.02em' }}>{actionLabel}</span>
+        <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.02em', color: '#fff' }}>{actionLabel}</span>
         <button
           onClick={() => { playBubbleTap(); onCancel() }}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 16, color: '#bbb', lineHeight: 1, padding: '2px 4px',
+            fontSize: 16, color: 'rgba(255,255,255,0.3)', lineHeight: 1, padding: '2px 4px',
             borderRadius: 4, transition: 'color 0.12s',
             fontFamily: 'inherit',
           }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#888')}
-          onMouseLeave={e => (e.currentTarget.style.color = '#bbb')}
+          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
         >
           ×
         </button>
@@ -85,7 +87,7 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
             <CardRow label="To"     value={`Agent wallet · ${intent.agent_address.slice(0,6)}...${intent.agent_address.slice(-4)}`} />
             <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
             <CardRow label="Via"    value="MetaMask (on-chain transfer)" />
-            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 9 }}>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
               <CardRow label="Total" value={total_display} bold />
             </div>
           </>
@@ -105,7 +107,7 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
             } />
             <CardRow label="Gas" value={`~${gas_fee} (sponsored)`} />
             <CardRow label="Chain" value={'chain' in intent ? intent.chain.toUpperCase() : 'ARC'} />
-            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 9 }}>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
               <CardRow label="Total" value={total_display} bold />
             </div>
           </>
@@ -123,10 +125,10 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
           onMouseUp={() => setPressConfirm(false)}
           style={{
             flex: 1,
-            background: loading ? '#ddd' : hoverConfirm ? '#b5f03a' : '#a3e635',
+            background: loading ? 'rgba(163,230,53,0.3)' : hoverConfirm ? '#b5f03a' : '#a3e635',
             color: '#000',
             border: 'none',
-            borderRadius: 8,
+            borderRadius: 10,
             padding: '11px',
             fontWeight: 700, fontSize: 13,
             cursor: loading ? 'not-allowed' : 'pointer',
@@ -143,14 +145,13 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
           onMouseEnter={() => setHoverCancel(true)}
           onMouseLeave={() => setHoverCancel(false)}
           style={{
-            background: hoverCancel ? '#f5f5f5' : '#ffffff',
-            color: '#000',
-            border: '1px solid #e0e0e0',
-            borderRadius: 8,
+            background: hoverCancel ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: 10,
             padding: '11px 18px',
             fontWeight: 600, fontSize: 13,
             cursor: 'pointer',
-            boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
             transition: 'background 0.12s',
             fontFamily: 'inherit',
           }}
@@ -165,8 +166,8 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
 function CardRow({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-      <span style={{ fontSize: 11, fontWeight: 500, color: '#aaa', flexShrink: 0 }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: bold ? 700 : 500, textAlign: 'right' }}>{value}</span>
+      <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: bold ? 700 : 500, textAlign: 'right', color: '#fff' }}>{value}</span>
     </div>
   )
 }

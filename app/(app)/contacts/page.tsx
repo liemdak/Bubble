@@ -3,13 +3,26 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Contact } from '@/types/db'
 
+const INPUT_STYLE: React.CSSProperties = {
+  width: '100%',
+  padding: '11px 14px',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 10,
+  fontFamily: 'inherit',
+  fontSize: 13,
+  color: '#fff',
+  outline: 'none',
+  boxSizing: 'border-box',
+  transition: 'border-color 0.15s',
+}
+
 export default function ContactsPage() {
   const [contacts, setContacts]   = useState<Contact[]>([])
   const [loading, setLoading]     = useState(true)
   const [showAdd, setShowAdd]     = useState(false)
   const [deleting, setDeleting]   = useState<string | null>(null)
 
-  // Add form state
   const [name, setName]       = useState('')
   const [address, setAddress] = useState('')
   const [note, setNote]       = useState('')
@@ -63,103 +76,165 @@ export default function ContactsPage() {
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 12px',
-    background: '#fff', border: '1px solid #737373',
-    borderRadius: 4, fontFamily: 'inherit', fontSize: 13,
-    boxSizing: 'border-box',
-  }
-
   return (
-    <div style={{ padding: '24px', maxWidth: 560, margin: '0 auto' }}>
-      {/* Header */}
+    <div style={{ padding: '24px 16px 40px', maxWidth: 560, margin: '0 auto' }}>
+
+      {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>👥 Contacts</h1>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
+            // ADDRESS BOOK
+          </div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#fff' }}>👥 Contacts</h1>
+        </div>
         <button
           onClick={() => { setShowAdd(!showAdd); setError(null) }}
           style={{
-            background: '#a3e635', color: '#000', border: 'none',
-            borderRadius: 4, padding: '8px 16px', fontWeight: 700,
-            fontSize: 13, cursor: 'pointer',
-            boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
+            background: showAdd ? 'rgba(255,255,255,0.08)' : '#a3e635',
+            color: showAdd ? '#fff' : '#000',
+            border: showAdd ? '1px solid rgba(255,255,255,0.15)' : 'none',
+            borderRadius: 8, padding: '9px 16px', fontWeight: 700,
+            fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+            boxShadow: showAdd ? 'none' : 'rgb(10,10,13) 1px 1px 0px 0px',
+            transition: 'all 0.15s',
           }}
         >
           {showAdd ? '✕ Cancel' : '+ Add Contact'}
         </button>
       </div>
 
-      {/* Add form */}
+      {/* ── Add form ── */}
       {showAdd && (
-        <form onSubmit={handleAdd} style={{
-          background: '#fff', border: '1px solid #171717',
-          borderRadius: 8, padding: 20, marginBottom: 20,
-          boxShadow: 'rgb(10,10,13) 2px 2px 0px 0px',
-        }}>
-          <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14 }}>New Contact</div>
+        <form
+          onSubmit={handleAdd}
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16,
+            padding: '20px 18px',
+            marginBottom: 20,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14, color: '#fff' }}>New Contact</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
-              style={inputStyle} placeholder="Name (e.g. Mike)"
-              value={name} onChange={e => setName(e.target.value)} required
+              style={INPUT_STYLE}
+              placeholder="Name (e.g. Mike)"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onFocus={e => (e.currentTarget.style.borderColor = '#a3e635')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+              required
             />
             <input
-              style={inputStyle} placeholder="Wallet address (0x...)"
-              value={address} onChange={e => setAddress(e.target.value)} required
+              style={INPUT_STYLE}
+              placeholder="Wallet address (0x...)"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              onFocus={e => (e.currentTarget.style.borderColor = '#a3e635')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+              required
             />
             <input
-              style={inputStyle} placeholder="Note (optional)"
-              value={note} onChange={e => setNote(e.target.value)}
+              style={INPUT_STYLE}
+              placeholder="Note (optional)"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              onFocus={e => (e.currentTarget.style.borderColor = '#a3e635')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
             />
-            {error && <div style={{ fontSize: 12, color: '#c00' }}>{error}</div>}
-            <button type="submit" disabled={saving} style={{
-              background: saving ? '#ccc' : '#a3e635',
-              border: 'none', borderRadius: 4, padding: '10px',
-              fontWeight: 700, cursor: saving ? 'default' : 'pointer',
-              fontSize: 13, boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
-            }}>
+            {error && (
+              <div style={{
+                fontSize: 12, color: '#ff6b6b',
+                background: 'rgba(255,107,107,0.1)',
+                border: '1px solid rgba(255,107,107,0.2)',
+                borderRadius: 8, padding: '8px 12px',
+              }}>
+                ⚠️ {error}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                background: saving ? 'rgba(163,230,53,0.4)' : '#a3e635',
+                border: 'none', borderRadius: 10, padding: '12px',
+                fontWeight: 700, cursor: saving ? 'default' : 'pointer',
+                fontSize: 13, boxShadow: saving ? 'none' : 'rgb(10,10,13) 1px 1px 0px 0px',
+                color: '#000', fontFamily: 'inherit', transition: 'all 0.15s',
+              }}
+            >
               {saving ? 'Saving…' : 'Save Contact'}
             </button>
           </div>
         </form>
       )}
 
-      {/* Contact list */}
+      {/* ── Contact list ── */}
       {loading ? (
-        <div style={{ color: '#888', fontSize: 14, textAlign: 'center', padding: 40 }}>Loading…</div>
+        <div style={{
+          textAlign: 'center', padding: 48,
+          color: 'rgba(255,255,255,0.3)', fontSize: 14,
+        }}>
+          Loading…
+        </div>
       ) : contacts.length === 0 ? (
         <div style={{
-          border: '1px dashed #ccc', borderRadius: 8,
-          padding: '40px 20px', textAlign: 'center', color: '#888',
+          border: '1px dashed rgba(255,255,255,0.12)',
+          borderRadius: 16,
+          padding: '48px 20px', textAlign: 'center',
+          color: 'rgba(255,255,255,0.3)',
         }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>📭</div>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>No contacts yet</div>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+          <div style={{ fontWeight: 700, marginBottom: 6, color: 'rgba(255,255,255,0.5)' }}>No contacts yet</div>
           <div style={{ fontSize: 13 }}>Add a contact to send payments by name</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {contacts.map(c => (
-            <div key={c.id} style={{
-              background: '#fff', border: '1px solid #171717',
-              borderRadius: 8, padding: '14px 16px',
-              display: 'flex', alignItems: 'center', gap: 14,
-              boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
-            }}>
+            <div
+              key={c.id}
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255,255,255,0.09)',
+                borderRadius: 14,
+                padding: '14px 16px',
+                display: 'flex', alignItems: 'center', gap: 14,
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+            >
               {/* Avatar */}
               <div style={{
-                width: 38, height: 38, borderRadius: '50%',
-                background: '#a3e635', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: 16, flexShrink: 0,
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'rgba(163,230,53,0.15)',
+                border: '1.5px solid rgba(163,230,53,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: 16, flexShrink: 0, color: '#a3e635',
+                boxShadow: '0 0 16px rgba(163,230,53,0.15)',
               }}>
                 {c.name[0].toUpperCase()}
               </div>
 
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: '#888', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3, color: '#fff' }}>{c.name}</div>
+                <div style={{
+                  fontSize: 11, color: 'rgba(255,255,255,0.3)',
+                  fontFamily: 'monospace',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
                   {c.address}
                 </div>
-                {c.note && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{c.note}</div>}
+                {c.note && (
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 2 }}>{c.note}</div>
+                )}
               </div>
 
               {/* Delete */}
@@ -167,10 +242,20 @@ export default function ContactsPage() {
                 onClick={() => handleDelete(c.id)}
                 disabled={deleting === c.id}
                 style={{
-                  background: 'none', border: '1px solid #eee',
-                  borderRadius: 6, padding: '4px 8px',
-                  cursor: 'pointer', fontSize: 12, color: '#c00',
-                  flexShrink: 0,
+                  background: 'none',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8, padding: '5px 10px',
+                  cursor: 'pointer', fontSize: 13, color: 'rgba(255,100,100,0.7)',
+                  flexShrink: 0, fontFamily: 'inherit',
+                  transition: 'background 0.12s, border-color 0.12s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(255,100,100,0.1)'
+                  e.currentTarget.style.borderColor = 'rgba(255,100,100,0.4)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'none'
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
                 }}
               >
                 {deleting === c.id ? '…' : '🗑'}

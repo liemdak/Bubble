@@ -193,21 +193,21 @@ export function ChatWindow() {
                     width: 72,
                     height: 72,
                     borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.7)',
+                    background: 'rgba(163,230,53,0.12)',
                     backdropFilter: 'blur(12px)',
-                    border: '1.5px solid rgba(163,230,53,0.4)',
+                    border: '1.5px solid rgba(163,230,53,0.35)',
                     fontSize: 36,
                     marginBottom: 18,
-                    boxShadow: '0 8px 32px rgba(163,230,53,0.2), 0 2px 12px rgba(0,0,0,0.06)',
+                    boxShadow: '0 0 32px rgba(163,230,53,0.3), 0 8px 32px rgba(0,0,0,0.3)',
                   }}
                 >
                   🫧
                 </motion.div>
 
-                <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px', marginBottom: 6 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px', marginBottom: 6, color: '#fff' }}>
                   {getGreeting()} 👋
                 </div>
-                <div style={{ fontSize: 13, color: '#777', lineHeight: 1.7, maxWidth: 260, margin: '0 auto' }}>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 260, margin: '0 auto' }}>
                   I&apos;m your payment assistant.<br />
                   Type what you need — I&apos;ll handle the rest.
                 </div>
@@ -216,17 +216,17 @@ export function ChatWindow() {
                 <div style={{
                   marginTop: 12,
                   background: 'rgba(163,230,53,0.08)',
-                  border: '1px solid rgba(163,230,53,0.25)',
+                  border: '1px solid rgba(163,230,53,0.2)',
                   borderRadius: 10,
                   padding: '8px 14px',
                   fontSize: 11,
-                  color: '#556',
+                  color: 'rgba(255,255,255,0.5)',
                   lineHeight: 1.6,
                   maxWidth: 280,
                   margin: '12px auto 0',
                   textAlign: 'left',
                 }}>
-                  <span style={{ fontWeight: 700 }}>🤖 Agent wallet</span> — a Circle-managed wallet that executes transactions on your behalf. Top it up with USDC so it can send, swap, and bridge for you. Say <em>"nạp 10 USDC vào agent"</em> to fund it.
+                  <span style={{ fontWeight: 700, color: '#a3e635' }}>🤖 Agent wallet</span> — Circle wallet that executes transactions for you. Say <em style={{ color: 'rgba(255,255,255,0.7)' }}>&ldquo;nạp 10 USDC vào agent&rdquo;</em> to fund it.
                 </div>
 
                 {/* Stats row */}
@@ -239,14 +239,14 @@ export function ChatWindow() {
                 }}>
                   {['~$0.006 gas', 'Arc · ETH · Base · Solana', 'USDC · EURC · USYC'].map((label) => (
                     <span key={label} style={{
-                      background: 'rgba(255,255,255,0.7)',
+                      background: 'rgba(255,255,255,0.07)',
                       backdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(0,0,0,0.08)',
+                      border: '1px solid rgba(255,255,255,0.12)',
                       borderRadius: 100,
                       padding: '4px 11px',
                       fontSize: 11,
                       fontWeight: 600,
-                      color: '#666',
+                      color: 'rgba(255,255,255,0.55)',
                       letterSpacing: '0.01em',
                     }}>
                       {label}
@@ -255,8 +255,8 @@ export function ChatWindow() {
                 </div>
               </motion.div>
 
-              {/* Suggestions */}
-              <EmptySuggestions onSelect={handleSend} />
+              {/* Suggestions — prefill for incomplete prompts, auto-send for complete ones */}
+              <EmptySuggestions onSelect={handleSend} onPrefill={handlePrefill} />
             </motion.div>
           )}
         </AnimatePresence>

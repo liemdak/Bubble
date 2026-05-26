@@ -8,14 +8,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await getSession()
   return (
     <div style={{
-      height: '100dvh',           /* dynamic viewport — shrinks when mobile keyboard opens */
+      height: '100dvh',
       maxHeight: '100dvh',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      /* Prevent scroll bounce on iOS while keeping momentum in child containers */
       overscrollBehavior: 'none',
-      background: 'linear-gradient(160deg, rgb(137,229,240) 0%, rgb(182,239,246) 25%, rgb(210,245,250) 50%, rgb(235,250,245) 80%, #ffffff 100%)',
+      /* Galaxy dark background — swap bg-image here once user sends photo */
+      background: `
+        radial-gradient(ellipse at 15% 10%, rgba(139,92,246,0.28) 0%, transparent 45%),
+        radial-gradient(ellipse at 85% 85%, rgba(59,130,246,0.22) 0%, transparent 45%),
+        radial-gradient(ellipse at 55% 45%, rgba(236,72,153,0.08) 0%, transparent 35%),
+        #06060f
+      `,
     }}>
       <AppHeader address={session?.address} />
 

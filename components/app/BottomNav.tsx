@@ -17,10 +17,10 @@ export function BottomNav() {
 
   return (
     <nav style={{
-      borderTop: '1px solid rgba(0,0,0,0.07)',
-      background: 'rgba(255,255,255,0.96)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      background: 'rgba(6,6,15,0.75)',
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
       display: 'flex',
       height: 'calc(64px + env(safe-area-inset-bottom))',
       paddingBottom: 'env(safe-area-inset-bottom)',
@@ -54,7 +54,7 @@ export function BottomNav() {
                 width: 24, height: 3,
                 background: '#a3e635',
                 borderRadius: '0 0 3px 3px',
-                boxShadow: '0 2px 6px rgba(163,230,53,0.5)',
+                boxShadow: '0 2px 8px rgba(163,230,53,0.6)',
               }} />
             )}
 
@@ -62,7 +62,7 @@ export function BottomNav() {
               width: 38, height: 34,
               borderRadius: 10,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: active ? 'rgba(163,230,53,0.12)' : 'transparent',
+              background: active ? 'rgba(163,230,53,0.15)' : 'transparent',
               fontSize: 18,
               transition: 'background 0.15s',
             }}>
@@ -70,7 +70,7 @@ export function BottomNav() {
             </div>
             <span style={{
               fontSize: 10, fontWeight: active ? 700 : 500,
-              color: active ? '#000' : '#bbb',
+              color: active ? '#a3e635' : 'rgba(255,255,255,0.35)',
               letterSpacing: '0.01em',
             }}>
               {label}
