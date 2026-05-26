@@ -8,10 +8,9 @@ import { playBubbleTap } from '@/lib/sounds'
 
 interface AppHeaderProps {
   address?: string
-  isCircleWallet?: boolean   // true = showing Circle wallet (where funds live)
 }
 
-export function AppHeader({ address, isCircleWallet }: AppHeaderProps) {
+export function AppHeader({ address }: AppHeaderProps) {
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
   const [hoverLogout, setHoverLogout] = useState(false)
@@ -74,24 +73,21 @@ export function AppHeader({ address, isCircleWallet }: AppHeaderProps) {
       {/* Right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {shortAddr ? (
-          <Link
-            href="/balance"
-            title={isCircleWallet ? 'Your Circle wallet (funds live here)' : 'Connected wallet'}
-            style={{
-              background: '#f8f8f8',
-              border: '1px solid #e0e0e0',
-              borderRadius: 100,
-              padding: '5px 12px',
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#333',
-              textDecoration: 'none',
-              display: 'flex', alignItems: 'center', gap: 5,
-              boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
-              transition: 'background 0.15s, transform 0.1s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#efefef')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#f8f8f8')}
+          <Link href="/balance" style={{
+            background: '#f8f8f8',
+            border: '1px solid #e0e0e0',
+            borderRadius: 100,
+            padding: '5px 12px',
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#333',
+            textDecoration: 'none',
+            display: 'flex', alignItems: 'center', gap: 5,
+            boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
+            transition: 'background 0.15s, transform 0.1s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#efefef')}
+          onMouseLeave={e => (e.currentTarget.style.background = '#f8f8f8')}
           >
             <div style={{
               width: 7, height: 7, borderRadius: '50%',
@@ -99,17 +95,6 @@ export function AppHeader({ address, isCircleWallet }: AppHeaderProps) {
               boxShadow: '0 0 6px rgba(163,230,53,0.8)',
             }} />
             {shortAddr}
-            {isCircleWallet && (
-              <span style={{
-                fontSize: 9, fontWeight: 700,
-                color: '#2775CA',
-                background: 'rgba(39,117,202,0.1)',
-                borderRadius: 4, padding: '1px 4px',
-                letterSpacing: '0.03em',
-              }}>
-                ◎
-              </span>
-            )}
           </Link>
         ) : (
           <Link href="/login" style={{

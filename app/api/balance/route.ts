@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
 import { readWalletBalances, TOKEN_CONTRACTS } from '@/lib/viem/balanceReader'
 
@@ -6,77 +6,88 @@ export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/balance
- * Reads token balances from Arc Testnet blockchain via viem.
  *
- * Address priority:
- *  1. ?address= query param (explicit lookup)
- *  2. session.circleWalletAddress (Circle dev wallet — where app funds live)
- *  3. session.address (MetaMask address — fallback for users not yet set up)
+ * Returns TWO wallet balances:
+ *  - userWallet  : MetaMask address (user's main wallet — display this)
+ *  - agentWallet : Circle dev wallet (agent spends from here)
+ *
+ * The balance page shows userWallet prominently.
+ * The agent section shows agentWallet + deposit button to top it up.
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession()
 
-    const queryAddress = req.nextUrl.searchParams.get('address')
-
-    // Use Circle wallet address as primary (funds live here after deposit)
-    const address = queryAddress
-      ?? session?.circleWalletAddress
-      ?? session?.address
-
-    if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
-      return NextResponse.json({
-        type: 'unified',
-        wallets: [],
-        totalUsdc: '0.00',
-        totalEurc: '0.00',
-        totalUsyc: '0.00',
-        totalEquivalent: '0.00',
-        fetchedAt: new Date().toISOString(),
-        _info: 'No wallet connected.',
-      })
+    if (!session?.address) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const isCircleWallet = address === session?.circleWalletAddress
+    const userAddress  = session.address
+    const agentAddress = session.circleWalletAddress ?? null
 
-    // Read balances directly from blockchain
-    const balances = await readWalletBalances(address)
+    // Fetch both balances in parallel
+    const [userBalances, agentBalances] = await Promise.all([
+      readWalletBalances(userAddress),
+      agentAddress ? readWalletBalances(agentAddress) : Promise.resolve([]),
+    ])
 
-    const usdc = balances.find(b => b.token === 'USDC')?.amount ?? '0'
-    const eurc = balances.find(b => b.token === 'EURC')?.amount ?? '0'
-    const usyc = balances.find(b => b.token === 'USYC')?.amount ?? '0'
-    const equivalent = (
-      parseFloat(usdc) +
-      parseFloat(eurc) * 1.08 +
-      parseFloat(usyc)
-    ).toFixed(2)
+    function summarise(bals: Awaited<ReturnType<typeof readWalletBalances>>) {
+      const usdc = parseFloat(bals.find(b => b.token === 'USDC')?.amount ?? '0')
+      const eurc = parseFloat(bals.find(b => b.token === 'EURC')?.amount ?? '0')
+      const usyc = parseFloat(bals.find(b => b.token === 'USYC')?.amount ?? '0')
+      return {
+        USDC: usdc.toFixed(2),
+        EURC: eurc.toFixed(2),
+        USYC: usyc.toFixed(2),
+        total: (usdc + eurc * 1.08 + usyc).toFixed(2),
+        balances: bals,
+      }
+    }
+
+    const user  = summarise(userBalances)
+    const agent = summarise(agentBalances)
 
     return NextResponse.json({
-      type: 'unified',
-      address,
-      walletType: isCircleWallet ? 'circle' : 'metamask',
+      // Primary: user's MetaMask wallet
+      userWallet: {
+        address:  userAddress,
+        USDC:     user.USDC,
+        EURC:     user.EURC,
+        USYC:     user.USYC,
+        total:    user.total,
+        balances: user.balances,
+      },
+      // Secondary: Circle agent wallet (executes on behalf)
+      agentWallet: agentAddress ? {
+        address:  agentAddress,
+        USDC:     agent.USDC,
+        EURC:     agent.EURC,
+        USYC:     agent.USYC,
+        total:    agent.total,
+        balances: agent.balances,
+      } : null,
+
+      // Legacy fields kept so other parts of app don't break
+      address:             userAddress,
+      circleWalletAddress: agentAddress,
+      metaMaskAddress:     userAddress,
+      totalUsdc:           user.USDC,
+      totalEurc:           user.EURC,
+      totalUsyc:           user.USYC,
+      totalEquivalent:     user.total,
       wallets: [{
-        walletId:   address,
-        address,
+        walletId:   userAddress,
+        address:    userAddress,
         blockchain: 'ARC-TESTNET',
         chain:      'arc',
-        balances:   balances.map(b => ({
-          token:      b.token,
-          amount:     b.amount,
-          chain:      'arc',
-          blockchain: 'ARC-TESTNET',
+        balances:   user.balances.map(b => ({
+          token: b.token, amount: b.amount,
+          chain: 'arc', blockchain: 'ARC-TESTNET',
           updateDate: new Date().toISOString(),
         })),
       }],
-      totalUsdc:       parseFloat(usdc).toFixed(2),
-      totalEurc:       parseFloat(eurc).toFixed(2),
-      totalUsyc:       parseFloat(usyc).toFixed(2),
-      totalEquivalent: equivalent,
-      fetchedAt:       new Date().toISOString(),
-      contracts:       TOKEN_CONTRACTS,
-      // Pass both addresses to UI for deposit flow
-      circleWalletAddress: session?.circleWalletAddress,
-      metaMaskAddress:     session?.address,
+      contracts:  TOKEN_CONTRACTS,
+      fetchedAt:  new Date().toISOString(),
     })
 
   } catch (err) {

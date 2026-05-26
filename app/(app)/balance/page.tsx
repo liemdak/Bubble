@@ -1,17 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { RefreshCw, ArrowDownToLine, ArrowUpFromLine, TrendingUp, Wallet, Globe } from 'lucide-react'
-import type { UnifiedBalance, WalletInfo } from '@/lib/circle/balance'
+import { RefreshCw, ArrowDownToLine, X, AlertCircle } from 'lucide-react'
 
-type BalanceData = UnifiedBalance & { type: string; error?: string }
-
-const CHAIN_META: Record<string, { label: string; color: string; dot: string }> = {
-  arc:      { label: 'Arc Testnet',      color: 'rgba(163,230,53,0.15)',  dot: '#a3e635' },
-  ethereum: { label: 'Ethereum Sepolia', color: 'rgba(98,126,234,0.15)',  dot: '#627eea' },
-  base:     { label: 'Base Sepolia',     color: 'rgba(0,82,255,0.15)',    dot: '#0052ff' },
-  solana:   { label: 'Solana Devnet',    color: 'rgba(153,69,255,0.15)',  dot: '#9945ff' },
+// Arc Testnet token contracts
+const TOKEN_CONTRACTS: Record<string, string> = {
+  USDC: '0x3600000000000000000000000000000000000000',
+  EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+  USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
 }
+const ARC_CHAIN_ID = '0x4CAEF2' // 5042002
 
 const TOKEN_COLOR: Record<string, string> = {
   USDC: '#2775CA',
@@ -19,20 +17,292 @@ const TOKEN_COLOR: Record<string, string> = {
   USYC: '#7C3AED',
 }
 
+interface WalletData {
+  address: string
+  USDC: string
+  EURC: string
+  USYC: string
+  total: string
+}
+
+interface BalanceResponse {
+  userWallet:  WalletData | null
+  agentWallet: WalletData | null
+  error?: string
+}
+
+// ── Deposit modal ─────────────────────────────────────────────────────────────
+
+function DepositModal({
+  agentAddress,
+  userAddress,
+  onClose,
+}: {
+  agentAddress: string
+  userAddress:  string
+  onClose: () => void
+}) {
+  const [token,   setToken]   = useState<'USDC' | 'EURC' | 'USYC'>('USDC')
+  const [amount,  setAmount]  = useState('')
+  const [status,  setStatus]  = useState<'idle' | 'switching' | 'pending' | 'done' | 'error'>('idle')
+  const [txHash,  setTxHash]  = useState<string | null>(null)
+  const [errMsg,  setErrMsg]  = useState<string | null>(null)
+  const [copied,  setCopied]  = useState(false)
+
+  function copyAddress() {
+    navigator.clipboard.writeText(agentAddress)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleDeposit() {
+    const amt = parseFloat(amount)
+    if (!amt || amt <= 0) { setErrMsg('Enter a valid amount'); return }
+
+    const provider = (window as unknown as { ethereum?: Record<string, unknown> }).ethereum
+    if (!provider) {
+      setErrMsg('MetaMask not detected. Copy the agent address below and send manually.')
+      return
+    }
+
+    setErrMsg(null)
+    setStatus('switching')
+
+    try {
+      // 1. Switch to Arc Testnet
+      try {
+        await (provider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }).request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: ARC_CHAIN_ID }],
+        })
+      } catch {
+        // Chain not added yet — add it
+        await (provider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }).request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId:  ARC_CHAIN_ID,
+            chainName: 'Arc Testnet',
+            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+            rpcUrls: ['https://rpc.testnet.arc.network'],
+            blockExplorerUrls: ['https://testnet.arcscan.app'],
+          }],
+        })
+      }
+
+      setStatus('pending')
+
+      // 2. Encode ERC-20 transfer(address,uint256)
+      const amountWei  = BigInt(Math.round(amt * 1_000_000)) // 6 decimals
+      const paddedAddr = agentAddress.slice(2).toLowerCase().padStart(64, '0')
+      const paddedAmt  = amountWei.toString(16).padStart(64, '0')
+      const data       = `0xa9059cbb${paddedAddr}${paddedAmt}`
+
+      // 3. Send via MetaMask
+      const hash = await (provider as { request: (args: { method: string; params?: unknown[] }) => Promise<string> }).request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: userAddress,
+          to:   TOKEN_CONTRACTS[token],
+          data,
+        }],
+      })
+
+      setTxHash(hash)
+      setStatus('done')
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Transaction rejected'
+      if (msg.includes('rejected') || msg.includes('denied')) {
+        setErrMsg('Transaction cancelled.')
+      } else {
+        setErrMsg(msg)
+      }
+      setStatus('error')
+    }
+  }
+
+  const arcScanUrl = txHash
+    ? `https://testnet.arcscan.app/tx/${txHash}`
+    : null
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 480,
+          background: '#fff',
+          borderRadius: '20px 20px 0 0',
+          padding: '24px 20px 40px',
+          boxShadow: '0 -8px 32px rgba(0,0,0,0.15)',
+        }}
+      >
+        {/* Handle + header */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: '#e0e0e0' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Top Up Agent Wallet</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+              Transfer from your MetaMask → agent wallet
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: '#f5f5f5', border: '1px solid #e0e0e0',
+            borderRadius: '50%', width: 32, height: 32,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {status === 'done' ? (
+          /* ── Success state ── */
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
+              Deposit sent!
+            </div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+              {amount} {token} → agent wallet
+            </div>
+            {arcScanUrl && (
+              <a href={arcScanUrl} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 12, color: '#2775CA', textDecoration: 'none', fontWeight: 600 }}>
+                View on ArcScan ↗
+              </a>
+            )}
+            <button onClick={onClose} style={{
+              display: 'block', width: '100%', marginTop: 20,
+              background: '#a3e635', color: '#000',
+              border: 'none', borderRadius: 8, padding: '12px',
+              fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Token selector */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {(['USDC', 'EURC', 'USYC'] as const).map(t => (
+                <button key={t} onClick={() => setToken(t)} style={{
+                  flex: 1, padding: '8px 0',
+                  background: token === t ? TOKEN_COLOR[t] : '#f5f5f5',
+                  color: token === t ? '#fff' : '#555',
+                  border: `1px solid ${token === t ? TOKEN_COLOR[t] : '#e0e0e0'}`,
+                  borderRadius: 8, fontWeight: 700, fontSize: 13,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.15s',
+                }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* Amount input */}
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              background: '#f5f5f5', border: `1.5px solid ${amount ? TOKEN_COLOR[token] : '#e0e0e0'}`,
+              borderRadius: 10, padding: '0 14px', height: 52, marginBottom: 16,
+              transition: 'border-color 0.15s',
+            }}>
+              <input
+                type="number"
+                placeholder="0.00"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                style={{
+                  flex: 1, background: 'none', border: 'none', outline: 'none',
+                  fontSize: 20, fontWeight: 700, fontFamily: 'inherit', color: '#000',
+                }}
+              />
+              <span style={{ fontWeight: 700, color: TOKEN_COLOR[token], fontSize: 14 }}>{token}</span>
+            </div>
+
+            {/* Agent address (reference) */}
+            <div style={{
+              background: '#f8f8f8', border: '1px solid #e8e8e8',
+              borderRadius: 8, padding: '10px 12px', marginBottom: 14,
+            }}>
+              <div style={{ fontSize: 10, color: '#aaa', fontWeight: 600, marginBottom: 4 }}>AGENT WALLET ADDRESS</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 11, fontFamily: 'monospace', color: '#555', wordBreak: 'break-all' }}>
+                  {agentAddress}
+                </span>
+                <button onClick={copyAddress} style={{
+                  flexShrink: 0, fontSize: 11, fontWeight: 700,
+                  padding: '4px 10px',
+                  background: copied ? '#a3e635' : '#fff',
+                  border: '1px solid #ddd', borderRadius: 6,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'background 0.2s',
+                }}>
+                  {copied ? '✓' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            {errMsg && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                background: '#fff0f0', border: '1px solid #ffcccc',
+                borderRadius: 8, padding: '10px 12px', marginBottom: 14,
+                fontSize: 12, color: '#c00',
+              }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                {errMsg}
+              </div>
+            )}
+
+            {/* Send button */}
+            <button
+              onClick={handleDeposit}
+              disabled={status === 'switching' || status === 'pending'}
+              style={{
+                width: '100%', padding: '14px',
+                background: (status === 'switching' || status === 'pending') ? '#e8f5d0' : '#a3e635',
+                color: '#000', border: 'none', borderRadius: 10,
+                fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
+                transition: 'background 0.15s',
+              }}
+            >
+              {status === 'switching' ? 'Switching to Arc Testnet…'
+               : status === 'pending'  ? 'Waiting for MetaMask…'
+               : `Send ${amount || '0'} ${token} → Agent`}
+            </button>
+
+            <p style={{ fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 12 }}>
+              MetaMask will open to confirm. Make sure you're on Arc Testnet.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Main balance page ─────────────────────────────────────────────────────────
+
 export default function BalancePage() {
-  const [data, setData] = useState<BalanceData | null>(null)
+  const [data,    setData]    = useState<BalanceResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [showDeposit, setShowDeposit] = useState(false)
 
   async function fetchBalance() {
     setLoading(true)
     try {
-      const res = await fetch('/api/balance')
+      const res  = await fetch('/api/balance')
       const json = await res.json()
       setData(json)
-      setLastRefresh(new Date())
     } catch {
-      setData({ type: 'error', error: 'Failed to fetch balance', wallets: [], totalUsdc: '0', totalEurc: '0', totalUsyc: '0', totalEquivalent: '0', fetchedAt: '' })
+      setData({ userWallet: null, agentWallet: null, error: 'Network error' })
     } finally {
       setLoading(false)
     }
@@ -40,364 +310,229 @@ export default function BalancePage() {
 
   useEffect(() => { fetchBalance() }, [])
 
-  const glassCard = {
-    background: 'rgba(255,255,255,0.65)',
+  const glass: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.7)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255,255,255,0.8)',
+    border: '1px solid rgba(255,255,255,0.85)',
     borderRadius: 20,
-    boxShadow: '0 4px 24px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
   }
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 32px' }}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 500, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
             // PORTFOLIO
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>Balance Overview</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>Balance</div>
         </div>
-        <button
-          onClick={fetchBalance}
-          disabled={loading}
-          style={{
-            background: 'rgba(255,255,255,0.6)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(0,0,0,0.1)',
-            borderRadius: 10,
-            padding: '8px 10px',
-            cursor: loading ? 'wait' : 'pointer',
-            display: 'flex', alignItems: 'center', gap: 5,
-            fontSize: 12, fontWeight: 500, color: '#555',
-          }}
-        >
+        <button onClick={fetchBalance} disabled={loading} style={{
+          background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10,
+          padding: '8px 10px', cursor: loading ? 'wait' : 'pointer',
+          display: 'flex', alignItems: 'center', gap: 5,
+          fontSize: 12, fontWeight: 500, color: '#555', fontFamily: 'inherit',
+        }}>
           <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           {loading ? 'Loading...' : 'Refresh'}
         </button>
       </div>
 
-      {loading && !data ? (
-        <LoadingSkeleton />
-      ) : data?.error ? (
-        <ErrorCard message={data.error} />
-      ) : data ? (
+      {loading ? <LoadingSkeleton glass={glass} /> : data?.error ? (
+        <div style={{ ...glass, padding: 24, color: '#c00' }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Failed to load</div>
+          <div style={{ fontSize: 13 }}>{data.error}</div>
+        </div>
+      ) : (
         <>
-          {/* ── Unified Total Card ── */}
-          <div style={{ ...glassCard, padding: '28px 24px', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
-            {/* Background glow */}
+          {/* ── YOUR WALLET (MetaMask — user's main wallet) ── */}
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+            // YOUR WALLET
+          </div>
+
+          <div style={{ ...glass, padding: '24px 20px', marginBottom: 14, position: 'relative', overflow: 'hidden' }}>
             <div style={{
-              position: 'absolute', top: -40, right: -40,
-              width: 160, height: 160,
+              position: 'absolute', top: -30, right: -30, width: 120, height: 120,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(163,230,53,0.18) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(163,230,53,0.15) 0%, transparent 70%)',
               pointerEvents: 'none',
             }} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <Globe size={14} color="#888" />
-              <span style={{ fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Total across {data.wallets.length} wallet{data.wallets.length !== 1 ? 's' : ''}
-              </span>
+            <div style={{ fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 4 }}>
+              MetaMask · Arc Testnet
+            </div>
+            <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#aaa', marginBottom: 14 }}>
+              {data?.userWallet?.address
+                ? `${data.userWallet.address.slice(0, 8)}...${data.userWallet.address.slice(-6)}`
+                : '—'}
             </div>
 
-            <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-1px', marginBottom: 6 }}>
-              ${data.totalEquivalent}
+            <div style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-1px', marginBottom: 4 }}>
+              ${data?.userWallet?.total ?? '0.00'}
             </div>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 20 }}>USDC equivalent</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 18 }}>USDC equivalent</div>
 
-            {/* Token breakdown row */}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {[
-                { symbol: 'USDC', amount: data.totalUsdc },
-                { symbol: 'EURC', amount: data.totalEurc },
-                { symbol: 'USYC', amount: data.totalUsyc },
-              ].map(({ symbol, amount }) => (
-                <div key={symbol} style={{
-                  background: 'rgba(255,255,255,0.7)',
-                  border: `1px solid ${TOKEN_COLOR[symbol]}33`,
-                  borderRadius: 10,
-                  padding: '6px 12px',
+            {/* Token pills */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {(['USDC', 'EURC', 'USYC'] as const).map(t => (
+                <div key={t} style={{
+                  background: 'rgba(255,255,255,0.8)',
+                  border: `1px solid ${TOKEN_COLOR[t]}33`,
+                  borderRadius: 10, padding: '5px 12px',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: TOKEN_COLOR[symbol] }} />
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>{amount}</span>
-                  <span style={{ fontSize: 11, color: '#888' }}>{symbol}</span>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: TOKEN_COLOR[t] }} />
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{data?.userWallet?.[t] ?? '0.00'}</span>
+                  <span style={{ fontSize: 11, color: '#888' }}>{t}</span>
                 </div>
               ))}
             </div>
 
-            {lastRefresh && (
-              <div style={{ marginTop: 12, fontSize: 10, color: '#aaa' }}>
-                Updated {lastRefresh.toLocaleTimeString()}
+            {/* Faucet link */}
+            <a
+              href="https://faucet.circle.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                marginTop: 16, fontSize: 11, color: '#2775CA',
+                background: 'rgba(39,117,202,0.08)',
+                border: '1px solid rgba(39,117,202,0.2)',
+                borderRadius: 6, padding: '4px 10px',
+                textDecoration: 'none', fontWeight: 600,
+              }}
+            >
+              + Get testnet USDC
+            </a>
+          </div>
+
+          {/* ── AGENT WALLET (Circle — executes transactions) ── */}
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '20px 0 8px' }}>
+            // AGENT WALLET
+          </div>
+
+          <div style={{ ...glass, padding: '20px', borderLeft: '3px solid #a3e635', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>
+                  🤖 Bubble Agent
+                </div>
+                <div style={{ fontSize: 11, color: '#888', lineHeight: 1.5 }}>
+                  Executes send / swap / bridge on your behalf.
+                  Top up so the agent has funds to work with.
+                </div>
+              </div>
+              <div style={{
+                background: 'rgba(163,230,53,0.15)',
+                border: '1px solid rgba(163,230,53,0.4)',
+                borderRadius: 8, padding: '6px 10px', textAlign: 'center', flexShrink: 0,
+              }}>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{data?.agentWallet?.USDC ?? '0.00'}</div>
+                <div style={{ fontSize: 10, color: '#666', fontWeight: 600 }}>USDC</div>
+              </div>
+            </div>
+
+            {/* Agent address */}
+            {data?.agentWallet?.address && (
+              <div style={{
+                background: 'rgba(0,0,0,0.03)', borderRadius: 8, padding: '8px 12px', marginBottom: 14,
+                fontSize: 11, fontFamily: 'monospace', color: '#666',
+              }}>
+                {data.agentWallet.address}
               </div>
             )}
+
+            {/* All agent token balances */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+              {(['USDC', 'EURC', 'USYC'] as const).map(t => (
+                <div key={t} style={{
+                  background: 'rgba(255,255,255,0.8)',
+                  border: `1px solid ${TOKEN_COLOR[t]}22`,
+                  borderRadius: 8, padding: '4px 10px',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: TOKEN_COLOR[t] }} />
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>{data?.agentWallet?.[t] ?? '0.00'}</span>
+                  <span style={{ fontSize: 10, color: '#aaa' }}>{t}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Top Up button */}
+            <button
+              onClick={() => setShowDeposit(true)}
+              disabled={!data?.agentWallet}
+              style={{
+                width: '100%', padding: '12px',
+                background: data?.agentWallet ? '#a3e635' : '#f0f0f0',
+                color: data?.agentWallet ? '#000' : '#aaa',
+                border: 'none', borderRadius: 10,
+                fontWeight: 700, fontSize: 14,
+                cursor: data?.agentWallet ? 'pointer' : 'not-allowed',
+                fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                boxShadow: data?.agentWallet ? 'rgb(10,10,13) 1px 1px 0px 0px' : 'none',
+                transition: 'background 0.15s',
+              }}
+            >
+              <ArrowDownToLine size={15} />
+              Top Up Agent Wallet
+            </button>
           </div>
 
-          {/* ── Gateway / Unified Balance Card ── */}
-          <GatewayCard totalUsdc={data.totalUsdc} walletCount={data.wallets.length} glassCard={glassCard} />
-
-          {/* ── Per-wallet breakdown ── */}
-          <div style={{ fontSize: 11, fontWeight: 500, color: '#888', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '20px 0 10px' }}>
-            // WALLETS
+          {/* ArcScan links */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+            {data?.userWallet?.address && (
+              <a href={`https://testnet.arcscan.app/address/${data.userWallet.address}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 11, color: '#888', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 6, padding: '4px 10px', textDecoration: 'none', fontWeight: 500 }}>
+                My wallet on ArcScan ↗
+              </a>
+            )}
+            {data?.agentWallet?.address && (
+              <a href={`https://testnet.arcscan.app/address/${data.agentWallet.address}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 11, color: '#888', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 6, padding: '4px 10px', textDecoration: 'none', fontWeight: 500 }}>
+                Agent wallet on ArcScan ↗
+              </a>
+            )}
           </div>
-
-          {data.wallets.length === 0 ? (
-            <NoWalletCard glassCard={glassCard} />
-          ) : (
-            data.wallets.map((wallet) => (
-              <WalletCard key={wallet.walletId} wallet={wallet} glassCard={glassCard} />
-            ))
-          )}
         </>
-      ) : null}
+      )}
+
+      {/* Deposit modal */}
+      {showDeposit && data?.agentWallet && data?.userWallet && (
+        <DepositModal
+          agentAddress={data.agentWallet.address}
+          userAddress={data.userWallet.address}
+          onClose={() => { setShowDeposit(false); fetchBalance() }}
+        />
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100% { opacity:0.4 } 50% { opacity:0.8 } }
+        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
       `}</style>
     </div>
   )
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-function GatewayCard({ totalUsdc, walletCount, glassCard }: {
-  totalUsdc: string
-  walletCount: number
-  glassCard: React.CSSProperties
-}) {
-  return (
-    <div style={{ ...glassCard, padding: '20px 24px', marginBottom: 12, borderLeft: '3px solid #a3e635' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <TrendingUp size={16} color="#a3e635" />
-          <span style={{ fontWeight: 700, fontSize: 14 }}>Gateway Balance</span>
-          <span style={{
-            background: 'rgba(163,230,53,0.15)',
-            border: '1px solid rgba(163,230,53,0.4)',
-            borderRadius: 100,
-            padding: '1px 8px',
-            fontSize: 10,
-            fontWeight: 600,
-            color: '#5a8a00',
-          }}>Circle Unified</span>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 4 }}>{totalUsdc} USDC</div>
-      <div style={{ fontSize: 12, color: '#666', marginBottom: 16 }}>
-        Aggregated across {walletCount} wallet{walletCount !== 1 ? 's' : ''} · Circle Gateway
-      </div>
-
-      {/* Deposit / Withdraw */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button style={{
-          flex: 1, padding: '9px 0',
-          background: '#a3e635', color: '#000',
-          border: 'none', borderRadius: 10,
-          fontWeight: 700, fontSize: 13,
-          cursor: 'pointer', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-        }}>
-          <ArrowDownToLine size={13} />
-          Deposit
-        </button>
-        <button style={{
-          flex: 1, padding: '9px 0',
-          background: 'rgba(255,255,255,0.7)', color: '#000',
-          border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10,
-          fontWeight: 600, fontSize: 13,
-          cursor: 'pointer', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-        }}>
-          <ArrowUpFromLine size={13} />
-          Withdraw
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function WalletCard({ wallet, glassCard }: { wallet: WalletInfo; glassCard: React.CSSProperties }) {
-  const meta = CHAIN_META[wallet.chain] ?? { label: wallet.blockchain, color: 'rgba(0,0,0,0.05)', dot: '#888' }
-
-  return (
-    <div style={{ ...glassCard, padding: '16px 20px', marginBottom: 10, background: meta.color }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: meta.dot, boxShadow: `0 0 6px ${meta.dot}80` }} />
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{meta.label}</span>
-        <span style={{
-          marginLeft: 'auto',
-          fontSize: 10, color: '#999', fontFamily: 'inherit',
-          background: 'rgba(255,255,255,0.6)',
-          border: '1px solid rgba(0,0,0,0.08)',
-          borderRadius: 6, padding: '2px 6px',
-        }}>
-          {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}
-        </span>
-      </div>
-
-      {wallet.balances.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#aaa' }}>No token balances yet · Get testnet USDC at faucet.circle.com</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {wallet.balances.map((b, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 5, height: 5, borderRadius: '50%', background: TOKEN_COLOR[b.token] ?? '#888' }} />
-                <span style={{ fontSize: 12, color: '#555' }}>{b.token}</span>
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 700 }}>{parseFloat(b.amount).toFixed(2)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
-        <a
-          href={`https://faucet.circle.com`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            fontSize: 11, color: '#2775CA',
-            background: 'rgba(39,117,202,0.08)',
-            border: '1px solid rgba(39,117,202,0.2)',
-            borderRadius: 6, padding: '3px 8px',
-            textDecoration: 'none', fontWeight: 500,
-          }}
-        >
-          + Get testnet USDC
-        </a>
-        <a
-          href={`${process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'}/address/${wallet.address}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            fontSize: 11, color: '#888',
-            background: 'rgba(0,0,0,0.04)',
-            border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 6, padding: '3px 8px',
-            textDecoration: 'none', fontWeight: 500,
-          }}
-        >
-          ArcScan ↗
-        </a>
-      </div>
-    </div>
-  )
-}
-
-function NoWalletCard({ glassCard }: { glassCard: React.CSSProperties }) {
-  const [creating, setCreating] = useState(false)
-  const [result, setResult] = useState<{ walletId?: string; address?: string; error?: string } | null>(null)
-
-  async function createWallet() {
-    setCreating(true)
-    try {
-      const res = await fetch('/api/wallet/setup', { method: 'POST' })
-      const data = await res.json()
-      setResult(data)
-    } catch {
-      setResult({ error: 'Failed to create wallet' })
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  return (
-    <div style={{ ...glassCard, padding: '24px', textAlign: 'center' }}>
-      <Wallet size={32} color="#ccc" style={{ marginBottom: 12 }} />
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>No wallets yet</div>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
-        Create a Circle developer-controlled wallet to get started.
-      </div>
-
-      {result ? (
-        <div style={{
-          background: result.error ? 'rgba(255,200,200,0.4)' : 'rgba(163,230,53,0.15)',
-          border: `1px solid ${result.error ? 'rgba(255,0,0,0.2)' : 'rgba(163,230,53,0.4)'}`,
-          borderRadius: 10, padding: '12px 16px', textAlign: 'left', fontSize: 12,
-        }}>
-          {result.error ? (
-            <span style={{ color: '#c00' }}>Error: {result.error}</span>
-          ) : (
-            <>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>✓ Wallet created!</div>
-              <div style={{ color: '#555', marginBottom: 4 }}>ID: {result.walletId}</div>
-              <div style={{ color: '#555', marginBottom: 8 }}>Address: {result.address}</div>
-              <div style={{ color: '#666', background: 'rgba(0,0,0,0.05)', borderRadius: 6, padding: '8px 10px', fontFamily: 'inherit' }}>
-                Add to .env.local:<br />
-                <strong>CIRCLE_DEMO_WALLET_ID={result.walletId}</strong>
-              </div>
-            </>
-          )}
-        </div>
-      ) : (
-        <button
-          onClick={createWallet}
-          disabled={creating}
-          style={{
-            background: '#a3e635', color: '#000',
-            border: 'none', borderRadius: 10,
-            padding: '10px 24px',
-            fontWeight: 700, fontSize: 13,
-            cursor: creating ? 'wait' : 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          {creating ? 'Creating...' : 'Create Wallet on Arc Testnet'}
-        </button>
-      )}
-    </div>
-  )
-}
-
-function LoadingSkeleton() {
+function LoadingSkeleton({ glass }: { glass: React.CSSProperties }) {
   const bar = (w: string, h = 16) => (
-    <div style={{
-      width: w, height: h,
-      background: 'rgba(0,0,0,0.06)',
-      borderRadius: 6,
-      animation: 'pulse 1.4s ease-in-out infinite',
-    }} />
+    <div style={{ width: w, height: h, background: 'rgba(0,0,0,0.06)', borderRadius: 6, animation: 'pulse 1.4s ease-in-out infinite' }} />
   )
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{
-        background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.8)', borderRadius: 20,
-        padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: 12,
-      }}>
-        {bar('40%', 12)} {bar('60%', 44)} {bar('50%', 12)}
+      <div style={{ ...glass, padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {bar('30%', 11)} {bar('55%', 40)} {bar('70%', 12)}
       </div>
-      <div style={{
-        background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.8)', borderRadius: 20,
-        padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 10,
-      }}>
-        {bar('30%', 12)} {bar('45%', 28)} {bar('60%', 12)}
+      <div style={{ ...glass, padding: '20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {bar('25%', 11)} {bar('45%', 28)} {bar('100%', 42)}
       </div>
-    </div>
-  )
-}
-
-function ErrorCard({ message }: { message: string }) {
-  return (
-    <div style={{
-      background: 'rgba(255,240,240,0.8)', backdropFilter: 'blur(12px)',
-      border: '1px solid rgba(255,0,0,0.15)', borderRadius: 16,
-      padding: '20px 24px', color: '#c00',
-    }}>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>Failed to load balance</div>
-      <div style={{ fontSize: 13 }}>{message}</div>
-      {message.toLowerCase().includes('wait') && (
-        <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
-          Circle API rate limit reached. Click Refresh in 30 seconds.
-        </div>
-      )}
     </div>
   )
 }
