@@ -14,13 +14,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       flexDirection: 'column',
       overflow: 'hidden',
       overscrollBehavior: 'none',
-      /* Galaxy dark background — swap bg-image here once user sends photo */
-      background: `
-        radial-gradient(ellipse at 15% 10%, rgba(139,92,246,0.28) 0%, transparent 45%),
-        radial-gradient(ellipse at 85% 85%, rgba(59,130,246,0.22) 0%, transparent 45%),
-        radial-gradient(ellipse at 55% 45%, rgba(236,72,153,0.08) 0%, transparent 35%),
-        #06060f
-      `,
+      /* Galaxy starfield background photo */
+      backgroundImage: 'url(/galaxy-bg.webp)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundColor: '#06060f', /* fallback while image loads */
     }}>
       <AppHeader address={session?.address} />
 
