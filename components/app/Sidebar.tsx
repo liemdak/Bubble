@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { playBubbleTap } from '@/lib/sounds'
 import type { Contact } from '@/types/db'
 
 export function Sidebar() {
+  const pathname = usePathname()
+  const isChat   = pathname === '/'
   const [open, setOpen]         = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading]   = useState(false)
@@ -49,29 +52,56 @@ export function Sidebar() {
           gap: 2,
         }}
       >
-        {/* Toggle button */}
-        <button
-          onClick={() => { playBubbleTap(); setOpen(true) }}
-          title="Quick send"
-          style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: 'transparent', border: 'none',
-            cursor: 'pointer', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, color: 'rgba(255,255,255,0.3)',
-            transition: 'background 0.12s, color 0.12s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(56,189,248,0.12)'
-            e.currentTarget.style.color = '#38bdf8'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'transparent'
-            e.currentTarget.style.color = 'rgba(255,255,255,0.3)'
-          }}
-        >
-          🫧
-        </button>
+        {/* 🫧 — on chat page: opens contacts drawer; on other pages: goes back to chat */}
+        {isChat ? (
+          <button
+            onClick={() => { playBubbleTap(); setOpen(true) }}
+            title="Quick send"
+            style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: 'transparent', border: 'none',
+              cursor: 'pointer', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, color: 'rgba(255,255,255,0.3)',
+              transition: 'background 0.12s, color 0.12s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(56,189,248,0.12)'
+              e.currentTarget.style.color = '#38bdf8'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'rgba(255,255,255,0.3)'
+            }}
+          >
+            🫧
+          </button>
+        ) : (
+          <Link
+            href="/"
+            onClick={() => playBubbleTap()}
+            title="Back to chat"
+            style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: 'transparent',
+              cursor: 'pointer', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, color: 'rgba(255,255,255,0.3)',
+              transition: 'background 0.12s, color 0.12s',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(56,189,248,0.12)'
+              ;(e.currentTarget as HTMLAnchorElement).style.color = '#38bdf8'
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
+              ;(e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.3)'
+            }}
+          >
+            🫧
+          </Link>
+        )}
 
         {/* Contact initials — quick jump */}
         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'center' }}>

@@ -351,11 +351,127 @@ function DepositModal({
   )
 }
 
+// ── Withdraw modal (agent → main wallet, server-side via kit.send) ─────────────
+function WithdrawModal({ agentBalance, onClose }: { agentBalance: WalletData; onClose: () => void }) {
+  const [token,  setToken]  = useState<'USDC' | 'EURC' | 'USYC'>('USDC')
+  const [amount, setAmount] = useState('')
+  const [status, setStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle')
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
+
+  const maxAmount = parseFloat(agentBalance[token] ?? '0')
+
+  async function handleWithdraw() {
+    const amt = parseFloat(amount)
+    if (!amt || amt <= 0)         { setErrMsg('Enter a valid amount'); return }
+    if (amt > maxAmount)          { setErrMsg(`Max available: ${maxAmount} ${token}`); return }
+
+    setErrMsg(null)
+    setStatus('pending')
+
+    try {
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent: { type: 'refund_agent', amount: String(amt), token } }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) { setErrMsg(data.error ?? 'Withdraw failed'); setStatus('error'); return }
+      setTxHash(data.txHash ?? null)
+      setStatus('done')
+    } catch {
+      setErrMsg('Network error. Try again.')
+      setStatus('error')
+    }
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 480, background: 'rgba(12,12,24,0.97)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', borderRadius: '24px 24px 0 0', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none', padding: '24px 20px 48px', boxShadow: '0 -16px 64px rgba(0,0,0,0.6)' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#fff' }}>Withdraw from Agent</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>Agent wallet → your main wallet</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)' }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {status === 'done' ? (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: 44, marginBottom: 14 }}>✅</div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6, color: '#fff' }}>Withdrawn!</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 18 }}>{amount} {token} → your wallet</div>
+            {txHash && (
+              <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#38bdf8', textDecoration: 'none', fontWeight: 600 }}>View on ArcScan ↗</a>
+            )}
+            <button onClick={onClose} style={{ display: 'block', width: '100%', marginTop: 22, background: '#38bdf8', color: '#000', border: 'none', borderRadius: 12, padding: '13px', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+          </div>
+        ) : (
+          <>
+            {/* Token selector */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {(['USDC', 'EURC', 'USYC'] as const).map(t => (
+                <button key={t} onClick={() => setToken(t)} style={{ flex: 1, padding: '9px 0', background: token === t ? `${TOKEN_COLOR[t]}22` : 'rgba(255,255,255,0.05)', color: token === t ? TOKEN_COLOR[t] : 'rgba(255,255,255,0.45)', border: `1.5px solid ${token === t ? TOKEN_COLOR[t] : 'rgba(255,255,255,0.1)'}`, borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* Available balance */}
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginBottom: 8, textAlign: 'right' }}>
+              Available: <span style={{ color: TOKEN_COLOR[token], fontWeight: 700 }}>{agentBalance[token]} {token}</span>
+            </div>
+
+            {/* Amount input */}
+            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.06)', border: `1.5px solid ${amount ? TOKEN_COLOR[token] : 'rgba(255,255,255,0.12)'}`, borderRadius: 12, padding: '0 16px', height: 56, marginBottom: 14, transition: 'border-color 0.15s' }}>
+              <input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 22, fontWeight: 700, fontFamily: 'inherit', color: '#fff' }} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button onClick={() => setAmount(String(maxAmount))} style={{ fontSize: 10, fontWeight: 700, padding: '3px 7px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, cursor: 'pointer', color: 'rgba(255,255,255,0.6)', fontFamily: 'inherit' }}>MAX</button>
+                <span style={{ fontWeight: 700, color: TOKEN_COLOR[token], fontSize: 14 }}>{token}</span>
+              </div>
+            </div>
+
+            {errMsg && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.25)', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#ff6b6b' }}>
+                <AlertCircle size={14} style={{ flexShrink: 0 }} />{errMsg}
+              </div>
+            )}
+
+            <button
+              onClick={handleWithdraw}
+              disabled={status === 'pending'}
+              style={{ width: '100%', padding: '14px', background: status === 'pending' ? 'rgba(56,189,248,0.35)' : '#38bdf8', color: '#000', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: status === 'pending' ? 'wait' : 'pointer', fontFamily: 'inherit', boxShadow: 'rgb(10,10,13) 2px 2px 0px 0px', transition: 'background 0.15s' }}
+            >
+              {status === 'pending' ? '⏳ Processing…' : `Withdraw ${amount || '0'} ${token} → My Wallet`}
+            </button>
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'center', marginTop: 12 }}>
+              No MetaMask needed — agent signs server-side.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main balance page ─────────────────────────────────────────────────────────
 export default function BalancePage() {
-  const [data,        setData]        = useState<BalanceResponse | null>(null)
-  const [loading,     setLoading]     = useState(true)
-  const [showDeposit, setShowDeposit] = useState(false)
+  const [data,         setData]         = useState<BalanceResponse | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [showDeposit,  setShowDeposit]  = useState(false)
+  const [showWithdraw, setShowWithdraw] = useState(false)
 
   async function fetchBalance() {
     setLoading(true)
@@ -531,29 +647,50 @@ export default function BalancePage() {
               ))}
             </div>
 
-            {/* Top Up button */}
-            <button
-              onClick={() => setShowDeposit(true)}
-              disabled={!data?.agentWallet}
-              style={{
-                width: '100%', padding: '13px',
-                background: data?.agentWallet ? '#38bdf8' : 'rgba(255,255,255,0.06)',
-                color: data?.agentWallet ? '#000' : 'rgba(255,255,255,0.25)',
-                border: data?.agentWallet ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 12,
-                fontWeight: 700, fontSize: 14,
-                cursor: data?.agentWallet ? 'pointer' : 'not-allowed',
-                fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                boxShadow: data?.agentWallet ? 'rgb(10,10,13) 2px 2px 0px 0px' : 'none',
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { if (data?.agentWallet) e.currentTarget.style.background = '#7dd3fc' }}
-              onMouseLeave={e => { if (data?.agentWallet) e.currentTarget.style.background = '#38bdf8' }}
-            >
-              <ArrowDownToLine size={15} />
-              Top Up Agent Wallet
-            </button>
+            {/* Top Up + Withdraw buttons */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setShowDeposit(true)}
+                disabled={!data?.agentWallet}
+                style={{
+                  flex: 1, padding: '13px',
+                  background: data?.agentWallet ? '#38bdf8' : 'rgba(255,255,255,0.06)',
+                  color: data?.agentWallet ? '#000' : 'rgba(255,255,255,0.25)',
+                  border: data?.agentWallet ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 12, fontWeight: 700, fontSize: 13,
+                  cursor: data?.agentWallet ? 'pointer' : 'not-allowed',
+                  fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  boxShadow: data?.agentWallet ? 'rgb(10,10,13) 2px 2px 0px 0px' : 'none',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (data?.agentWallet) e.currentTarget.style.background = '#7dd3fc' }}
+                onMouseLeave={e => { if (data?.agentWallet) e.currentTarget.style.background = '#38bdf8' }}
+              >
+                <ArrowDownToLine size={14} />
+                Top Up
+              </button>
+
+              <button
+                onClick={() => setShowWithdraw(true)}
+                disabled={!data?.agentWallet || parseFloat(data.agentWallet.total) <= 0}
+                style={{
+                  flex: 1, padding: '13px',
+                  background: 'rgba(255,255,255,0.07)',
+                  color: 'rgba(255,255,255,0.7)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: 12, fontWeight: 700, fontSize: 13,
+                  cursor: (!data?.agentWallet || parseFloat(data.agentWallet.total) <= 0) ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  transition: 'all 0.15s', opacity: (!data?.agentWallet || parseFloat(data.agentWallet.total) <= 0) ? 0.4 : 1,
+                }}
+                onMouseEnter={e => { if (data?.agentWallet) e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
+                onMouseLeave={e => { if (data?.agentWallet) e.currentTarget.style.background = 'rgba(255,255,255,0.07)' }}
+              >
+                ↩ Withdraw
+              </button>
+            </div>
           </div>
 
           {/* ArcScan links */}
@@ -606,6 +743,14 @@ export default function BalancePage() {
           agentAddress={data.agentWallet.address}
           userAddress={data.userWallet.address}
           onClose={() => { setShowDeposit(false); fetchBalance() }}
+        />
+      )}
+
+      {/* Withdraw modal */}
+      {showWithdraw && data?.agentWallet && (
+        <WithdrawModal
+          agentBalance={data.agentWallet}
+          onClose={() => { setShowWithdraw(false); fetchBalance() }}
         />
       )}
 

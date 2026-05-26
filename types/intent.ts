@@ -56,6 +56,12 @@ export interface FundAgentIntent {
   user_address:  string   // MetaMask wallet (source)
 }
 
+export interface RefundAgentIntent {
+  type: 'refund_agent'
+  amount: string
+  token: TokenSymbol
+}
+
 export type PaymentIntent =
   | SendIntent
   | SwapIntent
@@ -64,6 +70,7 @@ export type PaymentIntent =
   | RateIntent
   | ContactIntent
   | FundAgentIntent
+  | RefundAgentIntent
 
 export interface ConfirmationCard {
   intent: PaymentIntent

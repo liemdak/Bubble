@@ -25,12 +25,40 @@ function getGreeting() {
   return 'Good evening'
 }
 
+const CHAT_KEY = 'bubblepay:chat'
+const MAX_SAVED = 60
+
+// Message types safe to persist (skip transient typing / pending confirm cards)
+function isPersistable(m: ChatMessage): boolean {
+  return m.type === 'user' || m.type === 'assistant' || m.type === 'success' || m.type === 'qr'
+}
+
 export function ChatWindow() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
   const bottomRef    = useRef<HTMLDivElement>(null)
   const chatInputRef = useRef<ChatInputHandle>(null)
+
+  // ── Load chat history from localStorage on mount ──
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CHAT_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as ChatMessage[]
+        if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  // ── Save to localStorage whenever messages change ──
+  useEffect(() => {
+    if (messages.length === 0) return
+    try {
+      const toSave = messages.filter(isPersistable).slice(-MAX_SAVED)
+      localStorage.setItem(CHAT_KEY, JSON.stringify(toSave))
+    } catch { /* storage quota — ignore */ }
+  }, [messages])
 
   function handlePrefill(text: string) {
     chatInputRef.current?.prefill(text)

@@ -52,9 +52,9 @@ export async function POST(req: NextRequest) {
 
     switch (intent.type) {
       case 'send_payment':  return await executeSend(intent, walletInfo)
+      case 'refund_agent':  return await executeRefundAgent(intent, walletInfo, session.address)
       case 'swap_tokens':   return await executeSwap(intent, walletInfo)
       case 'bridge_tokens': return await executeBridge(intent, walletInfo)
-      // get_balance reads MetaMask (session.address) — the user's main on-chain wallet
       case 'get_balance':   return await executeBalance(session.address)
       default:
         return NextResponse.json(
@@ -149,6 +149,65 @@ async function executeSend(
       }, { status: 400 })
     }
     return NextResponse.json({ error: `Send failed: ${msg}` }, { status: 500 })
+  }
+}
+
+// ── Refund agent → user's main wallet ────────────────────────────────────────
+
+async function executeRefundAgent(
+  intent: Extract<PaymentIntent, { type: 'refund_agent' }>,
+  sessionWallet: WalletInfo | null,
+  userAddress: string,         // MetaMask address (destination)
+) {
+  const amount = parseFloat(intent.amount)
+  if (!intent.amount || isNaN(amount) || amount <= 0) {
+    return NextResponse.json({ error: 'Amount must be positive' }, { status: 400 })
+  }
+
+  const ALLOWED_TOKENS = ['USDC', 'EURC', 'USYC'] as const
+  if (!ALLOWED_TOKENS.includes(intent.token as typeof ALLOWED_TOKENS[number])) {
+    return NextResponse.json({ error: 'Unsupported token' }, { status: 400 })
+  }
+
+  const wallet = sessionWallet ?? await resolveUserWallet('arc')
+  if (!wallet) {
+    return NextResponse.json({ error: 'No Circle wallet found.' }, { status: 404 })
+  }
+
+  const apiKey       = process.env.CIRCLE_API_KEY
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+  if (!apiKey || !entitySecret) {
+    return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
+  }
+
+  try {
+    const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+    const { AppKit } = await import('@circle-fin/app-kit')
+
+    const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
+    const kit = new AppKit()
+
+    // Same as kit.send() but destination is the user's own MetaMask address
+    const result = await kit.send({
+      from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
+      to:     userAddress,
+      amount: intent.amount,
+      token:  intent.token,
+    })
+
+    const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
+    const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
+
+    return NextResponse.json({
+      txHash:     result.txHash,
+      message:    `✅ Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
+      arcScanUrl,
+      status:     result.state,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Withdraw failed'
+    console.error('[executeRefundAgent]', err)
+    return NextResponse.json({ error: `Withdraw failed: ${msg}` }, { status: 500 })
   }
 }
 

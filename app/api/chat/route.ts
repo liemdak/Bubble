@@ -72,6 +72,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ type: 'confirm', card })
     }
 
+    // ── Refund / Withdraw agent → main wallet ────────────────────────
+    if (/withdraw|refund|rút.*agent|rút.*ví agent|chuyển.*về ví chính|agent.*về ví|pull.*from agent/i.test(message)) {
+      const amountMatch = message.match(/(\d+(?:[.,]\d+)?)\s*(usdc|eurc|usyc)?/i)
+      const amount = amountMatch?.[1]?.replace(',', '.') ?? '0'
+      const token  = (amountMatch?.[2]?.toUpperCase() ?? 'USDC') as 'USDC' | 'EURC' | 'USYC'
+      const displayAmount = parseFloat(amount) > 0 ? amount : 'all'
+      const card: import('@/types/intent').ConfirmationCard = {
+        intent: { type: 'refund_agent', amount: parseFloat(amount) > 0 ? amount : '999999', token },
+        gas_fee: '$0.006',
+        total_display: `${displayAmount} ${token} → Your wallet`,
+      }
+      return NextResponse.json({ type: 'confirm', card })
+    }
+
     // ── QR shortcut — hiển thị Circle wallet address để nhận tiền ────
     if (/\bqr\b|my qr|receive|payment link/i.test(message)) {
       // Dùng Circle wallet address (nơi nhận tiền), không phải MetaMask
