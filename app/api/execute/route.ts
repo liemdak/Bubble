@@ -159,8 +159,7 @@ async function executeSend(
 // ── Swap ──────────────────────────────────────────────────────────────────────
 
 async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null) {
-  // Use adapter-viem-v2 — the correct Arc adapter per CLAUDE.md
-  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-viem-v2')
+  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, SwapChain } = await import('@circle-fin/app-kit')
 
   const apiKey       = process.env.CIRCLE_API_KEY
@@ -233,8 +232,7 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null)
 // ── Bridge ────────────────────────────────────────────────────────────────────
 
 async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | null) {
-  // Use adapter-viem-v2 — the correct Arc adapter per CLAUDE.md
-  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-viem-v2')
+  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, BridgeChain } = await import('@circle-fin/app-kit')
 
   const apiKey       = process.env.CIRCLE_API_KEY
