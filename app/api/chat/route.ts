@@ -83,9 +83,9 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── Balance shortcut — đọc từ Circle wallet ──────────────────────
+    // ── Balance shortcut — đọc ví MetaMask (chính) ───────────────────
     if (/balance|how much|số dư|xem số dư|kiểm tra ví|check.*balance|my balance|wallet balance/i.test(message)) {
-      const msg = await fetchRealBalance(circleWalletId, circleWalletAddress ?? userAddress)
+      const msg = await fetchRealBalance(userAddress, circleWalletAddress)
       return NextResponse.json({ type: 'text', message: msg })
     }
 
@@ -114,16 +114,43 @@ export async function POST(req: NextRequest) {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function fetchRealBalance(
-  _circleWalletId: string | null,
-  userAddress: string | null = null,
+  metaMaskAddress: string | null,
+  agentAddress: string | null = null,
 ): Promise<string> {
+  if (!metaMaskAddress) {
+    return '💰 No wallet connected. Please log in first.'
+  }
   try {
-    if (!userAddress) {
-      return '💰 No wallet connected. Please log in first.'
+    const { readWalletBalances } = await import('@/lib/viem/balanceReader')
+
+    const [userBals, agentBals] = await Promise.all([
+      readWalletBalances(metaMaskAddress),
+      agentAddress ? readWalletBalances(agentAddress) : Promise.resolve([]),
+    ])
+
+    const fmt = (bals: typeof userBals) =>
+      bals.filter(b => parseFloat(b.amount) > 0).map(b => `  • ${b.token}: ${b.amount}`)
+
+    const shortUser  = `${metaMaskAddress.slice(0,6)}...${metaMaskAddress.slice(-4)}`
+    const shortAgent = agentAddress ? `${agentAddress.slice(0,6)}...${agentAddress.slice(-4)}` : null
+
+    const userLines  = fmt(userBals)
+    const agentLines = agentAddress ? fmt(agentBals) : []
+
+    const userTotal  = userBals.reduce((s, b) => s + parseFloat(b.amount), 0).toFixed(2)
+    const agentTotal = agentBals.reduce((s, b) => s + parseFloat(b.amount), 0).toFixed(2)
+
+    let msg = `💰 **Your wallet** (${shortUser}):\n`
+    msg += userLines.length ? userLines.join('\n') : '  (empty)'
+    msg += `\n≈ $${userTotal} total`
+
+    if (shortAgent) {
+      msg += `\n\n🤖 **Agent wallet** (${shortAgent}):\n`
+      msg += agentLines.length ? agentLines.join('\n') : '  (empty — top up to send)'
+      msg += `\n≈ $${agentTotal} total`
     }
-    const { readWalletBalances, formatBalanceMessage } = await import('@/lib/viem/balanceReader')
-    const balances = await readWalletBalances(userAddress)
-    return formatBalanceMessage(balances, userAddress)
+
+    return msg
   } catch {
     return '💰 Could not fetch balance right now. Please try again.'
   }

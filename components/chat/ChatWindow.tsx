@@ -80,19 +80,16 @@ export function ChatWindow() {
 
     // ── fund_agent: MetaMask ERC-20 transfer (client-side, no server needed) ──
     if (card.intent.type === 'fund_agent') {
+      // Destructure BEFORE entering closures so TypeScript retains narrowed type
+      const { agent_address, user_address, amount, token } = card.intent
       try {
         const { fundAgentViaMetaMask } = await import('@/lib/metamask/fundAgent')
-        const txHash = await fundAgentViaMetaMask(
-          card.intent.agent_address,
-          card.intent.user_address,
-          card.intent.amount,
-          card.intent.token,
-        )
+        const txHash = await fundAgentViaMetaMask(agent_address, user_address, amount, token)
         setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
           id: crypto.randomUUID(),
           type: 'success',
           txHash,
-          message: `${card.intent.amount} ${card.intent.token} sent to agent wallet!`,
+          message: `${amount} ${token} sent to agent wallet!`,
           arcScanUrl: `https://testnet.arcscan.app/tx/${txHash}`,
         }))
       } catch (err: unknown) {
