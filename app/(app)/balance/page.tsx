@@ -59,64 +59,94 @@ function DepositModal({
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) { setErrMsg('Enter a valid amount'); return }
 
-    const provider = (window as unknown as { ethereum?: Record<string, unknown> }).ethereum
+    type EthProvider = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+    const provider = (window as unknown as { ethereum?: EthProvider }).ethereum
     if (!provider) {
-      setErrMsg('MetaMask not detected. Copy the agent address below and send manually.')
+      setErrMsg('MetaMask not detected. Copy the agent address and send manually.')
       return
     }
 
     setErrMsg(null)
     setStatus('switching')
 
+    // ── Step 1: Switch / add Arc Testnet ─────────────────────────────────────
     try {
-      // 1. Switch to Arc Testnet
-      try {
-        await (provider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }).request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: ARC_CHAIN_ID }],
-        })
-      } catch {
-        // Chain not added yet — add it
-        await (provider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }).request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId:  ARC_CHAIN_ID,
-            chainName: 'Arc Testnet',
-            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-            rpcUrls: ['https://rpc.testnet.arc.network'],
-            blockExplorerUrls: ['https://testnet.arcscan.app'],
-          }],
-        })
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: ARC_CHAIN_ID }],
+      })
+    } catch (switchErr: unknown) {
+      // Code 4902 = chain not added yet
+      const code = (switchErr as { code?: number })?.code
+      if (code === 4902 || code === -32603) {
+        try {
+          await provider.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId:   ARC_CHAIN_ID,
+              chainName: 'Arc Testnet',
+              nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://rpc.testnet.arc.network'],
+              blockExplorerUrls: ['https://testnet.arcscan.app'],
+            }],
+          })
+        } catch (addErr: unknown) {
+          const msg = addErr instanceof Error ? addErr.message : String(addErr)
+          setErrMsg(
+            msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel')
+              ? 'Please approve adding Arc Testnet in MetaMask and try again.'
+              : `Failed to add network: ${msg}`
+          )
+          setStatus('error')
+          return
+        }
+      } else {
+        const msg = switchErr instanceof Error ? switchErr.message : String(switchErr)
+        setErrMsg(
+          msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel')
+            ? 'Please approve the network switch to Arc Testnet and try again.'
+            : `Network switch failed: ${msg}`
+        )
+        setStatus('error')
+        return
       }
+    }
 
-      setStatus('pending')
+    setStatus('pending')
 
-      // 2. Encode ERC-20 transfer(address,uint256)
+    // ── Step 2: Get current MetaMask account ──────────────────────────────────
+    let fromAddress = userAddress
+    try {
+      const accounts = await provider.request({ method: 'eth_accounts' }) as string[]
+      if (accounts?.[0]) fromAddress = accounts[0]
+    } catch { /* use prop fallback */ }
+
+    // ── Step 3: Encode ERC-20 transfer(address,uint256) and send ─────────────
+    try {
       const amountWei  = BigInt(Math.round(amt * 1_000_000)) // 6 decimals
       const paddedAddr = agentAddress.slice(2).toLowerCase().padStart(64, '0')
       const paddedAmt  = amountWei.toString(16).padStart(64, '0')
-      const data       = `0xa9059cbb${paddedAddr}${paddedAmt}`
+      const calldata   = `0xa9059cbb${paddedAddr}${paddedAmt}`
 
-      // 3. Send via MetaMask
-      const hash = await (provider as { request: (args: { method: string; params?: unknown[] }) => Promise<string> }).request({
+      const hash = await (provider as { request: (a: { method: string; params?: unknown[] }) => Promise<string> }).request({
         method: 'eth_sendTransaction',
         params: [{
-          from: userAddress,
+          from: fromAddress,
           to:   TOKEN_CONTRACTS[token],
-          data,
+          data: calldata,
         }],
       })
 
       setTxHash(hash)
       setStatus('done')
 
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Transaction rejected'
-      if (msg.includes('rejected') || msg.includes('denied')) {
-        setErrMsg('Transaction cancelled.')
-      } else {
-        setErrMsg(msg)
-      }
+    } catch (txErr: unknown) {
+      const msg = txErr instanceof Error ? txErr.message : String(txErr)
+      setErrMsg(
+        msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied')
+          ? 'Transaction rejected in MetaMask. Click "Send" to try again.'
+          : `Transaction failed: ${msg}`
+      )
       setStatus('error')
     }
   }
