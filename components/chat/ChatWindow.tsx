@@ -212,47 +212,6 @@ export function ChatWindow() {
                   Type what you need — I&apos;ll handle the rest.
                 </div>
 
-                {/* Agent explanation */}
-                <div style={{
-                  marginTop: 12,
-                  background: 'rgba(163,230,53,0.08)',
-                  border: '1px solid rgba(163,230,53,0.2)',
-                  borderRadius: 10,
-                  padding: '8px 14px',
-                  fontSize: 11,
-                  color: 'rgba(255,255,255,0.5)',
-                  lineHeight: 1.6,
-                  maxWidth: 280,
-                  margin: '12px auto 0',
-                  textAlign: 'left',
-                }}>
-                  <span style={{ fontWeight: 700, color: '#a3e635' }}>🤖 Agent wallet</span> — Circle wallet that executes transactions for you. Say <em style={{ color: 'rgba(255,255,255,0.7)' }}>&ldquo;nạp 10 USDC vào agent&rdquo;</em> to fund it.
-                </div>
-
-                {/* Stats row */}
-                <div style={{
-                  display: 'flex',
-                  gap: 6,
-                  justifyContent: 'center',
-                  marginTop: 16,
-                  flexWrap: 'wrap',
-                }}>
-                  {['~$0.006 gas', 'Arc · ETH · Base · Solana', 'USDC · EURC · USYC'].map((label) => (
-                    <span key={label} style={{
-                      background: 'rgba(255,255,255,0.07)',
-                      backdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 100,
-                      padding: '4px 11px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: 'rgba(255,255,255,0.55)',
-                      letterSpacing: '0.01em',
-                    }}>
-                      {label}
-                    </span>
-                  ))}
-                </div>
               </motion.div>
 
               {/* Suggestions — prefill for incomplete prompts, auto-send for complete ones */}

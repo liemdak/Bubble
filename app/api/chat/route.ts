@@ -146,7 +146,7 @@ async function fetchRealBalance(
 
     if (shortAgent) {
       msg += `\n\n🤖 Agent wallet (${shortAgent}):\n`
-      msg += agentLines.length ? agentLines.join('\n') : '  (empty — type "nạp 10 USDC vào agent" to top up)'
+      msg += agentLines.length ? agentLines.join('\n') : '  (empty — tap "Fund Agent" to top up)'
       msg += `\n≈ $${agentTotal} total`
     }
 

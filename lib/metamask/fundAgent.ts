@@ -1,5 +1,5 @@
 /**
- * Send ERC-20 tokens from MetaMask to the agent wallet.
+ * Send ERC-20 tokens from MetaMask (main wallet) to the Circle agent wallet.
  * Runs entirely client-side — no server call needed.
  */
 
@@ -15,15 +15,33 @@ type EthProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
 }
 
+/** MetaMask throws plain objects, not Error instances — extract message safely */
+function extractMsg(err: unknown): string {
+  if (typeof err === 'string') return err
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object' && err !== null) {
+    const e = err as Record<string, unknown>
+    if (typeof e.message === 'string' && e.message) return e.message
+    if (typeof e.code === 'number') return `MetaMask error code ${e.code}`
+    try { return JSON.stringify(e) } catch { /* ignore */ }
+  }
+  return 'Unknown error'
+}
+
+function isUserRejection(msg: string): boolean {
+  const lower = msg.toLowerCase()
+  return lower.includes('reject') || lower.includes('cancel') || lower.includes('denied') || lower.includes('user refused')
+}
+
 function getProvider(): EthProvider {
   const p = (window as unknown as { ethereum?: EthProvider }).ethereum
-  if (!p) throw new Error('MetaMask not detected. Please install MetaMask.')
+  if (!p) throw new Error('MetaMask not detected. Please install MetaMask and try again.')
   return p
 }
 
 async function switchToArc(provider: EthProvider) {
-  // Step 0: Make sure MetaMask has an active connection to this site.
-  // Without this, wallet_addEthereumChain can return "Not connected".
+  // Step 0: Ensure MetaMask has an active connection to this site.
+  // Without this, wallet_addEthereumChain returns "Not connected".
   try {
     const accounts = await provider.request({ method: 'eth_accounts' }) as string[]
     if (!accounts?.length) {
@@ -37,20 +55,21 @@ async function switchToArc(provider: EthProvider) {
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: ARC_CHAIN_ID }],
     })
-    return // success
+    return // success — chain switched
   } catch {
-    // Any error (4902 chain not added, -32603 internal, etc.) → fall through to add
+    // 4902 = chain not added yet, or other error — fall through to add
   }
 
   // Step 2: Add Arc Testnet to MetaMask
+  // NOTE: MetaMask requires nativeCurrency.decimals = 18 for all chains.
+  // Arc's native USDC uses 6 decimals on-chain, but the API enforces 18 here.
   try {
     await provider.request({
       method: 'wallet_addEthereumChain',
       params: [{
-        chainId:   ARC_CHAIN_ID,
-        chainName: 'Arc Testnet',
-        // Arc's native gas token is USDC (6 decimals) — per Arc docs
-        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+        chainId:        ARC_CHAIN_ID,
+        chainName:      'Arc Testnet',
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
         rpcUrls: [
           'https://rpc.testnet.arc.network',
           'https://rpc.blockdaemon.testnet.arc.network',
@@ -60,28 +79,31 @@ async function switchToArc(provider: EthProvider) {
       }],
     })
   } catch (addErr: unknown) {
-    const msg = addErr instanceof Error ? addErr.message : String(addErr)
-    const isReject = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied')
-    throw new Error(isReject
-      ? 'Bạn cần approve thêm mạng Arc Testnet trong MetaMask để tiếp tục.'
-      : `Không thể thêm Arc Testnet: ${msg}. Hãy thêm thủ công: Chain ID 5042002, RPC https://rpc.testnet.arc.network`)
+    const msg = extractMsg(addErr)
+    throw new Error(
+      isUserRejection(msg)
+        ? 'Please approve adding Arc Testnet in MetaMask to continue.'
+        : `Could not add Arc Testnet: ${msg}. Add manually: Chain ID 5042002, RPC https://rpc.testnet.arc.network`
+    )
   }
 }
 
 /**
- * Transfer ERC-20 token from MetaMask to agent wallet.
+ * Transfer ERC-20 token from MetaMask (main wallet) to agent wallet.
+ * Flow: switch to Arc → sign ERC-20 transfer → return txHash
+ *
  * @returns txHash on success
  * @throws descriptive Error on failure
  */
 export async function fundAgentViaMetaMask(
   agentAddress: string,
-  userAddress: string,
-  amount: string,
-  token: 'USDC' | 'EURC' | 'USYC',
+  userAddress:  string,
+  amount:       string,
+  token:        'USDC' | 'EURC' | 'USYC',
 ): Promise<string> {
   const provider = getProvider()
 
-  // 1. Switch to Arc Testnet
+  // 1. Switch/add Arc Testnet in MetaMask
   await switchToArc(provider)
 
   // 2. Get current MetaMask account (may differ from session address)
@@ -91,24 +113,27 @@ export async function fundAgentViaMetaMask(
     if (accounts?.[0]) from = accounts[0]
   } catch { /* use prop fallback */ }
 
-  // 3. Encode ERC-20 transfer(address,uint256)
-  const amountWei  = BigInt(Math.round(parseFloat(amount) * 1_000_000)) // 6 decimals
+  // 3. Encode ERC-20 transfer(address,uint256) calldata
+  const amountWei  = BigInt(Math.round(parseFloat(amount) * 1_000_000)) // USDC = 6 decimals
   const paddedAddr = agentAddress.slice(2).toLowerCase().padStart(64, '0')
   const paddedAmt  = amountWei.toString(16).padStart(64, '0')
   const calldata   = `0xa9059cbb${paddedAddr}${paddedAmt}`
 
-  // 4. Send via MetaMask
+  // 4. Send via MetaMask — MetaMask popup opens for user signature
   try {
-    const hash = await (provider as { request: (a: { method: string; params?: unknown[] }) => Promise<string> }).request({
+    const hash = await (provider as {
+      request: (a: { method: string; params?: unknown[] }) => Promise<string>
+    }).request({
       method: 'eth_sendTransaction',
       params: [{ from, to: TOKEN_CONTRACTS[token], data: calldata }],
     })
     return hash
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    const isReject = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied')
-    throw new Error(isReject
-      ? 'Transaction rejected in MetaMask.'
-      : `Transaction failed: ${msg}`)
+    const msg = extractMsg(err)
+    throw new Error(
+      isUserRejection(msg)
+        ? 'Transaction rejected in MetaMask.'
+        : `Transaction failed: ${msg}`
+    )
   }
 }

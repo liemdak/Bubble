@@ -5,11 +5,10 @@ import { usePathname } from 'next/navigation'
 import { playBubbleTap } from '@/lib/sounds'
 
 const TABS = [
-  { href: '/chat',     emoji: '🫧', label: 'Chat' },
-  { href: '/balance',  emoji: '💳', label: 'Balance' },
+  { href: '/chat',     emoji: '🫧', label: 'Chat'     },
+  { href: '/balance',  emoji: '💳', label: 'Balance'  },
   { href: '/contacts', emoji: '👥', label: 'Contacts' },
-  { href: '/history',  emoji: '📋', label: 'History' },
-  { href: '/settings', emoji: '⚙️', label: 'Settings' },
+  { href: '/history',  emoji: '📋', label: 'History'  },
 ]
 
 export function BottomNav() {
@@ -79,9 +78,7 @@ export function BottomNav() {
         )
       })}
 
-      <style>{`
-        @media (min-width: 769px) { .bottom-nav { display: none !important; } }
-      `}</style>
+      {/* BottomNav visible on all screen sizes so users can navigate back to Chat from any page */}
     </nav>
   )
 }
