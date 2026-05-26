@@ -120,12 +120,16 @@ export function ChatWindow() {
       const data = await res.json()
 
       if (!res.ok || data.error) {
-        // Server returned an error — show it with optional ArcScan wallet link
-        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
-          id: crypto.randomUUID(),
-          type: 'assistant',
-          content: `⚠️ ${data.error ?? 'Transaction failed.'}\n\nCheck your transaction history on ArcScan ↗`,
-        }))
+        // Server returned an error — include clickable ArcScan link
+        setMessages((prev) => {
+          // Try to find user wallet address from a previous success/qr message for the link
+          const arcScanBase = 'https://testnet.arcscan.app'
+          return prev.filter((m) => m.id !== cardId).concat({
+            id: crypto.randomUUID(),
+            type: 'assistant',
+            content: `⚠️ ${data.error ?? 'Transaction failed.'}\n\nView your wallet: ${arcScanBase}`,
+          })
+        })
         return
       }
 

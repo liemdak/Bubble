@@ -8,6 +8,31 @@ interface MessageBubbleProps {
   isTyping?: boolean
 }
 
+/** Render text with clickable https:// links */
+function RichText({ text }: { text: string }) {
+  const URL_RE = /(https?:\/\/[^\s]+)/g
+  const parts = text.split(URL_RE)
+  return (
+    <>
+      {parts.map((part, i) =>
+        URL_RE.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all' }}
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  )
+}
+
 export function MessageBubble({ role, content, isTyping = false }: MessageBubbleProps) {
   const isUser = role === 'user'
 
@@ -62,7 +87,7 @@ export function MessageBubble({ role, content, isTyping = false }: MessageBubble
         whiteSpace: 'pre-line',
         color: '#000',
       }}>
-        {isTyping ? <TypingDots /> : content}
+        {isTyping ? <TypingDots /> : <RichText text={content} />}
       </div>
     </motion.div>
   )

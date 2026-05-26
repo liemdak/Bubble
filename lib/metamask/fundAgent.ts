@@ -22,18 +22,27 @@ function getProvider(): EthProvider {
 }
 
 async function switchToArc(provider: EthProvider) {
+  // Step 0: Make sure MetaMask has an active connection to this site.
+  // Without this, wallet_addEthereumChain can return "Not connected".
+  try {
+    const accounts = await provider.request({ method: 'eth_accounts' }) as string[]
+    if (!accounts?.length) {
+      await provider.request({ method: 'eth_requestAccounts' })
+    }
+  } catch { /* already connected or popup dismissed — proceed */ }
+
+  // Step 1: Try switching to Arc Testnet (fast path if already added)
   try {
     await provider.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: ARC_CHAIN_ID }],
     })
-    // Switch succeeded — already on Arc Testnet
-    return
+    return // success
   } catch {
-    // Any error from switchEthereumChain → try to add the chain
-    // (covers code 4902 "unrecognized chain" AND other MetaMask versions)
+    // Any error (4902 chain not added, -32603 internal, etc.) → fall through to add
   }
 
+  // Step 2: Add Arc Testnet to MetaMask
   try {
     await provider.request({
       method: 'wallet_addEthereumChain',
@@ -54,8 +63,8 @@ async function switchToArc(provider: EthProvider) {
     const msg = addErr instanceof Error ? addErr.message : String(addErr)
     const isReject = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied')
     throw new Error(isReject
-      ? 'Vui lòng approve thêm mạng Arc Testnet trong MetaMask rồi thử lại.'
-      : `Không thể thêm Arc Testnet: ${msg}`)
+      ? 'Bạn cần approve thêm mạng Arc Testnet trong MetaMask để tiếp tục.'
+      : `Không thể thêm Arc Testnet: ${msg}. Hãy thêm thủ công: Chain ID 5042002, RPC https://rpc.testnet.arc.network`)
   }
 }
 

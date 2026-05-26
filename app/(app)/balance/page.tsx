@@ -69,9 +69,13 @@ function DepositModal({
     setErrMsg(null)
     setStatus('switching')
 
-    // ── Step 1: Switch / add Arc Testnet ─────────────────────────────────────
-    // Try switching first; if chain isn't added yet, add it.
-    // Catch ALL errors from switchEthereumChain and fall through to addEthereumChain.
+    // ── Step 1: Ensure MetaMask is connected, then switch / add Arc Testnet ─────
+    // Without eth_accounts check first, wallet_addEthereumChain returns "Not connected"
+    try {
+      const accounts = await provider.request({ method: 'eth_accounts' }) as string[]
+      if (!accounts?.length) await provider.request({ method: 'eth_requestAccounts' })
+    } catch { /* already connected */ }
+
     try {
       await provider.request({
         method: 'wallet_switchEthereumChain',
