@@ -17,7 +17,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       overscrollBehavior: 'none',
       background: 'linear-gradient(160deg, rgb(137,229,240) 0%, rgb(182,239,246) 25%, rgb(210,245,250) 50%, rgb(235,250,245) 80%, #ffffff 100%)',
     }}>
-      <AppHeader address={session?.address} />
+      <AppHeader
+        address={session?.circleWalletAddress ?? session?.address}
+        isCircleWallet={!!session?.circleWalletAddress}
+      />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         {/* Subtle bubbles behind glass */}

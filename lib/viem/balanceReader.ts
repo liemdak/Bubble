@@ -80,8 +80,10 @@ export function formatBalanceMessage(balances: OnchainBalance[], address: string
     return '💰 Could not read balance from Arc Testnet. Check your connection.'
   }
 
+  const shortAddr = `${address.slice(0, 6)}...${address.slice(-4)}`
+
   if (nonZero.length === 0) {
-    return `💰 Your wallet is empty on Arc Testnet.\n\nGet free USDC at faucet.circle.com → select Arc Testnet.\n\nAddress: ${address.slice(0,6)}...${address.slice(-4)}`
+    return `💰 Your Circle wallet is empty on Arc Testnet.\n\nTo fund it:\n1. Go to faucet.circle.com\n2. Select Arc Testnet\n3. Paste your Circle wallet address: ${shortAddr}\n\nYou can also find this address in the ⚙️ Settings tab.`
   }
 
   const lines = nonZero.map(b => `• ${b.token}: ${b.amount}`)
@@ -89,5 +91,5 @@ export function formatBalanceMessage(balances: OnchainBalance[], address: string
     .reduce((sum, b) => sum + parseFloat(b.amount), 0)
     .toFixed(2)
 
-  return `💰 Balances on Arc Testnet:\n${lines.join('\n')}\n\n≈ $${total} total`
+  return `💰 Circle wallet balance (Arc Testnet):\n${lines.join('\n')}\n\n≈ $${total} total\nWallet: ${shortAddr}`
 }
