@@ -4,25 +4,30 @@ import { useState } from 'react'
 import { playBubbleTap } from '@/lib/sounds'
 
 const ACTIONS = [
-  { label: '💸 Send',      prompt: 'Send ',                    accent: '#d2fae5' },
-  { label: '🔄 Swap',      prompt: 'Swap ',                    accent: '#fae9ff' },
-  { label: '🌉 Bridge',    prompt: 'Bridge ',                  accent: '#fef3c8' },
-  { label: '🤖 Fund Agent',prompt: 'Nạp 10 USDC vào agent',   accent: '#ecfccb' },
-  { label: '📷 My QR',     prompt: 'Show my QR code',          accent: '#e0f2fe' },
-  { label: '💰 Balance',   prompt: 'Check my balance',         accent: '#d2fae5' },
+  // prefillOnly=true → set input text, let user complete before sending
+  // prefillOnly=false → auto-send immediately
+  { label: '💸 Send',       prompt: 'Send  USDC to ',          accent: '#d2fae5', prefillOnly: true  },
+  { label: '🔄 Swap',       prompt: 'Swap  USDC to EURC',      accent: '#fae9ff', prefillOnly: true  },
+  { label: '🌉 Bridge',     prompt: 'Bridge  USDC to ',        accent: '#fef3c8', prefillOnly: true  },
+  { label: '🤖 Fund Agent', prompt: 'Nạp 10 USDC vào agent',   accent: '#ecfccb', prefillOnly: false },
+  { label: '📷 My QR',      prompt: 'Show my QR code',          accent: '#e0f2fe', prefillOnly: false },
+  { label: '💰 Balance',    prompt: 'Check my balance',         accent: '#d2fae5', prefillOnly: false },
 ]
 
 interface QuickActionsProps {
-  onAction: (prompt: string) => void
+  onAction:  (prompt: string) => void
+  onPrefill: (text: string)   => void
 }
 
-function ActionChip({ label, prompt, accent, onAction }: typeof ACTIONS[0] & { onAction: (p: string) => void }) {
+function ActionChip({
+  label, prompt, accent, prefillOnly, onAction, onPrefill,
+}: typeof ACTIONS[0] & { onAction: (p: string) => void; onPrefill: (p: string) => void }) {
   const [hover, setHover] = useState(false)
   const [pressed, setPressed] = useState(false)
 
   return (
     <button
-      onClick={() => { playBubbleTap(); onAction(prompt) }}
+      onClick={() => { playBubbleTap(); prefillOnly ? onPrefill(prompt) : onAction(prompt) }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => { setHover(false); setPressed(false) }}
       onMouseDown={() => setPressed(true)}
@@ -53,7 +58,7 @@ function ActionChip({ label, prompt, accent, onAction }: typeof ACTIONS[0] & { o
   )
 }
 
-export function QuickActions({ onAction }: QuickActionsProps) {
+export function QuickActions({ onAction, onPrefill }: QuickActionsProps) {
   return (
     <div style={{
       display: 'flex',
@@ -67,7 +72,7 @@ export function QuickActions({ onAction }: QuickActionsProps) {
       flexShrink: 0,
     }}>
       {ACTIONS.map((a) => (
-        <ActionChip key={a.label} {...a} onAction={onAction} />
+        <ActionChip key={a.label} {...a} onAction={onAction} onPrefill={onPrefill} />
       ))}
       <style>{`div::-webkit-scrollbar { display: none; }`}</style>
     </div>

@@ -140,13 +140,13 @@ async function fetchRealBalance(
     const userTotal  = userBals.reduce((s, b) => s + parseFloat(b.amount), 0).toFixed(2)
     const agentTotal = agentBals.reduce((s, b) => s + parseFloat(b.amount), 0).toFixed(2)
 
-    let msg = `💰 **Your wallet** (${shortUser}):\n`
+    let msg = `💰 Your wallet (${shortUser}):\n`
     msg += userLines.length ? userLines.join('\n') : '  (empty)'
     msg += `\n≈ $${userTotal} total`
 
     if (shortAgent) {
-      msg += `\n\n🤖 **Agent wallet** (${shortAgent}):\n`
-      msg += agentLines.length ? agentLines.join('\n') : '  (empty — top up to send)'
+      msg += `\n\n🤖 Agent wallet (${shortAgent}):\n`
+      msg += agentLines.length ? agentLines.join('\n') : '  (empty — type "nạp 10 USDC vào agent" to top up)'
       msg += `\n≈ $${agentTotal} total`
     }
 

@@ -27,27 +27,30 @@ async function switchToArc(provider: EthProvider) {
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: ARC_CHAIN_ID }],
     })
-  } catch (err: unknown) {
-    const code = (err as { code?: number })?.code
-    if (code === 4902 || code === -32603) {
-      // Chain not added yet — add it
-      await provider.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId:   ARC_CHAIN_ID,
-          chainName: 'Arc Testnet',
-          nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-          rpcUrls: ['https://rpc.testnet.arc.network'],
-          blockExplorerUrls: ['https://testnet.arcscan.app'],
-        }],
-      })
-    } else {
-      const msg = err instanceof Error ? err.message : String(err)
-      const isReject = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel')
-      throw new Error(isReject
-        ? 'Please approve the network switch to Arc Testnet and try again.'
-        : `Network switch failed: ${msg}`)
-    }
+    // Switch succeeded — already on Arc Testnet
+    return
+  } catch {
+    // Any error from switchEthereumChain → try to add the chain
+    // (covers code 4902 "unrecognized chain" AND other MetaMask versions)
+  }
+
+  try {
+    await provider.request({
+      method: 'wallet_addEthereumChain',
+      params: [{
+        chainId:   ARC_CHAIN_ID,
+        chainName: 'Arc Testnet',
+        nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+        rpcUrls: ['https://rpc.testnet.arc.network'],
+        blockExplorerUrls: ['https://testnet.arcscan.app'],
+      }],
+    })
+  } catch (addErr: unknown) {
+    const msg = addErr instanceof Error ? addErr.message : String(addErr)
+    const isReject = msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied')
+    throw new Error(isReject
+      ? 'Vui lòng approve thêm mạng Arc Testnet trong MetaMask rồi thử lại.'
+      : `Không thể thêm Arc Testnet: ${msg}`)
   }
 }
 

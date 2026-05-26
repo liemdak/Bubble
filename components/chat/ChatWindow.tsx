@@ -7,7 +7,7 @@ import { ConfirmCard } from './ConfirmCard'
 import { SuccessPill } from './SuccessPill'
 import { EmptySuggestions } from './EmptySuggestions'
 import { QRCard } from './QRCard'
-import { ChatInput } from './ChatInput'
+import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import type { ConfirmationCard } from '@/types/intent'
 
@@ -29,7 +29,12 @@ export function ChatWindow() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const bottomRef    = useRef<HTMLDivElement>(null)
+  const chatInputRef = useRef<ChatInputHandle>(null)
+
+  function handlePrefill(text: string) {
+    chatInputRef.current?.prefill(text)
+  }
 
   const hasMessages = messages.length > 0
 
@@ -267,10 +272,10 @@ export function ChatWindow() {
       </div>
 
       {/* ── Quick actions ── */}
-      <QuickActions onAction={handleSend} />
+      <QuickActions onAction={handleSend} onPrefill={handlePrefill} />
 
       {/* ── Input bar ── */}
-      <ChatInput onSend={handleSend} disabled={loading} />
+      <ChatInput ref={chatInputRef} onSend={handleSend} disabled={loading} />
     </div>
   )
 }

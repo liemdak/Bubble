@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import { ScanLine } from 'lucide-react'
 import { QRScanner } from '@/components/qr/QRScanner'
 import { playBubblePop, playBubbleTap } from '@/lib/sounds'
@@ -11,17 +11,29 @@ interface ChatInputProps {
   placeholder?: string
 }
 
-export function ChatInput({
+export interface ChatInputHandle {
+  /** Pre-fill input text and focus without sending */
+  prefill: (text: string) => void
+}
+
+export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({
   onSend,
   disabled = false,
   placeholder = 'Send 50 USDC to Sarah…',
-}: ChatInputProps) {
+}, ref) {
   const [value, setValue] = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
   const [hoverScan, setHoverScan] = useState(false)
   const [hoverSend, setHoverSend] = useState(false)
   const [pressSend, setPressSend] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useImperativeHandle(ref, () => ({
+    prefill: (text: string) => {
+      setValue(text)
+      setTimeout(() => inputRef.current?.focus(), 50)
+    },
+  }))
 
   function handleSend() {
     const trimmed = value.trim()
@@ -145,4 +157,4 @@ export function ChatInput({
       </div>
     </>
   )
-}
+})
