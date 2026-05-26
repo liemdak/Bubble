@@ -2,8 +2,18 @@
  * Transaction execution helpers via Circle Developer-Controlled Wallets SDK.
  * SERVER-SIDE ONLY.
  */
-import { getCircleClient, BLOCKCHAINS } from './client'
+import { getCircleClient } from './client'
 import type { SupportedChain } from './client'
+
+// Arc Testnet ERC-20 contract addresses
+const TOKEN_CONTRACTS: Record<string, string> = {
+  USDC: '0x3600000000000000000000000000000000000000',
+  EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+  USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
+}
+
+// All three tokens use 6 decimals on Arc Testnet
+const TOKEN_DECIMALS = 6
 
 export interface SendParams {
   walletId: string
@@ -21,37 +31,43 @@ export interface TxResult {
 }
 
 /**
- * Send stablecoins from a developer-controlled wallet.
- * Returns the Circle transaction ID + explorer URL.
+ * Send stablecoins from a Circle developer-controlled wallet on Arc Testnet.
+ *
+ * Uses createContractExecutionTransaction to call transfer(address,uint256)
+ * directly on the ERC-20 contract — bypasses Circle's token registry lookup
+ * which does not return results for ARC-TESTNET.
  */
 export async function sendTokens(params: SendParams): Promise<TxResult> {
   const client = getCircleClient()
-  const blockchain = BLOCKCHAINS[params.chain] ?? BLOCKCHAINS.arc
 
-  // 1. Find the token ID for this symbol on this chain
-  const tokenId = await resolveTokenId(params.tokenSymbol, blockchain)
-  if (!tokenId) {
-    throw new Error(`Token ${params.tokenSymbol} not found on ${blockchain}`)
+  const contractAddress = TOKEN_CONTRACTS[params.tokenSymbol.toUpperCase()]
+  if (!contractAddress) {
+    throw new Error(`Unsupported token: ${params.tokenSymbol}`)
   }
 
-  // 2. Create transfer transaction
-  // Note: Circle SDK createTransaction uses `amount: string[]` (array)
-  const res = await client.createTransaction({
-    walletId: params.walletId,
-    tokenId,
-    destinationAddress: params.destinationAddress,
-    amount: [params.amount],
+  // Convert human amount → smallest unit (6 decimals)
+  const amountUnits = BigInt(Math.round(parseFloat(params.amount) * 10 ** TOKEN_DECIMALS))
+
+  // Pad to 32-byte ABI encoding for address and uint256
+  const paddedAddr = params.destinationAddress.slice(2).toLowerCase().padStart(64, '0')
+  const paddedAmt  = amountUnits.toString(16).padStart(64, '0')
+  // transfer(address,uint256) selector = 0xa9059cbb
+  const calldata   = `0xa9059cbb${paddedAddr}${paddedAmt}`
+
+  const res = await client.createContractExecutionTransaction({
+    walletId:        params.walletId,
+    contractAddress,
+    callData:        calldata,
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
   })
 
-  // createTransaction response only has `id` + `state` — txHash comes after polling
   const circleId = res.data?.id ?? ''
   const state    = res.data?.state ?? 'INITIATED'
 
   return {
-    txHash:   null,
+    txHash:     null,
     circleId,
-    status:   state,
+    status:     state,
     arcScanUrl: undefined,
   }
 }

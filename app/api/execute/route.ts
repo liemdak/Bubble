@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendTokens, waitForTx } from '@/lib/circle/transactions'
 import { getCircleClient } from '@/lib/circle/client'
 import { getSession } from '@/lib/auth/session'
 import { checkAndIncrementRateLimit } from '@/lib/firebase/rateLimit'
@@ -97,63 +96,60 @@ async function executeSend(
     return NextResponse.json({ error: 'Unsupported token' }, { status: 400 })
   }
 
-  // 4. Use wallet from session (already verified server-side) or fallback to API lookup
+  // 4. Resolve agent wallet from session
   const wallet = sessionWallet ?? await resolveUserWallet(intent.chain ?? 'arc')
   if (!wallet) {
     return NextResponse.json(
-      { error: 'No Circle wallet found. Please log out and log in again to set up your wallet.' },
+      { error: 'No Circle wallet found. Please log out and log in again.' },
       { status: 404 }
     )
   }
 
-  // 5. Balance check — read on-chain balance before attempting the transaction
+  const apiKey       = process.env.CIRCLE_API_KEY
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+  if (!apiKey || !entitySecret) {
+    return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
+  }
+
+  // 5. Execute via App Kit — same pattern as executeSwap / executeBridge
   try {
-    const { readWalletBalances } = await import('@/lib/viem/balanceReader')
-    const balances = await readWalletBalances(wallet.address)
-    const tokenBalance = balances.find(b => b.token === intent.token)
-    const available = parseFloat(tokenBalance?.amount ?? '0')
+    const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+    const { AppKit } = await import('@circle-fin/app-kit')
 
-    if (amount > available) {
-      return NextResponse.json(
-        {
-          error: `Insufficient balance. You have ${available.toFixed(2)} ${intent.token} but tried to send ${intent.amount} ${intent.token}. ` +
-                 `Deposit more ${intent.token} to your Circle wallet first.`,
-        },
-        { status: 400 }
-      )
+    const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
+    const kit = new AppKit()
+
+    const result = await kit.send({
+      from: {
+        adapter,
+        chain:   'Arc_Testnet',
+        address: wallet.address,
+      },
+      to:     addr,
+      amount: intent.amount,
+      token:  intent.token,   // "USDC" | "EURC" | "USYC"
+    })
+
+    const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
+    const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
+
+    return NextResponse.json({
+      txHash:     result.txHash,
+      message:    `✅ Sent ${intent.amount} ${intent.token} successfully!`,
+      arcScanUrl,
+      status:     result.state,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Send failed'
+    console.error('[executeSend]', err)
+
+    if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')) {
+      return NextResponse.json({
+        error: `Insufficient ${intent.token} in your agent wallet. Fund the agent wallet first via "Fund Agent".`,
+      }, { status: 400 })
     }
-  } catch {
-    // Balance check failed — proceed anyway (don't block on RPC error)
-    console.warn('[executeSend] Balance pre-check failed, proceeding')
+    return NextResponse.json({ error: `Send failed: ${msg}` }, { status: 500 })
   }
-
-  // 6. Execute transaction
-  const result = await sendTokens({
-    walletId: wallet.id,
-    destinationAddress: addr,
-    amount: intent.amount,
-    tokenSymbol: intent.token,
-    chain: (intent.chain as 'arc') ?? 'arc',
-  })
-
-  // 7. Wait for confirmation (Arc is sub-second — max 15s to be safe)
-  let finalResult = result
-  if (result.circleId && result.status !== 'COMPLETE') {
-    try {
-      finalResult = await waitForTx(result.circleId, 15_000)
-    } catch {
-      // Return initiated state if wait times out
-    }
-  }
-
-  const txHash = finalResult.txHash ?? finalResult.circleId
-
-  return NextResponse.json({
-    txHash,
-    message:    `✅ Sent ${intent.amount} ${intent.token} successfully!`,
-    arcScanUrl: finalResult.arcScanUrl,
-    status:     finalResult.status,
-  })
 }
 
 // ── Swap ──────────────────────────────────────────────────────────────────────
