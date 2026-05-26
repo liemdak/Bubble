@@ -201,7 +201,8 @@ async function handleGroq(
 
     // Non-confirmation tools — handle directly
     if (fnName === 'get_balance') {
-      return NextResponse.json({ type: 'text', message: await fetchRealBalance(circleWalletId, userAddress) })
+      // userAddress = MetaMask (main), circleWalletAddress = agent wallet
+      return NextResponse.json({ type: 'text', message: await fetchRealBalance(userAddress, circleWalletAddress) })
     }
 
     if (fnName === 'get_rate') {
@@ -220,17 +221,60 @@ async function handleGroq(
 
     if (fnName === 'manage_contact') {
       if (args.action === 'list') {
-        return NextResponse.json({ type: 'text', message: 'No contacts yet. Add one: "add Mike 0x1234..."' })
+        try {
+          const { getContacts } = await import('@/lib/firebase/db')
+          const contacts = await getContacts(userAddress ?? '')
+          if (contacts.length === 0) {
+            return NextResponse.json({ type: 'text', message: 'No contacts yet. Go to Contacts tab or say "add Mike 0x1234..." to add one.' })
+          }
+          const list = contacts.map(c => `• ${c.name} → ${c.address}`).join('\n')
+          return NextResponse.json({ type: 'text', message: `👥 Your contacts:\n${list}` })
+        } catch {
+          return NextResponse.json({ type: 'text', message: 'No contacts yet. Go to the Contacts tab to add one.' })
+        }
       }
       if (args.action === 'add' && args.name && args.wallet_address) {
-        return NextResponse.json({ type: 'text', message: `✓ Got it! Contacts feature coming soon. For now send directly: "send 50 USDC to ${args.wallet_address}"` })
+        return NextResponse.json({ type: 'text', message: `To add a contact, tap the Contacts tab (👥) and click "+ Add Contact". Or say: "add ${args.name} with address ${args.wallet_address}".` })
       }
-      return NextResponse.json({ type: 'text', message: 'Contacts feature coming soon. You can send to any wallet address directly.' })
+      if (args.action === 'lookup' && args.name) {
+        try {
+          const { getContacts } = await import('@/lib/firebase/db')
+          const contacts = await getContacts(userAddress ?? '')
+          const found = contacts.find(c => c.name.toLowerCase() === args.name.toLowerCase())
+          if (found) {
+            return NextResponse.json({ type: 'text', message: `${found.name}: ${found.address}` })
+          }
+          return NextResponse.json({ type: 'text', message: `❌ "${args.name}" not found in your contacts. Add them in the Contacts tab first.` })
+        } catch {
+          return NextResponse.json({ type: 'text', message: `Could not look up "${args.name}".` })
+        }
+      }
+      return NextResponse.json({ type: 'text', message: 'Go to the Contacts tab to manage your address book.' })
     }
 
     if (fnName === 'search_arc_docs') {
       const result = await searchArcDocs(args.query ?? '')
       return NextResponse.json({ type: 'text', message: result })
+    }
+
+    // ── Contact resolution for send_payment ──────────────────────────────────
+    // If AI returned a name but no address, look it up in the user's contacts
+    if (fnName === 'send_payment' && args.recipient_name && !args.recipient_address) {
+      try {
+        const { getContacts } = await import('@/lib/firebase/db')
+        const contacts = await getContacts(userAddress ?? '')
+        const found = contacts.find(
+          c => c.name.toLowerCase() === args.recipient_name.toLowerCase()
+        )
+        if (found) {
+          args.recipient_address = found.address
+        } else {
+          return NextResponse.json({
+            type: 'text',
+            message: `❌ Contact "${args.recipient_name}" not found. Add them in the Contacts tab (👥) first, or send directly using a wallet address (0x...).`,
+          })
+        }
+      } catch { /* proceed, execution layer will validate */ }
     }
 
     // Confirmation-required actions

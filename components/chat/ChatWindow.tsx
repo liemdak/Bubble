@@ -99,7 +99,7 @@ export function ChatWindow() {
         }))
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'MetaMask transaction failed.'
-        setMessages((prev) => prev.concat({
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
           id: crypto.randomUUID(),
           type: 'assistant',
           content: `⚠️ ${msg}`,
@@ -118,6 +118,17 @@ export function ChatWindow() {
         body: JSON.stringify({ intent: card.intent, resolved_address: card.resolved_address }),
       })
       const data = await res.json()
+
+      if (!res.ok || data.error) {
+        // Server returned an error — show it with optional ArcScan wallet link
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(),
+          type: 'assistant',
+          content: `⚠️ ${data.error ?? 'Transaction failed.'}\n\nCheck your transaction history on ArcScan ↗`,
+        }))
+        return
+      }
+
       setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
         id: crypto.randomUUID(),
         type: 'success',
@@ -126,10 +137,10 @@ export function ChatWindow() {
         arcScanUrl: data.arcScanUrl,
       }))
     } catch {
-      setMessages((prev) => prev.concat({
+      setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
         id: crypto.randomUUID(),
         type: 'assistant',
-        content: '⚠️ Transaction failed. Please try again.',
+        content: '⚠️ Could not reach the server. Check your connection and try again.',
       }))
     } finally {
       setConfirmLoading(false)
@@ -194,7 +205,24 @@ export function ChatWindow() {
                 </div>
                 <div style={{ fontSize: 13, color: '#777', lineHeight: 1.7, maxWidth: 260, margin: '0 auto' }}>
                   I&apos;m your payment assistant.<br />
-                  Just type what you need — I&apos;ll handle the rest.
+                  Type what you need — I&apos;ll handle the rest.
+                </div>
+
+                {/* Agent explanation */}
+                <div style={{
+                  marginTop: 12,
+                  background: 'rgba(163,230,53,0.08)',
+                  border: '1px solid rgba(163,230,53,0.25)',
+                  borderRadius: 10,
+                  padding: '8px 14px',
+                  fontSize: 11,
+                  color: '#556',
+                  lineHeight: 1.6,
+                  maxWidth: 280,
+                  margin: '12px auto 0',
+                  textAlign: 'left',
+                }}>
+                  <span style={{ fontWeight: 700 }}>🤖 Agent wallet</span> — a Circle-managed wallet that executes transactions on your behalf. Top it up with USDC so it can send, swap, and bridge for you. Say <em>"nạp 10 USDC vào agent"</em> to fund it.
                 </div>
 
                 {/* Stats row */}
@@ -250,12 +278,13 @@ export function ChatWindow() {
           }
           if (msg.type === 'success') {
             return (
-              <SuccessPill
-                key={msg.id}
-                txHash={msg.txHash}
-                message={msg.message}
-                arcScanUrl={msg.arcScanUrl}
-              />
+              <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 4 }}>
+                <SuccessPill
+                  txHash={msg.txHash}
+                  message={msg.message}
+                  arcScanUrl={msg.arcScanUrl}
+                />
+              </div>
             )
           }
           if (msg.type === 'qr') {

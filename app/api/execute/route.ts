@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
       case 'send_payment':  return await executeSend(intent, walletInfo)
       case 'swap_tokens':   return await executeSwap(intent, walletInfo)
       case 'bridge_tokens': return await executeBridge(intent, walletInfo)
-      case 'get_balance':   return await executeBalance(walletInfo?.address ?? session.address)
+      // get_balance reads MetaMask (session.address) — the user's main on-chain wallet
+      case 'get_balance':   return await executeBalance(session.address)
       default:
         return NextResponse.json(
           { error: `Intent type '${(intent as PaymentIntent).type}' execution not yet implemented` },
@@ -158,7 +159,8 @@ async function executeSend(
 // ── Swap ──────────────────────────────────────────────────────────────────────
 
 async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null) {
-  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+  // Use adapter-viem-v2 — the correct Arc adapter per CLAUDE.md
+  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-viem-v2')
   const { AppKit, SwapChain } = await import('@circle-fin/app-kit')
 
   const apiKey       = process.env.CIRCLE_API_KEY
@@ -231,7 +233,8 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null)
 // ── Bridge ────────────────────────────────────────────────────────────────────
 
 async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | null) {
-  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+  // Use adapter-viem-v2 — the correct Arc adapter per CLAUDE.md
+  const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-viem-v2')
   const { AppKit, BridgeChain } = await import('@circle-fin/app-kit')
 
   const apiKey       = process.env.CIRCLE_API_KEY

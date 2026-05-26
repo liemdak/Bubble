@@ -10,7 +10,10 @@ export default function HistoryPage() {
   useEffect(() => {
     fetch('/api/balance')
       .then(r => r.json())
-      .then(d => setWalletAddress(d.circleWalletAddress ?? d.address ?? null))
+      .then(d => {
+        // Show MetaMask address (main wallet) on ArcScan — not agent wallet
+        setWalletAddress(d.address ?? d.userWallet?.address ?? null)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -46,7 +49,7 @@ export default function HistoryPage() {
           fontSize: 10, color: '#888', fontWeight: 700,
           textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8,
         }}>
-          Your Circle Wallet Address
+          Your Wallet Address (Arc Testnet)
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
