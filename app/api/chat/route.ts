@@ -279,6 +279,12 @@ async function handleGroq(
 
     // Confirmation-required actions
     const card = buildConfirmCard(fnName, args)
+
+    // For send_payment: embed user's MetaMask address so the client can sign via MetaMask
+    if (fnName === 'send_payment' && userAddress) {
+      (card.intent as import('@/types/intent').SendIntent).user_address = userAddress
+    }
+
     return NextResponse.json({ type: 'confirm', card })
   }
 

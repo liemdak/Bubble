@@ -83,6 +83,51 @@ export function ChatWindow() {
   async function handleConfirm(card: ConfirmationCard, cardId: string) {
     setConfirmLoading(true)
 
+    // ── send_payment: direct ERC-20 transfer from user's MetaMask wallet ──────
+    if (card.intent.type === 'send_payment') {
+      const { recipient_address, user_address, amount, token, recipient_name } = card.intent
+      if (!recipient_address) {
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(),
+          type: 'assistant',
+          content: '⚠️ No recipient address found. Please specify a wallet address (0x...).',
+        }))
+        setConfirmLoading(false)
+        return
+      }
+      if (!user_address) {
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(),
+          type: 'assistant',
+          content: '⚠️ Could not determine your wallet address. Please reconnect your wallet.',
+        }))
+        setConfirmLoading(false)
+        return
+      }
+      try {
+        const { sendPaymentViaMetaMask } = await import('@/lib/metamask/sendPayment')
+        const txHash = await sendPaymentViaMetaMask(recipient_address, user_address, amount, token)
+        const label = recipient_name ? `${recipient_name}` : `${recipient_address.slice(0,6)}...${recipient_address.slice(-4)}`
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(),
+          type: 'success',
+          txHash,
+          message: `✅ Sent ${amount} ${token} to ${label}!`,
+          arcScanUrl: `https://testnet.arcscan.app/tx/${txHash}`,
+        }))
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Transaction failed.'
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(),
+          type: 'assistant',
+          content: `⚠️ ${msg}`,
+        }))
+      } finally {
+        setConfirmLoading(false)
+      }
+      return
+    }
+
     // ── fund_agent: MetaMask ERC-20 transfer (client-side, no server needed) ──
     if (card.intent.type === 'fund_agent') {
       // Destructure BEFORE entering closures so TypeScript retains narrowed type

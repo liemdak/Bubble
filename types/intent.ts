@@ -8,6 +8,7 @@ export interface SendIntent {
   amount: string
   token: TokenSymbol
   chain: ChainName
+  user_address?: string   // sender's MetaMask address — set server-side for client execution
 }
 
 export interface SwapIntent {
