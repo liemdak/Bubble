@@ -22,7 +22,8 @@ export function BottomNav() {
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
       display: 'flex',
-      height: 64,
+      height: 'calc(64px + env(safe-area-inset-bottom))',
+      paddingBottom: 'env(safe-area-inset-bottom)',
       flexShrink: 0,
     }} className="bottom-nav">
       {TABS.map(({ href, emoji, label }) => {

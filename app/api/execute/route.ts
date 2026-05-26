@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendTokens, waitForTx } from '@/lib/circle/transactions'
 import { getCircleClient } from '@/lib/circle/client'
 import { getSession } from '@/lib/auth/session'
-import { recordTx } from '@/lib/redis/txHistory'
+import { checkAndIncrementRateLimit } from '@/lib/firebase/rateLimit'
 import type { PaymentIntent, SwapIntent, BridgeIntent } from '@/types/intent'
 
 /**
@@ -15,6 +15,8 @@ import type { PaymentIntent, SwapIntent, BridgeIntent } from '@/types/intent'
  *  3. Address validated (0x + 40 hex chars)
  *  4. Amount validated (positive number)
  *  5. Token validated (USDC | EURC | USYC)
+ *
+ * Transaction history is available on ArcScan — no need to store locally.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -31,18 +33,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No intent provided' }, { status: 400 })
     }
 
+    // ── Rate limit check ─────────────────────────────────────────────
+    // Skip for balance reads (get_balance is read-only, not a transaction)
+    if (intent.type !== 'get_balance') {
+      const rl = await checkAndIncrementRateLimit(session.address)
+      if (!rl.allowed) {
+        const resetIn = Math.ceil((rl.resetAt - Date.now()) / 60_000)
+        return NextResponse.json(
+          { error: `Rate limit reached. You've hit the 10 transactions/hour limit. Try again in ~${resetIn} min.` },
+          { status: 429 }
+        )
+      }
+    }
+
     // Pass session wallet info — never resolve from client body
     const walletInfo = session.circleWalletId && session.circleWalletAddress
       ? { id: session.circleWalletId, address: session.circleWalletAddress }
       : null
 
-    // userAddress dùng để ghi tx history
-    const userAddress = session.address
-
     switch (intent.type) {
-      case 'send_payment':  return await executeSend(intent, walletInfo, userAddress)
-      case 'swap_tokens':   return await executeSwap(intent, walletInfo, userAddress)
-      case 'bridge_tokens': return await executeBridge(intent, walletInfo, userAddress)
+      case 'send_payment':  return await executeSend(intent, walletInfo)
+      case 'swap_tokens':   return await executeSwap(intent, walletInfo)
+      case 'bridge_tokens': return await executeBridge(intent, walletInfo)
       case 'get_balance':   return await executeBalance(walletInfo?.address ?? session.address)
       default:
         return NextResponse.json(
@@ -62,7 +74,6 @@ export async function POST(req: NextRequest) {
 async function executeSend(
   intent: Extract<PaymentIntent, { type: 'send_payment' }>,
   sessionWallet: WalletInfo | null,
-  userAddress: string,
 ) {
   // 1. Validate address
   const addr = intent.recipient_address
@@ -94,7 +105,28 @@ async function executeSend(
     )
   }
 
-  // 5. Execute transaction
+  // 5. Balance check — read on-chain balance before attempting the transaction
+  try {
+    const { readWalletBalances } = await import('@/lib/viem/balanceReader')
+    const balances = await readWalletBalances(wallet.address)
+    const tokenBalance = balances.find(b => b.token === intent.token)
+    const available = parseFloat(tokenBalance?.amount ?? '0')
+
+    if (amount > available) {
+      return NextResponse.json(
+        {
+          error: `Insufficient balance. You have ${available.toFixed(2)} ${intent.token} but tried to send ${intent.amount} ${intent.token}. ` +
+                 `Deposit more ${intent.token} to your Circle wallet first.`,
+        },
+        { status: 400 }
+      )
+    }
+  } catch {
+    // Balance check failed — proceed anyway (don't block on RPC error)
+    console.warn('[executeSend] Balance pre-check failed, proceeding')
+  }
+
+  // 6. Execute transaction
   const result = await sendTokens({
     walletId: wallet.id,
     destinationAddress: addr,
@@ -103,7 +135,7 @@ async function executeSend(
     chain: (intent.chain as 'arc') ?? 'arc',
   })
 
-  // 6. Wait for confirmation (Arc is sub-second — max 15s to be safe)
+  // 7. Wait for confirmation (Arc is sub-second — max 15s to be safe)
   let finalResult = result
   if (result.circleId && result.status !== 'COMPLETE') {
     try {
@@ -115,18 +147,6 @@ async function executeSend(
 
   const txHash = finalResult.txHash ?? finalResult.circleId
 
-  // Ghi lịch sử — non-blocking, không block response nếu Redis lỗi
-  void recordTx(userAddress, {
-    type:      'send',
-    status:    'complete',
-    toAddress: addr,
-    toName:    intent.recipient_name,
-    amount:    intent.amount,
-    token:     intent.token,
-    txHash,
-    arcScanUrl: finalResult.arcScanUrl,
-  })
-
   return NextResponse.json({
     txHash,
     message:    `✅ Sent ${intent.amount} ${intent.token} successfully!`,
@@ -137,19 +157,18 @@ async function executeSend(
 
 // ── Swap ──────────────────────────────────────────────────────────────────────
 
-async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null, userAddress: string) {
+async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null) {
   const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, SwapChain } = await import('@circle-fin/app-kit')
 
-  const apiKey = process.env.CIRCLE_API_KEY
+  const apiKey       = process.env.CIRCLE_API_KEY
   const entitySecret = process.env.CIRCLE_ENTITY_SECRET
-  const kitKey = process.env.CIRCLE_KIT_KEY
+  const kitKey       = process.env.CIRCLE_KIT_KEY
 
   if (!apiKey || !entitySecret) {
     return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
   }
 
-  // Use wallet from session or fallback to API lookup
   const wallet = sessionWallet ?? await resolveUserWallet(intent.chain ?? 'arc')
   if (!wallet) {
     return NextResponse.json({
@@ -185,17 +204,6 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null,
     const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
     const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : undefined
 
-    void recordTx(userAddress, {
-      type:     'swap',
-      status:   'complete',
-      tokenIn:  intent.token_in,
-      tokenOut: intent.token_out,
-      amountIn: result.amountIn,
-      amountOut: result.amountOut,
-      txHash:   result.txHash,
-      arcScanUrl,
-    })
-
     return NextResponse.json({
       txHash:     result.txHash,
       message:    `✅ Swapped ${result.amountIn} ${intent.token_in} → ${result.amountOut ?? '?'} ${intent.token_out}`,
@@ -206,7 +214,6 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null,
     const msg = err instanceof Error ? err.message : 'Swap failed'
     console.error('[executeSwap]', err)
 
-    // User-friendly error messages
     if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')) {
       return NextResponse.json({
         error: `Insufficient ${intent.token_in} in your Circle wallet to complete this swap. Fund your Circle wallet first.`,
@@ -223,13 +230,12 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null,
 
 // ── Bridge ────────────────────────────────────────────────────────────────────
 
-async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | null, userAddress: string) {
+async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | null) {
   const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
   const { AppKit, BridgeChain } = await import('@circle-fin/app-kit')
 
-  const apiKey = process.env.CIRCLE_API_KEY
+  const apiKey       = process.env.CIRCLE_API_KEY
   const entitySecret = process.env.CIRCLE_ENTITY_SECRET
-  const kitKey = process.env.CIRCLE_KIT_KEY
 
   if (!apiKey || !entitySecret) {
     return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
@@ -242,7 +248,6 @@ async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | n
     }, { status: 400 })
   }
 
-  // Use wallet from session or fallback to API lookup
   const wallet = sessionWallet ?? await resolveUserWallet(intent.from_chain ?? 'arc')
   if (!wallet) {
     return NextResponse.json({
@@ -258,8 +263,8 @@ async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | n
     solana:   BridgeChain.Solana_Devnet,
     arbitrum: BridgeChain.Arbitrum_Sepolia,
   }
-  const fromChain = BRIDGE_CHAIN_MAP[intent.from_chain ?? 'arc'] ?? BridgeChain.Arc_Testnet
-  const toChain   = BRIDGE_CHAIN_MAP[intent.to_chain ?? 'ethereum'] ?? BridgeChain.Ethereum_Sepolia
+  const fromChain = BRIDGE_CHAIN_MAP[intent.from_chain ?? 'arc']  ?? BridgeChain.Arc_Testnet
+  const toChain   = BRIDGE_CHAIN_MAP[intent.to_chain   ?? 'ethereum'] ?? BridgeChain.Ethereum_Sepolia
 
   try {
     const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
@@ -283,20 +288,9 @@ async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | n
 
     // BridgeResult has no top-level txHash — get it from the first successful step
     const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
-    const burnStep = result.steps.find((s) => s.txHash && s.state === 'success')
-    const txHash = burnStep?.txHash
+    const burnStep  = result.steps.find((s) => s.txHash && s.state === 'success')
+    const txHash    = burnStep?.txHash
     const arcScanUrl = txHash ? `${explorerBase}/tx/${txHash}` : burnStep?.explorerUrl
-
-    void recordTx(userAddress, {
-      type:      'bridge',
-      status:    result.state === 'success' ? 'complete' : 'pending',
-      token:     'USDC',
-      amount:    intent.amount,
-      fromChain: intent.from_chain,
-      toChain:   intent.to_chain,
-      txHash,
-      arcScanUrl,
-    })
 
     return NextResponse.json({
       txHash,
@@ -341,17 +335,13 @@ interface WalletInfo {
 }
 
 /**
- * Get the primary Circle developer-controlled wallet for a given chain.
- * Returns both wallet ID (for Circle SDK) and address (for App Kit adapter).
+ * Fallback: get the primary Circle developer-controlled wallet for a given chain.
+ * Used only when session doesn't have wallet info (e.g. old sessions).
  */
 async function resolveUserWallet(chain: string): Promise<WalletInfo | null> {
-  // Check env override first (useful for dev/testing)
-  const envWalletId = process.env.CIRCLE_DEMO_WALLET_ID
+  const envWalletId      = process.env.CIRCLE_DEMO_WALLET_ID
   const envWalletAddress = process.env.CIRCLE_DEMO_WALLET_ADDRESS
-
-  if (envWalletId && envWalletAddress) {
-    return { id: envWalletId, address: envWalletAddress }
-  }
+  if (envWalletId && envWalletAddress) return { id: envWalletId, address: envWalletAddress }
 
   const CHAIN_MAP: Record<string, string> = {
     arc:      'ARC-TESTNET',
@@ -363,7 +353,7 @@ async function resolveUserWallet(chain: string): Promise<WalletInfo | null> {
 
   try {
     const client = getCircleClient()
-    const res = await client.listWallets({ blockchain: blockchain as 'ARC-TESTNET', pageSize: 1 })
+    const res    = await client.listWallets({ blockchain: blockchain as 'ARC-TESTNET', pageSize: 1 })
     const wallet = res.data?.wallets?.[0]
     if (!wallet?.id || !wallet?.address) return null
     return { id: wallet.id, address: wallet.address }

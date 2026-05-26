@@ -52,8 +52,8 @@ export function AppHeader({ address }: AppHeaderProps) {
         <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.3px' }}>Bubble</span>
       </Link>
 
-      {/* Arc badge — text only, no icon */}
-      <div style={{
+      {/* Arc badge — hidden on very small screens */}
+      <div className="arc-badge" style={{
         background: 'rgba(163,230,53,0.12)',
         border: '1px solid rgba(163,230,53,0.35)',
         borderRadius: 100,
@@ -66,6 +66,9 @@ export function AppHeader({ address }: AppHeaderProps) {
       }}>
         ARC TESTNET
       </div>
+      <style>{`
+        @media (max-width: 360px) { .arc-badge { display: none !important; } }
+      `}</style>
 
       {/* Right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>

@@ -1,5 +1,5 @@
 /**
- * Database types — stored in Upstash Redis.
+ * Database types — stored in Firebase Firestore.
  */
 
 export interface Contact {

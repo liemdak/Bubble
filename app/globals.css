@@ -123,3 +123,50 @@ a {
   animation-delay: var(--delay, 0s);
   pointer-events: none;
 }
+
+/* ─── Mobile / PWA base ─── */
+
+/* Prevent content from going behind notch/home indicator on iOS */
+html {
+  height: 100%;
+}
+body {
+  min-height: 100%;
+  min-height: 100dvh;
+  /* -webkit-overflow-scrolling: touch is deprecated, but harmless */
+  overscroll-behavior: none;
+}
+
+/* Remove 300ms tap delay on all touch devices */
+* {
+  touch-action: manipulation;
+}
+
+/* Smooth momentum scrolling in scrollable containers */
+[data-scroll], .scroll-area {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Hide scrollbars globally (cosmetic) */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+}
+
+/* ─── Responsive: contacts & history cards full-width on small screens ─── */
+@media (max-width: 480px) {
+  /* Give pages breathing room from screen edges */
+  .page-container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* ─── Prevent text size inflation on rotate (iOS) ─── */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}

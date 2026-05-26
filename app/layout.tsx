@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 
@@ -15,6 +15,15 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
 }
 
+// Separate viewport export (Next.js 14+)
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',     // enables safe-area-inset-* on iOS notch devices
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,7 +31,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${jetbrainsMono.variable} ${jetbrainsMono.className}`}>
-      <body>{children}</body>
+      <body style={{ margin: 0, padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+        {children}
+      </body>
     </html>
   )
 }
