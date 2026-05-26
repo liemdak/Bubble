@@ -193,12 +193,12 @@ export function ChatWindow() {
                     width: 72,
                     height: 72,
                     borderRadius: '50%',
-                    background: 'rgba(163,230,53,0.12)',
+                    background: 'rgba(56,189,248,0.12)',
                     backdropFilter: 'blur(12px)',
-                    border: '1.5px solid rgba(163,230,53,0.35)',
+                    border: '1.5px solid rgba(56,189,248,0.35)',
                     fontSize: 36,
                     marginBottom: 18,
-                    boxShadow: '0 0 32px rgba(163,230,53,0.3), 0 8px 32px rgba(0,0,0,0.3)',
+                    boxShadow: '0 0 32px rgba(56,189,248,0.3), 0 8px 32px rgba(0,0,0,0.3)',
                   }}
                 >
                   🫧

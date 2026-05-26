@@ -85,7 +85,7 @@ export default function SettingsPage() {
           }}>
             <div style={{
               width: 24, height: 24, borderRadius: '50%',
-              background: '#a3e635', flexShrink: 0,
+              background: '#38bdf8', flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 700,
             }}>
@@ -133,10 +133,10 @@ export default function SettingsPage() {
         </Row>
         <Row label="Network">
           <span style={{
-            background: 'rgba(163,230,53,0.15)',
-            border: '1px solid rgba(163,230,53,0.35)',
+            background: 'rgba(56,189,248,0.15)',
+            border: '1px solid rgba(56,189,248,0.35)',
             borderRadius: 100, padding: '2px 10px',
-            fontSize: 10, fontWeight: 700, color: '#3a6e00',
+            fontSize: 10, fontWeight: 700, color: '#0369a1',
           }}>
             ARC TESTNET
           </span>
@@ -220,7 +220,7 @@ function AddressRow({ label, address }: { label: string; address: string }) {
           onClick={copy}
           style={{
             flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '4px 10px',
-            background: copied ? '#a3e635' : '#f5f5f5',
+            background: copied ? '#38bdf8' : '#f5f5f5',
             border: '1px solid #ddd', borderRadius: 6,
             cursor: 'pointer', fontFamily: 'inherit', color: '#333',
             transition: 'background 0.2s',

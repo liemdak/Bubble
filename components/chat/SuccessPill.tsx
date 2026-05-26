@@ -26,19 +26,19 @@ export function SuccessPill({ txHash, message = 'Transaction confirmed', arcScan
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.25, ease: 'backOut' }}
         style={{
-          background: 'rgba(163,230,53,0.15)',
-          border: '1px solid rgba(163,230,53,0.4)',
+          background: 'rgba(56,189,248,0.15)',
+          border: '1px solid rgba(56,189,248,0.4)',
           borderRadius: 100,
           padding: '8px 16px',
           fontSize: 13,
           fontWeight: 700,
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          boxShadow: '0 0 20px rgba(163,230,53,0.25)',
+          boxShadow: '0 0 20px rgba(56,189,248,0.25)',
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          color: '#a3e635',
+          color: '#38bdf8',
         }}
       >
         <span>✓</span>
@@ -48,7 +48,7 @@ export function SuccessPill({ txHash, message = 'Transaction confirmed', arcScan
             href={arcScanUrl}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: 'rgba(163,230,53,0.8)', textDecoration: 'underline', fontSize: 12 }}
+            style={{ color: 'rgba(56,189,248,0.8)', textDecoration: 'underline', fontSize: 12 }}
           >
             ArcScan →
           </a>

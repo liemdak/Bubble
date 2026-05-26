@@ -4,12 +4,12 @@ import { useState } from 'react'
 import { playBubbleTap } from '@/lib/sounds'
 
 const ACTIONS = [
-  { label: 'Send',       prompt: 'Send  USDC to ',                 accent: 'rgba(163,230,53,0.25)',  prefillOnly: true  },
+  { label: 'Send',       prompt: 'Send  USDC to ',                 accent: 'rgba(56,189,248,0.25)',  prefillOnly: true  },
   { label: 'Swap',       prompt: 'Swap  USDC to EURC',             accent: 'rgba(250,233,255,0.2)',  prefillOnly: true  },
   { label: 'Bridge',     prompt: 'Bridge  USDC from arc to ethereum', accent: 'rgba(254,243,200,0.2)', prefillOnly: true },
-  { label: 'Fund Agent', prompt: 'Fund 10 USDC to agent',          accent: 'rgba(163,230,53,0.2)',  prefillOnly: false },
+  { label: 'Fund Agent', prompt: 'Fund 10 USDC to agent',          accent: 'rgba(56,189,248,0.2)',  prefillOnly: false },
   { label: 'My QR',      prompt: 'Show my QR code',                accent: 'rgba(224,242,254,0.18)', prefillOnly: false },
-  { label: 'Balance',    prompt: 'Check my balance',               accent: 'rgba(163,230,53,0.15)', prefillOnly: false },
+  { label: 'Balance',    prompt: 'Check my balance',               accent: 'rgba(56,189,248,0.15)', prefillOnly: false },
 ]
 
 interface QuickActionsProps {

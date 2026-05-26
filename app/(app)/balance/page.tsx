@@ -95,7 +95,7 @@ function DepositModal({
           params: [{
             chainId:   ARC_CHAIN_ID,
             chainName: 'Arc Testnet',
-            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
             rpcUrls: [
               'https://rpc.testnet.arc.network',
               'https://rpc.blockdaemon.testnet.arc.network',
@@ -216,7 +216,7 @@ function DepositModal({
                 href={arcScanUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: 12, color: '#a3e635', textDecoration: 'none', fontWeight: 600 }}
+                style={{ fontSize: 12, color: '#38bdf8', textDecoration: 'none', fontWeight: 600 }}
               >
                 View on ArcScan ↗
               </a>
@@ -225,7 +225,7 @@ function DepositModal({
               onClick={onClose}
               style={{
                 display: 'block', width: '100%', marginTop: 22,
-                background: '#a3e635', color: '#000',
+                background: '#38bdf8', color: '#000',
                 border: 'none', borderRadius: 12, padding: '13px',
                 fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
                 boxShadow: 'rgb(10,10,13) 2px 2px 0px 0px',
@@ -297,10 +297,10 @@ function DepositModal({
                   style={{
                     flexShrink: 0, fontSize: 11, fontWeight: 700,
                     padding: '4px 10px',
-                    background: copied ? 'rgba(163,230,53,0.2)' : 'rgba(255,255,255,0.08)',
-                    border: `1px solid ${copied ? 'rgba(163,230,53,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                    background: copied ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${copied ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.12)'}`,
                     borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
-                    color: copied ? '#a3e635' : 'rgba(255,255,255,0.5)',
+                    color: copied ? '#38bdf8' : 'rgba(255,255,255,0.5)',
                     transition: 'all 0.2s',
                   }}
                 >
@@ -329,7 +329,7 @@ function DepositModal({
               disabled={status === 'switching' || status === 'pending'}
               style={{
                 width: '100%', padding: '14px',
-                background: (status === 'switching' || status === 'pending') ? 'rgba(163,230,53,0.35)' : '#a3e635',
+                background: (status === 'switching' || status === 'pending') ? 'rgba(56,189,248,0.35)' : '#38bdf8',
                 color: '#000', border: 'none', borderRadius: 12,
                 fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
                 boxShadow: 'rgb(10,10,13) 2px 2px 0px 0px',
@@ -424,7 +424,7 @@ export default function BalancePage() {
             <div style={{
               position: 'absolute', top: -40, right: -40, width: 140, height: 140,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(163,230,53,0.12) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(56,189,248,0.12) 0%, transparent 70%)',
               pointerEvents: 'none',
             }} />
 
@@ -481,7 +481,7 @@ export default function BalancePage() {
             // AGENT WALLET
           </div>
 
-          <div style={{ ...glass, padding: '20px', borderLeft: '3px solid #a3e635', marginBottom: 8 }}>
+          <div style={{ ...glass, padding: '20px', borderLeft: '3px solid #38bdf8', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3, color: '#fff' }}>
@@ -493,12 +493,12 @@ export default function BalancePage() {
                 </div>
               </div>
               <div style={{
-                background: 'rgba(163,230,53,0.12)',
-                border: '1px solid rgba(163,230,53,0.3)',
+                background: 'rgba(56,189,248,0.12)',
+                border: '1px solid rgba(56,189,248,0.3)',
                 borderRadius: 10, padding: '7px 12px', textAlign: 'center', flexShrink: 0,
-                boxShadow: '0 0 16px rgba(163,230,53,0.12)',
+                boxShadow: '0 0 16px rgba(56,189,248,0.12)',
               }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#a3e635' }}>{data?.agentWallet?.USDC ?? '0.00'}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#38bdf8' }}>{data?.agentWallet?.USDC ?? '0.00'}</div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>USDC</div>
               </div>
             </div>
@@ -537,7 +537,7 @@ export default function BalancePage() {
               disabled={!data?.agentWallet}
               style={{
                 width: '100%', padding: '13px',
-                background: data?.agentWallet ? '#a3e635' : 'rgba(255,255,255,0.06)',
+                background: data?.agentWallet ? '#38bdf8' : 'rgba(255,255,255,0.06)',
                 color: data?.agentWallet ? '#000' : 'rgba(255,255,255,0.25)',
                 border: data?.agentWallet ? 'none' : '1px solid rgba(255,255,255,0.1)',
                 borderRadius: 12,
@@ -548,8 +548,8 @@ export default function BalancePage() {
                 boxShadow: data?.agentWallet ? 'rgb(10,10,13) 2px 2px 0px 0px' : 'none',
                 transition: 'all 0.15s',
               }}
-              onMouseEnter={e => { if (data?.agentWallet) e.currentTarget.style.background = '#b5f03a' }}
-              onMouseLeave={e => { if (data?.agentWallet) e.currentTarget.style.background = '#a3e635' }}
+              onMouseEnter={e => { if (data?.agentWallet) e.currentTarget.style.background = '#7dd3fc' }}
+              onMouseLeave={e => { if (data?.agentWallet) e.currentTarget.style.background = '#38bdf8' }}
             >
               <ArrowDownToLine size={15} />
               Top Up Agent Wallet
@@ -571,7 +571,7 @@ export default function BalancePage() {
                   textDecoration: 'none', fontWeight: 500,
                   transition: 'color 0.12s',
                 }}
-                onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = '#a3e635')}
+                onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = '#38bdf8')}
                 onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.4)')}
               >
                 My wallet on ArcScan ↗
@@ -590,7 +590,7 @@ export default function BalancePage() {
                   textDecoration: 'none', fontWeight: 500,
                   transition: 'color 0.12s',
                 }}
-                onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = '#a3e635')}
+                onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = '#38bdf8')}
                 onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.4)')}
               >
                 Agent wallet on ArcScan ↗

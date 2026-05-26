@@ -21,7 +21,7 @@ function RichText({ text }: { text: string }) {
             href={part}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: '#a3e635', textDecoration: 'underline', wordBreak: 'break-all' }}
+            style={{ color: '#38bdf8', textDecoration: 'underline', wordBreak: 'break-all' }}
           >
             {part}
           </a>
@@ -54,15 +54,15 @@ export function MessageBubble({ role, content, isTyping = false }: MessageBubble
         <div style={{
           width: 28, height: 28,
           borderRadius: '50%',
-          background: 'rgba(163,230,53,0.15)',
-          border: '1px solid rgba(163,230,53,0.3)',
+          background: 'rgba(56,189,248,0.15)',
+          border: '1px solid rgba(56,189,248,0.3)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 14,
           flexShrink: 0,
           alignSelf: 'flex-end',
           marginRight: 8,
           marginBottom: 2,
-          boxShadow: '0 0 12px rgba(163,230,53,0.2)',
+          boxShadow: '0 0 12px rgba(56,189,248,0.2)',
         }}>
           🫧
         </div>
@@ -70,10 +70,10 @@ export function MessageBubble({ role, content, isTyping = false }: MessageBubble
 
       <div style={{
         background: isUser
-          ? '#a3e635'
+          ? '#38bdf8'
           : 'rgba(255,255,255,0.07)',
         border: isUser
-          ? '1.5px solid #8bc920'
+          ? '1.5px solid #0284c7'
           : '1px solid rgba(255,255,255,0.12)',
         borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
         padding: isTyping ? '12px 16px' : '10px 14px',

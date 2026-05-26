@@ -15,8 +15,8 @@ interface ConfirmCardProps {
 const STRIP_COLORS: Record<string, string> = {
   send_payment:  '#2775CA',
   swap_tokens:   '#fbbf25',
-  bridge_tokens: '#a3e635',
-  fund_agent:    '#a3e635',
+  bridge_tokens: '#38bdf8',
+  fund_agent:    '#38bdf8',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -31,7 +31,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: ConfirmCardProps) {
   const { intent, resolved_address, gas_fee, total_display } = card
-  const stripColor = STRIP_COLORS[intent.type] ?? '#a3e635'
+  const stripColor = STRIP_COLORS[intent.type] ?? '#38bdf8'
   const actionLabel = ACTION_LABELS[intent.type] ?? intent.type
 
   const [hoverConfirm, setHoverConfirm] = useState(false)
@@ -125,7 +125,7 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
           onMouseUp={() => setPressConfirm(false)}
           style={{
             flex: 1,
-            background: loading ? 'rgba(163,230,53,0.3)' : hoverConfirm ? '#b5f03a' : '#a3e635',
+            background: loading ? 'rgba(56,189,248,0.3)' : hoverConfirm ? '#7dd3fc' : '#38bdf8',
             color: '#000',
             border: 'none',
             borderRadius: 10,

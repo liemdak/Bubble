@@ -78,12 +78,12 @@ export default function HistoryPage() {
               title="Copy address"
               style={{
                 flexShrink: 0,
-                background: copied ? 'rgba(163,230,53,0.2)' : 'rgba(255,255,255,0.07)',
-                border: `1px solid ${copied ? 'rgba(163,230,53,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                background: copied ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.07)',
+                border: `1px solid ${copied ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.12)'}`,
                 borderRadius: 8,
                 padding: '5px 12px', fontSize: 11, cursor: 'pointer',
                 fontWeight: 600, fontFamily: 'inherit',
-                color: copied ? '#a3e635' : 'rgba(255,255,255,0.6)',
+                color: copied ? '#38bdf8' : 'rgba(255,255,255,0.6)',
                 transition: 'all 0.2s',
               }}
             >
@@ -100,7 +100,7 @@ export default function HistoryPage() {
         rel="noopener noreferrer"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          background: '#a3e635', color: '#000', borderRadius: 12,
+          background: '#38bdf8', color: '#000', borderRadius: 12,
           padding: '14px', fontWeight: 700, fontSize: 14,
           textDecoration: 'none',
           boxShadow: 'rgb(10,10,13) 2px 2px 0px 0px',
@@ -128,7 +128,7 @@ export default function HistoryPage() {
         {[
           { icon: '📤', label: 'Send',   desc: 'Transfers to other wallets',     color: '#2775CA' },
           { icon: '🔄', label: 'Swap',   desc: 'USDC ↔ EURC ↔ USYC on Arc',   color: '#fbbf25' },
-          { icon: '🌉', label: 'Bridge', desc: 'Cross-chain via CCTP',           color: '#a3e635' },
+          { icon: '🌉', label: 'Bridge', desc: 'Cross-chain via CCTP',           color: '#38bdf8' },
         ].map(({ icon, label, desc, color }) => (
           <div
             key={label}

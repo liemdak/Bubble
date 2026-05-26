@@ -62,8 +62,8 @@ export function Sidebar() {
             transition: 'background 0.12s, color 0.12s',
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(163,230,53,0.12)'
-            e.currentTarget.style.color = '#a3e635'
+            e.currentTarget.style.background = 'rgba(56,189,248,0.12)'
+            e.currentTarget.style.color = '#38bdf8'
           }}
           onMouseLeave={e => {
             e.currentTarget.style.background = 'transparent'
@@ -83,23 +83,23 @@ export function Sidebar() {
               style={{
                 width: 28, height: 28,
                 borderRadius: '50%',
-                background: 'rgba(163,230,53,0.13)',
-                border: '1.5px solid rgba(163,230,53,0.28)',
+                background: 'rgba(56,189,248,0.13)',
+                border: '1.5px solid rgba(56,189,248,0.28)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 700, color: '#a3e635',
+                fontSize: 11, fontWeight: 700, color: '#38bdf8',
                 cursor: 'pointer',
                 transition: 'background 0.12s, border-color 0.12s, box-shadow 0.12s',
               }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLDivElement
-                el.style.background = 'rgba(163,230,53,0.28)'
-                el.style.borderColor = '#a3e635'
-                el.style.boxShadow = '0 0 10px rgba(163,230,53,0.35)'
+                el.style.background = 'rgba(56,189,248,0.28)'
+                el.style.borderColor = '#38bdf8'
+                el.style.boxShadow = '0 0 10px rgba(56,189,248,0.35)'
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLDivElement
-                el.style.background = 'rgba(163,230,53,0.13)'
-                el.style.borderColor = 'rgba(163,230,53,0.28)'
+                el.style.background = 'rgba(56,189,248,0.13)'
+                el.style.borderColor = 'rgba(56,189,248,0.28)'
                 el.style.boxShadow = 'none'
               }}
             >
@@ -151,7 +151,7 @@ export function Sidebar() {
                   href="/contacts"
                   onClick={() => setOpen(false)}
                   style={{
-                    background: '#a3e635', border: 'none',
+                    background: '#38bdf8', border: 'none',
                     borderRadius: 4, padding: '3px 8px',
                     fontSize: 11, fontWeight: 700, cursor: 'pointer',
                     boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
@@ -184,8 +184,8 @@ export function Sidebar() {
               onClick={() => setOpen(false)}
               style={{
                 margin: '8px 10px 0',
-                background: 'rgba(163,230,53,0.07)',
-                border: '1px solid rgba(163,230,53,0.18)',
+                background: 'rgba(56,189,248,0.07)',
+                border: '1px solid rgba(56,189,248,0.18)',
                 borderRadius: 8,
                 padding: '9px 11px',
                 textDecoration: 'none',
@@ -193,10 +193,10 @@ export function Sidebar() {
                 display: 'flex', flexDirection: 'column', gap: 1,
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.background = 'rgba(163,230,53,0.14)')}
-              onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.background = 'rgba(163,230,53,0.07)')}
+              onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.background = 'rgba(56,189,248,0.14)')}
+              onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.background = 'rgba(56,189,248,0.07)')}
             >
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#a3e635' }}>💰 Portfolio Balance</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#38bdf8' }}>💰 Portfolio Balance</div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>View cross-chain balance</div>
             </Link>
 
@@ -212,7 +212,7 @@ export function Sidebar() {
                   <Link
                     href="/contacts"
                     onClick={() => setOpen(false)}
-                    style={{ color: '#a3e635', textDecoration: 'none', fontWeight: 700 }}
+                    style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 700 }}
                   >
                     + Add one
                   </Link>
@@ -236,10 +236,10 @@ export function Sidebar() {
                     {/* Avatar */}
                     <div style={{
                       width: 32, height: 32, borderRadius: '50%',
-                      background: 'rgba(163,230,53,0.13)',
-                      border: '1.5px solid rgba(163,230,53,0.28)',
+                      background: 'rgba(56,189,248,0.13)',
+                      border: '1.5px solid rgba(56,189,248,0.28)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, fontSize: 13, fontWeight: 700, color: '#a3e635',
+                      flexShrink: 0, fontSize: 13, fontWeight: 700, color: '#38bdf8',
                     }}>
                       {c.name[0].toUpperCase()}
                     </div>

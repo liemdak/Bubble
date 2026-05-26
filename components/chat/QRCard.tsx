@@ -67,7 +67,7 @@ export function QRCard({ address, message }: QRCardProps) {
       {/* Header */}
       <div style={{
         width: '100%',
-        borderLeft: '4px solid #a3e635',
+        borderLeft: '4px solid #38bdf8',
         padding: '10px 14px',
         borderBottom: '1px solid #f0f0f0',
         background: '#fafafa',
@@ -116,7 +116,7 @@ export function QRCard({ address, message }: QRCardProps) {
           onMouseLeave={() => setHoverCopy(false)}
           style={{
             flex: 1,
-            background: copied ? '#a3e635' : hoverCopy ? '#f0f0f0' : '#ffffff',
+            background: copied ? '#38bdf8' : hoverCopy ? '#f0f0f0' : '#ffffff',
             color: '#000', border: '1px solid #e0e0e0', borderRadius: 6,
             padding: '8px 0', fontSize: 11, fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',

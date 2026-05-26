@@ -90,7 +90,7 @@ export default function ContactsPage() {
         <button
           onClick={() => { setShowAdd(!showAdd); setError(null) }}
           style={{
-            background: showAdd ? 'rgba(255,255,255,0.08)' : '#a3e635',
+            background: showAdd ? 'rgba(255,255,255,0.08)' : '#38bdf8',
             color: showAdd ? '#fff' : '#000',
             border: showAdd ? '1px solid rgba(255,255,255,0.15)' : 'none',
             borderRadius: 8, padding: '9px 16px', fontWeight: 700,
@@ -125,7 +125,7 @@ export default function ContactsPage() {
               placeholder="Name (e.g. Mike)"
               value={name}
               onChange={e => setName(e.target.value)}
-              onFocus={e => (e.currentTarget.style.borderColor = '#a3e635')}
+              onFocus={e => (e.currentTarget.style.borderColor = '#38bdf8')}
               onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
               required
             />
@@ -134,7 +134,7 @@ export default function ContactsPage() {
               placeholder="Wallet address (0x...)"
               value={address}
               onChange={e => setAddress(e.target.value)}
-              onFocus={e => (e.currentTarget.style.borderColor = '#a3e635')}
+              onFocus={e => (e.currentTarget.style.borderColor = '#38bdf8')}
               onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
               required
             />
@@ -143,7 +143,7 @@ export default function ContactsPage() {
               placeholder="Note (optional)"
               value={note}
               onChange={e => setNote(e.target.value)}
-              onFocus={e => (e.currentTarget.style.borderColor = '#a3e635')}
+              onFocus={e => (e.currentTarget.style.borderColor = '#38bdf8')}
               onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
             />
             {error && (
@@ -160,7 +160,7 @@ export default function ContactsPage() {
               type="submit"
               disabled={saving}
               style={{
-                background: saving ? 'rgba(163,230,53,0.4)' : '#a3e635',
+                background: saving ? 'rgba(56,189,248,0.4)' : '#38bdf8',
                 border: 'none', borderRadius: 10, padding: '12px',
                 fontWeight: 700, cursor: saving ? 'default' : 'pointer',
                 fontSize: 13, boxShadow: saving ? 'none' : 'rgb(10,10,13) 1px 1px 0px 0px',
@@ -213,11 +213,11 @@ export default function ContactsPage() {
               {/* Avatar */}
               <div style={{
                 width: 40, height: 40, borderRadius: '50%',
-                background: 'rgba(163,230,53,0.15)',
-                border: '1.5px solid rgba(163,230,53,0.35)',
+                background: 'rgba(56,189,248,0.15)',
+                border: '1.5px solid rgba(56,189,248,0.35)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: 16, flexShrink: 0, color: '#a3e635',
-                boxShadow: '0 0 16px rgba(163,230,53,0.15)',
+                fontWeight: 700, fontSize: 16, flexShrink: 0, color: '#38bdf8',
+                boxShadow: '0 0 16px rgba(56,189,248,0.15)',
               }}>
                 {c.name[0].toUpperCase()}
               </div>

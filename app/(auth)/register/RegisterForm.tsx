@@ -102,7 +102,7 @@ export function RegisterForm() {
         type="submit"
         disabled={step === 'loading'}
         style={{
-          background: step === 'loading' ? '#ccc' : '#a3e635',
+          background: step === 'loading' ? '#ccc' : '#38bdf8',
           color: '#000000',
           border: 'none',
           borderRadius: 4,

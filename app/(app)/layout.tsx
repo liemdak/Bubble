@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
-      backgroundColor: '#06060f', /* fallback while image loads */
+      backgroundColor: '#000000', /* fallback while image loads */
     }}>
       <AppHeader address={session?.address} />
 

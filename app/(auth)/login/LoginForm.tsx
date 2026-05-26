@@ -94,7 +94,7 @@ export function LoginForm() {
         type="submit"
         disabled={status === 'loading'}
         style={{
-          background: status === 'loading' ? '#ccc' : '#a3e635',
+          background: status === 'loading' ? '#ccc' : '#38bdf8',
           color: '#000000',
           border: 'none',
           borderRadius: 4,

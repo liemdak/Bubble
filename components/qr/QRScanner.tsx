@@ -103,8 +103,8 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: 'rgba(163,230,53,0.15)',
-                border: '1px solid rgba(163,230,53,0.3)',
+                background: 'rgba(56,189,248,0.15)',
+                border: '1px solid rgba(56,189,248,0.3)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <Camera size={16} color="#5a8a00" />
@@ -156,8 +156,8 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
                   transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
                   style={{
                     width: 36, height: 36, borderRadius: '50%',
-                    border: '3px solid rgba(163,230,53,0.2)',
-                    borderTopColor: '#a3e635',
+                    border: '3px solid rgba(56,189,248,0.2)',
+                    borderTopColor: '#38bdf8',
                   }}
                 />
                 <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Starting camera…</span>
@@ -189,7 +189,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
                     <div key={i} style={{
                       position: 'absolute',
                       width: 24, height: 24,
-                      borderColor: '#a3e635',
+                      borderColor: '#38bdf8',
                       borderStyle: 'solid',
                       borderWidth: 0,
                       borderTopWidth: i < 2 ? 3 : 0,
@@ -208,7 +208,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
                       position: 'absolute',
                       left: 8, right: 8,
                       height: 2,
-                      background: 'linear-gradient(90deg, transparent, #a3e635, transparent)',
+                      background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)',
                       borderRadius: 1,
                       top: 10,
                     }}
@@ -221,7 +221,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
                     alignItems: 'center', justifyContent: 'center',
                     opacity: 0.15,
                   }}>
-                    <ScanLine size={80} color="#a3e635" />
+                    <ScanLine size={80} color="#38bdf8" />
                   </div>
                 </div>
               </div>
@@ -251,7 +251,7 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
                   onClick={startScanning}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
-                    background: '#a3e635', color: '#000',
+                    background: '#38bdf8', color: '#000',
                     border: 'none', borderRadius: 8,
                     padding: '10px 20px', fontWeight: 700,
                     fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',

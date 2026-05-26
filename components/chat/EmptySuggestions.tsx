@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { playBubbleTap } from '@/lib/sounds'
 
 const SUGGESTIONS = [
-  { text: 'Send 50 USDC to ',    desc: 'Transfer stablecoins instantly',  accent: 'rgba(163,230,53,0.2)',  prefillOnly: true  },
+  { text: 'Send 50 USDC to ',    desc: 'Transfer stablecoins instantly',  accent: 'rgba(56,189,248,0.2)',  prefillOnly: true  },
   { text: 'Swap 100 USDC to EURC', desc: 'Exchange between tokens',       accent: 'rgba(250,233,255,0.2)', prefillOnly: true  },
   { text: 'Show my QR code',      desc: 'Share your receive address',      accent: 'rgba(137,229,240,0.18)', prefillOnly: false },
   { text: 'Check my balance',     desc: 'USDC · EURC · USYC',             accent: 'rgba(196,181,253,0.18)', prefillOnly: false },

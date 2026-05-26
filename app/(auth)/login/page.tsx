@@ -222,8 +222,8 @@ function LoginCard() {
                 boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(163,230,53,0.10)'
-                e.currentTarget.style.borderColor = 'rgba(163,230,53,0.4)'
+                e.currentTarget.style.background = 'rgba(56,189,248,0.10)'
+                e.currentTarget.style.borderColor = 'rgba(56,189,248,0.4)'
                 e.currentTarget.style.transform = 'translateY(-1px)'
               }}
               onMouseLeave={e => {
@@ -278,7 +278,7 @@ function LoginCard() {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         gap: 6, fontSize: 11, color: '#bbb',
       }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#a3e635' }} />
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8' }} />
         Built on Arc · Powered by Circle · Sign is free
       </div>
     </div>
