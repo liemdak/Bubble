@@ -17,6 +17,7 @@ const STRIP_COLORS: Record<string, string> = {
   swap_tokens:   '#fbbf25',
   bridge_tokens: '#38bdf8',
   fund_agent:    '#38bdf8',
+  refund_agent:  '#2D9B6F',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -27,6 +28,7 @@ const ACTION_LABELS: Record<string, string> = {
   get_rate:       'Rate',
   manage_contact: 'Contact',
   fund_agent:     'Fund Agent',
+  refund_agent:   'Withdraw from Agent',
 }
 
 export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: ConfirmCardProps) {
@@ -87,6 +89,16 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
             <CardRow label="To"     value={`Agent wallet · ${intent.agent_address.slice(0,6)}...${intent.agent_address.slice(-4)}`} />
             <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
             <CardRow label="Via"    value="MetaMask (on-chain transfer)" />
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
+              <CardRow label="Total" value={total_display} bold />
+            </div>
+          </>
+        ) : intent.type === 'refund_agent' ? (
+          <>
+            <CardRow label="From"   value="Agent wallet" />
+            <CardRow label="To"     value="Your main wallet" />
+            <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
+            <CardRow label="Via"    value="Agent (no MetaMask needed)" />
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
               <CardRow label="Total" value={total_display} bold />
             </div>

@@ -8,7 +8,7 @@ import type { Contact } from '@/types/db'
 
 export function Sidebar() {
   const pathname = usePathname()
-  const isChat   = pathname === '/'
+  const isChat   = pathname === '/chat'
   const [open, setOpen]         = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading]   = useState(false)
@@ -78,7 +78,7 @@ export function Sidebar() {
           </button>
         ) : (
           <Link
-            href="/"
+            href="/chat"
             onClick={() => playBubbleTap()}
             title="Back to chat"
             style={{

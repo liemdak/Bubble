@@ -387,17 +387,13 @@ function WithdrawModal({ agentBalance, onClose }: { agentBalance: WalletData; on
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}
       onClick={onClose}
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 480, background: 'rgba(12,12,24,0.97)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', borderRadius: '24px 24px 0 0', border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none', padding: '24px 20px 48px', boxShadow: '0 -16px 64px rgba(0,0,0,0.6)' }}
+        style={{ width: '100%', maxWidth: 440, background: 'rgba(12,12,24,0.97)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)', padding: '24px 20px 28px', boxShadow: '0 24px 80px rgba(0,0,0,0.7)' }}
       >
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
-        </div>
-
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: '#fff' }}>Withdraw from Agent</div>
