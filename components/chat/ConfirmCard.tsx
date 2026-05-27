@@ -40,8 +40,8 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
   const [pressConfirm, setPressConfirm] = useState(false)
   const [hoverCancel,  setHoverCancel]  = useState(false)
 
-  // Bridge-specific: wallet source toggle
-  const [walletSource, setWalletSource] = useState<'agent' | 'main'>('agent')
+  // Bridge-specific: wallet source — only 'agent' is active; 'main' is disabled
+  const [walletSource] = useState<'agent' | 'main'>('agent')
 
   return (
     <motion.div
@@ -121,35 +121,35 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
                 Wallet
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
-                {/* Agent wallet */}
-                <button
-                  onClick={() => setWalletSource('agent')}
+                {/* Agent wallet — always selected */}
+                <div
                   style={{
-                    flex: 1, padding: '8px 6px', borderRadius: 9, cursor: 'pointer',
-                    border: `1.5px solid ${walletSource === 'agent' ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.1)'}`,
-                    background: walletSource === 'agent' ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
-                    color: walletSource === 'agent' ? '#38bdf8' : 'rgba(255,255,255,0.38)',
-                    fontFamily: 'inherit', transition: 'all 0.15s', textAlign: 'center' as const,
+                    flex: 1, padding: '8px 6px', borderRadius: 9,
+                    border: '1.5px solid rgba(56,189,248,0.55)',
+                    background: 'rgba(56,189,248,0.1)',
+                    color: '#38bdf8',
+                    textAlign: 'center' as const,
                   }}
                 >
                   <div style={{ fontSize: 11, fontWeight: 700 }}>Agent Wallet</div>
                   <div style={{ fontSize: 9, marginTop: 2, opacity: 0.75 }}>Circle · gasless</div>
-                </button>
+                </div>
 
-                {/* Main wallet (coming soon) */}
-                <button
-                  onClick={() => setWalletSource('main')}
+                {/* Main wallet — coming soon, disabled */}
+                <div
+                  title="MetaMask bridge coming soon"
                   style={{
-                    flex: 1, padding: '8px 6px', borderRadius: 9, cursor: 'pointer',
-                    border: `1.5px solid ${walletSource === 'main' ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)'}`,
-                    background: walletSource === 'main' ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.03)',
-                    color: walletSource === 'main' ? '#38bdf8' : 'rgba(255,255,255,0.28)',
-                    fontFamily: 'inherit', transition: 'all 0.15s', textAlign: 'center' as const,
+                    flex: 1, padding: '8px 6px', borderRadius: 9,
+                    border: '1.5px solid rgba(255,255,255,0.07)',
+                    background: 'rgba(255,255,255,0.02)',
+                    color: 'rgba(255,255,255,0.2)',
+                    cursor: 'not-allowed', textAlign: 'center' as const,
+                    userSelect: 'none' as const,
                   }}
                 >
                   <div style={{ fontSize: 11, fontWeight: 700 }}>Main Wallet</div>
-                  <div style={{ fontSize: 9, marginTop: 2, opacity: 0.65 }}>MetaMask · soon</div>
-                </button>
+                  <div style={{ fontSize: 9, marginTop: 2 }}>MetaMask · soon</div>
+                </div>
               </div>
             </div>
 
