@@ -25,6 +25,7 @@ export interface BridgeIntent {
   amount: string
   from_chain: ChainName
   to_chain: ChainName
+  wallet_source?: 'agent' | 'main'  // 'agent' = Circle wallet (default); 'main' = MetaMask
 }
 
 export interface BalanceIntent {

@@ -13,7 +13,15 @@ export function Sidebar() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading]   = useState(false)
 
-  // Load contacts when drawer opens
+  // Load contacts on mount → strip always shows initials immediately
+  useEffect(() => {
+    fetch('/api/contacts')
+      .then(r => r.json())
+      .then(d => setContacts(d.contacts ?? []))
+      .catch(() => {})
+  }, [])
+
+  // Refresh (with loading spinner in drawer) when drawer opens
   useEffect(() => {
     if (!open) return
     setLoading(true)

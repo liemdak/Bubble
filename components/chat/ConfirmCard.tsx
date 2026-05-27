@@ -7,7 +7,7 @@ import { playBubbleConfirm, playBubbleTap } from '@/lib/sounds'
 
 interface ConfirmCardProps {
   card: ConfirmationCard
-  onConfirm: () => void
+  onConfirm: (walletSource?: 'agent' | 'main') => void
   onCancel: () => void
   loading?: boolean
 }
@@ -33,12 +33,15 @@ const ACTION_LABELS: Record<string, string> = {
 
 export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: ConfirmCardProps) {
   const { intent, resolved_address, gas_fee, total_display } = card
-  const stripColor = STRIP_COLORS[intent.type] ?? '#38bdf8'
+  const stripColor  = STRIP_COLORS[intent.type] ?? '#38bdf8'
   const actionLabel = ACTION_LABELS[intent.type] ?? intent.type
 
   const [hoverConfirm, setHoverConfirm] = useState(false)
   const [pressConfirm, setPressConfirm] = useState(false)
-  const [hoverCancel, setHoverCancel] = useState(false)
+  const [hoverCancel,  setHoverCancel]  = useState(false)
+
+  // Bridge-specific: wallet source toggle
+  const [walletSource, setWalletSource] = useState<'agent' | 'main'>('agent')
 
   return (
     <motion.div
@@ -83,6 +86,7 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
 
       {/* Details */}
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+
         {intent.type === 'fund_agent' ? (
           <>
             <CardRow label="From"   value={`MetaMask · ${intent.user_address.slice(0,6)}...${intent.user_address.slice(-4)}`} />
@@ -93,6 +97,7 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
               <CardRow label="Total" value={total_display} bold />
             </div>
           </>
+
         ) : intent.type === 'refund_agent' ? (
           <>
             <CardRow label="From"   value="Agent wallet" />
@@ -103,6 +108,62 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
               <CardRow label="Total" value={total_display} bold />
             </div>
           </>
+
+        ) : intent.type === 'bridge_tokens' ? (
+          <>
+            {/* ── Wallet source selector ── */}
+            <div>
+              <span style={{
+                fontSize: 11, fontWeight: 500,
+                color: 'rgba(255,255,255,0.4)',
+                display: 'block', marginBottom: 7,
+              }}>
+                Wallet
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {/* Agent wallet */}
+                <button
+                  onClick={() => setWalletSource('agent')}
+                  style={{
+                    flex: 1, padding: '8px 6px', borderRadius: 9, cursor: 'pointer',
+                    border: `1.5px solid ${walletSource === 'agent' ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.1)'}`,
+                    background: walletSource === 'agent' ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                    color: walletSource === 'agent' ? '#38bdf8' : 'rgba(255,255,255,0.38)',
+                    fontFamily: 'inherit', transition: 'all 0.15s', textAlign: 'center' as const,
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700 }}>Agent Wallet</div>
+                  <div style={{ fontSize: 9, marginTop: 2, opacity: 0.75 }}>Circle · gasless</div>
+                </button>
+
+                {/* Main wallet (coming soon) */}
+                <button
+                  onClick={() => setWalletSource('main')}
+                  style={{
+                    flex: 1, padding: '8px 6px', borderRadius: 9, cursor: 'pointer',
+                    border: `1.5px solid ${walletSource === 'main' ? 'rgba(56,189,248,0.55)' : 'rgba(255,255,255,0.08)'}`,
+                    background: walletSource === 'main' ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.03)',
+                    color: walletSource === 'main' ? '#38bdf8' : 'rgba(255,255,255,0.28)',
+                    fontFamily: 'inherit', transition: 'all 0.15s', textAlign: 'center' as const,
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700 }}>Main Wallet</div>
+                  <div style={{ fontSize: 9, marginTop: 2, opacity: 0.65 }}>MetaMask · soon</div>
+                </button>
+              </div>
+            </div>
+
+            <CardRow label="Token"  value={intent.token} />
+            <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
+            <CardRow label="From"   value={intent.from_chain.toUpperCase()} />
+            <CardRow label="To"     value={intent.to_chain.toUpperCase()} />
+            <CardRow label="Via"    value="CCTP v2 (~20s)" />
+            <CardRow label="Gas"    value={`~${gas_fee} (sponsored)`} />
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
+              <CardRow label="Total" value={total_display} bold />
+            </div>
+          </>
+
         ) : (
           <>
             <CardRow label="To" value={
@@ -129,7 +190,10 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
       {/* Buttons */}
       <div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
         <button
-          onClick={() => { playBubbleConfirm(); onConfirm() }}
+          onClick={() => {
+            playBubbleConfirm()
+            onConfirm(intent.type === 'bridge_tokens' ? walletSource : undefined)
+          }}
           disabled={loading}
           onMouseEnter={() => setHoverConfirm(true)}
           onMouseLeave={() => { setHoverConfirm(false); setPressConfirm(false) }}

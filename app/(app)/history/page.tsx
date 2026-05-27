@@ -37,7 +37,7 @@ export default function HistoryPage() {
         <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
           // ON-CHAIN HISTORY
         </div>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 6px', color: '#fff' }}>📋 History</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 6px', color: '#fff' }}>History</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.6 }}>
           All transactions are recorded on Arc Testnet and viewable on ArcScan.
         </p>
@@ -126,10 +126,10 @@ export default function HistoryPage() {
       {/* ── Info cards ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 24 }}>
         {[
-          { icon: '📤', label: 'Send',   desc: 'Transfers to other wallets',     color: '#2775CA' },
-          { icon: '🔄', label: 'Swap',   desc: 'USDC ↔ EURC ↔ USYC on Arc',   color: '#fbbf25' },
-          { icon: '🌉', label: 'Bridge', desc: 'Cross-chain via CCTP',           color: '#38bdf8' },
-        ].map(({ icon, label, desc, color }) => (
+          { label: 'Send',   desc: 'Transfers to other wallets',   color: '#2775CA' },
+          { label: 'Swap',   desc: 'USDC ↔ EURC ↔ USYC on Arc',  color: '#fbbf25' },
+          { label: 'Bridge', desc: 'Cross-chain via CCTP',          color: '#38bdf8' },
+        ].map(({ label, desc, color }) => (
           <div
             key={label}
             style={{
@@ -147,10 +147,9 @@ export default function HistoryPage() {
               position: 'absolute', left: 0, top: 0, bottom: 0,
               width: 3, background: color, borderRadius: '12px 0 0 12px',
             }} />
-            <div style={{ fontSize: 20, marginLeft: 6 }}>{icon}</div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{label}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{desc}</div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#fff', marginLeft: 6 }}>{label}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 6 }}>{desc}</div>
             </div>
           </div>
         ))}

@@ -25,7 +25,6 @@ export default function ContactsPage() {
 
   const [name, setName]       = useState('')
   const [address, setAddress] = useState('')
-  const [note, setNote]       = useState('')
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState<string | null>(null)
 
@@ -52,12 +51,12 @@ export default function ContactsPage() {
       const res = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, address, note }),
+        body: JSON.stringify({ name, address }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Failed'); return }
       setContacts(prev => [...prev, data.contact])
-      setName(''); setAddress(''); setNote('')
+      setName(''); setAddress('')
       setShowAdd(false)
     } catch {
       setError('Network error')
@@ -85,7 +84,7 @@ export default function ContactsPage() {
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
             // ADDRESS BOOK
           </div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#fff' }}>👥 Contacts</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#fff' }}>Contacts</h1>
         </div>
         <button
           onClick={() => { setShowAdd(!showAdd); setError(null) }}
@@ -137,14 +136,6 @@ export default function ContactsPage() {
               onFocus={e => (e.currentTarget.style.borderColor = '#38bdf8')}
               onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
               required
-            />
-            <input
-              style={INPUT_STYLE}
-              placeholder="Note (optional)"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              onFocus={e => (e.currentTarget.style.borderColor = '#38bdf8')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
             />
             {error && (
               <div style={{
@@ -232,9 +223,6 @@ export default function ContactsPage() {
                 }}>
                   {c.address}
                 </div>
-                {c.note && (
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 2 }}>{c.note}</div>
-                )}
               </div>
 
               {/* Delete */}

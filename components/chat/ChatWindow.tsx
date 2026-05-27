@@ -108,8 +108,19 @@ export function ChatWindow() {
     }
   }
 
-  async function handleConfirm(card: ConfirmationCard, cardId: string) {
+  async function handleConfirm(card: ConfirmationCard, cardId: string, walletSource?: 'agent' | 'main') {
     setConfirmLoading(true)
+
+    // Bridge with main wallet — coming soon
+    if (card.intent.type === 'bridge_tokens' && walletSource === 'main') {
+      setConfirmLoading(false)
+      setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+        id: crypto.randomUUID(),
+        type: 'assistant',
+        content: '⚠️ Bridging via Main Wallet (MetaMask) is coming soon. Please use Agent Wallet for now.',
+      }))
+      return
+    }
 
     // ── fund_agent: MetaMask ERC-20 transfer (client-side, no server needed) ──
     if (card.intent.type === 'fund_agent') {
@@ -261,7 +272,7 @@ export function ChatWindow() {
               <ConfirmCard
                 key={msg.id}
                 card={msg.card}
-                onConfirm={() => handleConfirm(msg.card, msg.id)}
+                onConfirm={(walletSource) => handleConfirm(msg.card, msg.id, walletSource)}
                 onCancel={() => handleCancelCard(msg.id)}
                 loading={confirmLoading}
               />
