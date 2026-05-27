@@ -10,15 +10,7 @@ export function Sidebar() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading]   = useState(false)
 
-  // Load contacts on mount → strip always shows initials immediately
-  useEffect(() => {
-    fetch('/api/contacts')
-      .then(r => r.json())
-      .then(d => setContacts(d.contacts ?? []))
-      .catch(() => {})
-  }, [])
-
-  // Refresh (with loading spinner in drawer) when drawer opens
+  // Refresh contacts (with loading spinner in drawer) when drawer opens
   useEffect(() => {
     if (!open) return
     setLoading(true)
@@ -83,40 +75,6 @@ export function Sidebar() {
             🫧
           </Link>
 
-        {/* Contact initials — quick send */}
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6, width: '100%', alignItems: 'center' }}>
-          {contacts.slice(0, 5).map((c) => (
-            <div
-              key={c.id}
-              title={`Send to ${c.name}`}
-              onClick={() => sendToContact(c.name)}
-              style={{
-                width: 28, height: 28,
-                borderRadius: '50%',
-                background: 'rgba(56,189,248,0.13)',
-                border: '1.5px solid rgba(56,189,248,0.28)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 700, color: '#38bdf8',
-                cursor: 'pointer',
-                transition: 'background 0.12s, border-color 0.12s, box-shadow 0.12s',
-              }}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLDivElement
-                el.style.background = 'rgba(56,189,248,0.28)'
-                el.style.borderColor = '#38bdf8'
-                el.style.boxShadow = '0 0 10px rgba(56,189,248,0.35)'
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLDivElement
-                el.style.background = 'rgba(56,189,248,0.13)'
-                el.style.borderColor = 'rgba(56,189,248,0.28)'
-                el.style.boxShadow = 'none'
-              }}
-            >
-              {c.name[0].toUpperCase()}
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* ── Overlay + slide-in drawer ── */}

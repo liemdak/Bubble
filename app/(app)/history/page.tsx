@@ -3,15 +3,18 @@
 import { useState, useEffect } from 'react'
 
 export default function HistoryPage() {
-  const [walletAddress, setWalletAddress] = useState<string | null>(null)
-  const [copied, setCopied]               = useState(false)
-  const [loading, setLoading]             = useState(true)
+  const [walletAddress, setWalletAddress]   = useState<string | null>(null)
+  const [agentAddress, setAgentAddress]     = useState<string | null>(null)
+  const [copied, setCopied]                 = useState(false)
+  const [agentCopied, setAgentCopied]       = useState(false)
+  const [loading, setLoading]               = useState(true)
 
   useEffect(() => {
     fetch('/api/balance')
       .then(r => r.json())
       .then(d => {
         setWalletAddress(d.address ?? d.userWallet?.address ?? null)
+        setAgentAddress(d.agentWallet?.address ?? d.circleWalletAddress ?? null)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -21,11 +24,23 @@ export default function HistoryPage() {
     ? `https://testnet.arcscan.app/address/${walletAddress}`
     : 'https://testnet.arcscan.app'
 
+  const agentArcScanUrl = agentAddress
+    ? `https://testnet.arcscan.app/address/${agentAddress}`
+    : 'https://testnet.arcscan.app'
+
   function copyAddress() {
     if (!walletAddress) return
     navigator.clipboard.writeText(walletAddress).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  function copyAgentAddress() {
+    if (!agentAddress) return
+    navigator.clipboard.writeText(agentAddress).then(() => {
+      setAgentCopied(true)
+      setTimeout(() => setAgentCopied(false), 2000)
     })
   }
 
@@ -56,8 +71,14 @@ export default function HistoryPage() {
         <div style={{
           fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 700,
           textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8,
+          display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          Your Wallet Address (Arc Testnet)
+          Main Wallet Address (Arc Testnet)
+          <span style={{
+            fontSize: 9, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)',
+            border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+            padding: '1px 6px', fontWeight: 700, letterSpacing: '0.04em',
+          }}>METAMASK</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -93,7 +114,81 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {/* ── ArcScan button ── */}
+      {/* ── Agent wallet card ── */}
+      <div style={{
+        background: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255,255,255,0.09)',
+        borderRadius: 16,
+        padding: '16px 18px',
+        marginBottom: 12,
+      }}>
+        <div style={{
+          fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8,
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          Agent Wallet Address (Arc Testnet)
+          <span style={{
+            fontSize: 9, background: 'rgba(56,189,248,0.15)', color: '#38bdf8',
+            border: '1px solid rgba(56,189,248,0.3)', borderRadius: 6,
+            padding: '1px 6px', fontWeight: 700, letterSpacing: '0.04em',
+          }}>CIRCLE</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            flex: 1, fontSize: 12, fontFamily: 'monospace',
+            color: 'rgba(255,255,255,0.65)', wordBreak: 'break-all', lineHeight: 1.5,
+          }}>
+            {loading ? (
+              <span style={{ color: 'rgba(255,255,255,0.2)' }}>…</span>
+            ) : (
+              agentAddress ?? <span style={{ color: 'rgba(255,255,255,0.25)' }}>Not available</span>
+            )}
+          </div>
+
+          {agentAddress && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+              <button
+                onClick={copyAgentAddress}
+                title="Copy agent address"
+                style={{
+                  background: agentCopied ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.07)',
+                  border: `1px solid ${agentCopied ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                  borderRadius: 8,
+                  padding: '5px 12px', fontSize: 11, cursor: 'pointer',
+                  fontWeight: 600, fontFamily: 'inherit',
+                  color: agentCopied ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {agentCopied ? '✓ Copied' : 'Copy'}
+              </button>
+              <a
+                href={agentArcScanUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'block', textAlign: 'center',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8,
+                  padding: '5px 10px', fontSize: 10, cursor: 'pointer',
+                  fontWeight: 600, fontFamily: 'inherit', textDecoration: 'none',
+                  color: 'rgba(255,255,255,0.45)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                ArcScan ↗
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── ArcScan button (main wallet) ── */}
       <a
         href={arcScanUrl}
         target="_blank"

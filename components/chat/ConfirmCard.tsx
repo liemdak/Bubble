@@ -7,7 +7,7 @@ import { playBubbleConfirm, playBubbleTap } from '@/lib/sounds'
 
 interface ConfirmCardProps {
   card: ConfirmationCard
-  onConfirm: (walletSource?: 'agent' | 'main') => void
+  onConfirm: () => void
   onCancel: () => void
   loading?: boolean
 }
@@ -39,9 +39,6 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
   const [hoverConfirm, setHoverConfirm] = useState(false)
   const [pressConfirm, setPressConfirm] = useState(false)
   const [hoverCancel,  setHoverCancel]  = useState(false)
-
-  // Bridge-specific: wallet source — only 'agent' is active; 'main' is disabled
-  const [walletSource] = useState<'agent' | 'main'>('agent')
 
   return (
     <motion.div
@@ -111,53 +108,11 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
 
         ) : intent.type === 'bridge_tokens' ? (
           <>
-            {/* ── Wallet source selector ── */}
-            <div>
-              <span style={{
-                fontSize: 11, fontWeight: 500,
-                color: 'rgba(255,255,255,0.4)',
-                display: 'block', marginBottom: 7,
-              }}>
-                Wallet
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {/* Agent wallet — always selected */}
-                <div
-                  style={{
-                    flex: 1, padding: '8px 6px', borderRadius: 9,
-                    border: '1.5px solid rgba(56,189,248,0.55)',
-                    background: 'rgba(56,189,248,0.1)',
-                    color: '#38bdf8',
-                    textAlign: 'center' as const,
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700 }}>Agent Wallet</div>
-                  <div style={{ fontSize: 9, marginTop: 2, opacity: 0.75 }}>Circle · gasless</div>
-                </div>
-
-                {/* Main wallet — coming soon, disabled */}
-                <div
-                  title="MetaMask bridge coming soon"
-                  style={{
-                    flex: 1, padding: '8px 6px', borderRadius: 9,
-                    border: '1.5px solid rgba(255,255,255,0.07)',
-                    background: 'rgba(255,255,255,0.02)',
-                    color: 'rgba(255,255,255,0.2)',
-                    cursor: 'not-allowed', textAlign: 'center' as const,
-                    userSelect: 'none' as const,
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700 }}>Main Wallet</div>
-                  <div style={{ fontSize: 9, marginTop: 2 }}>MetaMask · soon</div>
-                </div>
-              </div>
-            </div>
-
             <CardRow label="Token"  value={intent.token} />
             <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
             <CardRow label="From"   value={intent.from_chain.toUpperCase()} />
             <CardRow label="To"     value={intent.to_chain.toUpperCase()} />
-            <CardRow label="Via"    value="CCTP v2 (~20s)" />
+            <CardRow label="Via"    value="Agent wallet · CCTP v2 (~20s)" />
             <CardRow label="Gas"    value={`~${gas_fee} (sponsored)`} />
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
               <CardRow label="Total" value={total_display} bold />
@@ -190,10 +145,7 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
       {/* Buttons */}
       <div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
         <button
-          onClick={() => {
-            playBubbleConfirm()
-            onConfirm(intent.type === 'bridge_tokens' ? walletSource : undefined)
-          }}
+          onClick={() => { playBubbleConfirm(); onConfirm() }}
           disabled={loading}
           onMouseEnter={() => setHoverConfirm(true)}
           onMouseLeave={() => { setHoverConfirm(false); setPressConfirm(false) }}
