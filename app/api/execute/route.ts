@@ -312,20 +312,15 @@ async function executeRefundAgent(
 
   const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
 
-  // ── Resolve actual on-chain balance — never trust intent.amount ───────────
+  // ── Resolve actual on-chain balance via viem — never trust intent.amount ──
   // Claude may produce "9999", "all", or a stale value — always use real balance.
   let finalAmount: string
   try {
-    const balRes   = await getCircleClient().listWalletTokenBalances({ walletId: wallet.id })
-    const balances = balRes.data?.tokenBalances ?? []
+    const { readWalletBalances } = await import('@/lib/viem/balanceReader')
+    const balances = await readWalletBalances(wallet.address)
+    const found    = balances.find(b => b.token === intent.token)
+    const actual   = parseFloat(found?.amount ?? '0')
 
-    const found = balances.find(b =>
-      intent.token === 'USDC'
-        ? b.token?.symbol === 'USDC'                       // native; match by symbol
-        : b.token?.symbol === intent.token                 // EURC / USYC
-    )
-
-    const actual = parseFloat(found?.amount ?? '0')
     if (actual <= 0) {
       return NextResponse.json(
         { error: `No ${intent.token} in agent wallet to withdraw.` },
@@ -337,7 +332,7 @@ async function executeRefundAgent(
     console.log(`[executeRefundAgent] withdrawing real balance: ${finalAmount} ${intent.token}`)
   } catch (err) {
     console.error('[executeRefundAgent] balance fetch failed:', err)
-    // Fallback: use intent.amount only if it looks like a real number
+    // Fallback: use intent.amount only if it looks like a real number ≤ 10k
     const parsed = parseFloat(intent.amount)
     if (isNaN(parsed) || parsed <= 0 || parsed > 10_000) {
       return NextResponse.json(
