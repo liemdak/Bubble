@@ -2,44 +2,69 @@
 
 import Link from 'next/link'
 
+// ── Deterministic star generator ───────────────────────────────────────────────
+// Uses LCG (linear congruential generator) instead of Math.random to avoid
+// SSR/hydration mismatches — same values every render.
+function lcg(s: number): number { return (s * 1664525 + 1013904223) >>> 0 }
+
+const STARS = Array.from({ length: 90 }, (_, i) => {
+  let s = lcg((i + 1) * 7919)
+  const x    = (s % 10000) / 100
+  s = lcg(s); const y    = (s % 10000) / 100
+  s = lcg(s); const size = 0.7 + (s % 100) / 100 * 2.6   // 0.7–3.3 px
+  s = lcg(s); const dur  = 1.8 + (s % 100) / 100 * 4.8   // 1.8–6.6 s
+  s = lcg(s); const delay = (s % 100) / 100 * 9           // 0–9 s offset
+  s = lcg(s); const maxOp = 0.4 + (s % 100) / 100 * 0.6  // 0.4–1.0 peak
+  return { id: i, x, y, size, dur, delay, maxOp }
+})
+
 export function Hero() {
   return (
     <section style={{
       position: 'relative',
-      background: 'linear-gradient(160deg, rgb(137,229,240) 0%, rgb(182,239,246) 25%, rgb(210,245,252) 50%, #ffffff 85%)',
+      background: '#05050a',
       padding: '88px 24px 0',
       overflow: 'hidden',
       textAlign: 'center',
       minHeight: 640,
     }}>
-      {/* Subtle floating circles */}
+      {/* ── Star field ─────────────────────────────────────────────────────── */}
       <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        {BUBBLES.map((b) => (
-          <div key={b.id} style={{
-            position: 'absolute',
-            left: `${b.x}%`,
-            top: `${b.y}%`,
-            width: b.size,
-            height: b.size,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.65), transparent 60%)',
-            border: '1.5px solid rgba(255,255,255,0.55)',
-            backdropFilter: 'blur(2px)',
-            opacity: b.opacity,
-            animation: `floatBubble ${b.duration}s ease-in-out infinite`,
-            animationDelay: `${b.delay}s`,
-          }} />
+        {STARS.map((star) => (
+          <div
+            key={star.id}
+            style={{
+              position: 'absolute',
+              left:  `${star.x}%`,
+              top:   `${star.y}%`,
+              width:  star.size,
+              height: star.size,
+              borderRadius: '50%',
+              background: '#ffffff',
+              // Larger stars get a soft glow ring
+              boxShadow: star.size > 2.2
+                ? `0 0 ${(star.size * 3).toFixed(1)}px rgba(255,255,255,0.55)`
+                : 'none',
+              // CSS custom props picked up by @keyframes starTwinkle
+              '--min-op': '0.04',
+              '--max-op': star.maxOp.toFixed(2),
+              animation: `starTwinkle ${star.dur.toFixed(2)}s ease-in-out ${star.delay.toFixed(2)}s infinite`,
+            } as React.CSSProperties}
+          />
         ))}
       </div>
 
+      {/* ── Main content ───────────────────────────────────────────────────── */}
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 760, margin: '0 auto' }}>
+
         {/* Pill badge */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: '#ffffff', border: '1px solid #171717',
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.18)',
           borderRadius: 100, padding: '6px 14px',
           fontSize: 13, fontWeight: 500,
-          boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
+          color: 'rgba(255,255,255,0.75)',
           marginBottom: 32,
         }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#a3e635', display: 'inline-block' }} />
@@ -52,7 +77,7 @@ export function Hero() {
           fontWeight: 700,
           letterSpacing: '-1.344px',
           lineHeight: 1.12,
-          color: '#000000',
+          color: '#ffffff',
           marginBottom: 22,
         }}>
           Send money the way<br />you talk.
@@ -62,13 +87,16 @@ export function Hero() {
         <p style={{
           fontSize: 18,
           fontWeight: 500,
-          color: '#333333',
+          color: 'rgba(255,255,255,0.60)',
           lineHeight: 1.6,
           maxWidth: 500,
           margin: '0 auto 40px',
         }}>
           Type{' '}
-          <span style={{ background: '#a3e635', padding: '2px 7px', borderRadius: 4, fontStyle: 'normal' }}>
+          <span style={{
+            background: '#a3e635', color: '#000000',
+            padding: '2px 8px', borderRadius: 4, fontStyle: 'normal',
+          }}>
             &quot;send 100 USDC to Mike&quot;
           </span>
           {' '}— Bubble handles the rest.
@@ -86,10 +114,11 @@ export function Hero() {
             Get started free →
           </Link>
           <Link href="/login" style={{
-            background: '#ffffff', color: '#000000',
-            border: '1px solid #171717', borderRadius: 4,
+            background: 'rgba(255,255,255,0.07)',
+            color: 'rgba(255,255,255,0.85)',
+            border: '1px solid rgba(255,255,255,0.22)',
+            borderRadius: 4,
             padding: '13px 28px', fontWeight: 500, fontSize: 16,
-            boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
             textDecoration: 'none', display: 'inline-block',
           }}>
             Log in
@@ -101,7 +130,7 @@ export function Hero() {
           background: '#ffffff', border: '1px solid #171717',
           borderRadius: '12px 12px 0 0',
           padding: '18px 18px 0',
-          boxShadow: 'rgb(10,10,13) 4px 4px 0px 0px',
+          boxShadow: '0 0 60px rgba(163,230,53,0.10), rgb(10,10,13) 4px 4px 0px 0px',
           maxWidth: 440, margin: '0 auto',
           textAlign: 'left',
         }}>
@@ -119,14 +148,13 @@ export function Hero() {
         </div>
       </div>
 
-      {/* 3D Wave animation */}
+      {/* ── Wave transition: dark → white ──────────────────────────────────── */}
       <WaveStack />
 
       <style>{`
-        @keyframes floatBubble {
-          0%   { transform: translateY(0px) scale(1); }
-          50%  { transform: translateY(-18px) scale(1.04); }
-          100% { transform: translateY(0px) scale(1); }
+        @keyframes starTwinkle {
+          0%, 100% { opacity: var(--min-op, 0.05); }
+          50%       { opacity: var(--max-op, 0.85); }
         }
         @keyframes wave1 {
           0%   { transform: translateX(0); }
@@ -145,11 +173,11 @@ export function Hero() {
   )
 }
 
-// ── 3-layer wave stack ─────────────────────────────────────────────────────────
+// ── 3-layer wave stack (dark sky → white next section) ─────────────────────────
 function WaveStack() {
   return (
     <div style={{ position: 'relative', height: 90, marginTop: 0, overflow: 'hidden' }}>
-      {/* Wave 1 — back, slow */}
+      {/* Wave 1 — back, slow, faint green tint */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0,
         width: '200%', animation: 'wave1 14s linear infinite',
@@ -157,12 +185,12 @@ function WaveStack() {
         <svg viewBox="0 0 1440 90" preserveAspectRatio="none" style={{ display: 'block', width: '100%' }}>
           <path
             d="M0,45 C180,85 360,5 540,45 C720,85 900,5 1080,45 C1260,85 1350,20 1440,45 L1440,90 L0,90 Z"
-            fill="rgba(137,229,240,0.25)"
+            fill="rgba(163,230,53,0.07)"
           />
         </svg>
       </div>
 
-      {/* Wave 2 — mid */}
+      {/* Wave 2 — mid, medium opacity */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0,
         width: '200%', animation: 'wave2 9s linear infinite',
@@ -170,12 +198,12 @@ function WaveStack() {
         <svg viewBox="0 0 1440 90" preserveAspectRatio="none" style={{ display: 'block', width: '100%' }}>
           <path
             d="M0,55 C200,15 400,75 600,45 C800,15 1000,75 1200,45 C1320,25 1400,60 1440,50 L1440,90 L0,90 Z"
-            fill="rgba(100,210,240,0.30)"
+            fill="rgba(255,255,255,0.10)"
           />
         </svg>
       </div>
 
-      {/* Wave 3 — front, fast, solid */}
+      {/* Wave 3 — front, fast, solid white transition */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0,
         width: '200%', animation: 'wave3 6s linear infinite',
@@ -228,13 +256,3 @@ function MockCard() {
     </div>
   )
 }
-
-// ── Bubble data ────────────────────────────────────────────────────────────────
-const BUBBLES = [
-  { id: 1,  x: 5,  y: 12, size: 64,  opacity: 0.18, duration: 7,  delay: 0   },
-  { id: 2,  x: 88, y: 8,  size: 96,  opacity: 0.14, duration: 9,  delay: 1.5 },
-  { id: 3,  x: 72, y: 55, size: 48,  opacity: 0.20, duration: 6,  delay: 0.8 },
-  { id: 4,  x: 15, y: 60, size: 80,  opacity: 0.12, duration: 11, delay: 2.2 },
-  { id: 5,  x: 50, y: 5,  size: 36,  opacity: 0.22, duration: 8,  delay: 3   },
-  { id: 6,  x: 93, y: 40, size: 55,  opacity: 0.16, duration: 10, delay: 0.3 },
-]

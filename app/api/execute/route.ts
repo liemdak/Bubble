@@ -49,13 +49,16 @@ async function sendTokenDirect(
   const calldata   = `0xa9059cbb${paddedAddr}${paddedAmt}` as `0x${string}`
 
   // Use createTransaction with raw calldata — avoids fee/RPC issues with
-  // createContractExecutionTransaction on Arc Testnet
+  // createContractExecutionTransaction on Arc Testnet.
+  // The Circle SDK TypeScript types don't expose `calldata` in the param union,
+  // but the underlying REST API accepts it. Cast through unknown to bypass.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const res = await client.createTransaction({
     walletId,
     destinationAddress: contractAddress,
     calldata,
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-  })
+  } as unknown as Parameters<typeof client.createTransaction>[0])
 
   const txId = res.data?.id
   if (!txId) throw new Error('No transaction ID returned from Circle')
