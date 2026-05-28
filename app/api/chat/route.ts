@@ -75,13 +75,33 @@ export async function POST(req: NextRequest) {
     // ── Refund / Withdraw agent → main wallet ────────────────────────
     if (/withdraw|refund|rút.*agent|rút.*ví agent|chuyển.*về ví chính|agent.*về ví|pull.*from agent/i.test(message)) {
       const amountMatch = message.match(/(\d+(?:[.,]\d+)?)\s*(usdc|eurc|usyc)?/i)
-      const amount = amountMatch?.[1]?.replace(',', '.') ?? '0'
-      const token  = (amountMatch?.[2]?.toUpperCase() ?? 'USDC') as 'USDC' | 'EURC' | 'USYC'
-      const displayAmount = parseFloat(amount) > 0 ? amount : 'all'
+      const explicitAmount = amountMatch?.[1]?.replace(',', '.') ?? '0'
+      const token = (amountMatch?.[2]?.toUpperCase() ?? 'USDC') as 'USDC' | 'EURC' | 'USYC'
+
+      // Resolve "withdraw all" → fetch real agent wallet balance
+      let finalAmount = explicitAmount
+      if (parseFloat(explicitAmount) <= 0) {
+        if (!circleWalletAddress) {
+          return NextResponse.json({ type: 'text', message: '⚠️ Agent wallet not found. Try logging out and back in.' })
+        }
+        try {
+          const { readWalletBalances } = await import('@/lib/viem/balanceReader')
+          const balances = await readWalletBalances(circleWalletAddress)
+          const found = balances.find(b => b.token === token)
+          const actual = parseFloat(found?.amount ?? '0')
+          if (actual <= 0) {
+            return NextResponse.json({ type: 'text', message: `No ${token} in your agent wallet. Fund it first with "Fund agent".` })
+          }
+          finalAmount = found!.amount
+        } catch {
+          return NextResponse.json({ type: 'text', message: 'Could not read agent wallet balance. Please try again.' })
+        }
+      }
+
       const card: import('@/types/intent').ConfirmationCard = {
-        intent: { type: 'refund_agent', amount: parseFloat(amount) > 0 ? amount : '999999', token },
+        intent: { type: 'refund_agent', amount: finalAmount, token },
         gas_fee: '$0.006',
-        total_display: `${displayAmount} ${token} → Your wallet`,
+        total_display: `${finalAmount} ${token} → Your wallet`,
       }
       return NextResponse.json({ type: 'confirm', card })
     }

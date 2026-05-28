@@ -36,8 +36,9 @@ export function ChatWindow() {
   const [messages, setMessages]           = useState<ChatMessage[]>([])
   const [loading, setLoading]             = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
-  const bottomRef    = useRef<HTMLDivElement>(null)
-  const chatInputRef = useRef<ChatInputHandle>(null)
+  const bottomRef       = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const chatInputRef    = useRef<ChatInputHandle>(null)
 
   useEffect(() => {
     try {
@@ -64,7 +65,9 @@ export function ChatWindow() {
   const hasMessages = messages.length > 0
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = scrollContainerRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
   }, [messages])
 
   async function handleSend(text: string) {
@@ -204,12 +207,17 @@ export function ChatWindow() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── Messages area ── */}
-      {/* overflow:hidden on parent establishes definite height for child height:100% */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {/* height:100% scroll container — flex column with spacer pushes messages to bottom */}
-        <div style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {/* Grows to fill empty space; collapses when messages overflow → scroll kicks in */}
-          <div style={{ flex: 1 }} />
+        {/* Scroll container: height:100% so JS scrollTop works; overflow:auto for scroll */}
+        <div ref={scrollContainerRef} style={{ height: '100%', overflowY: 'auto' }}>
+          {/* Inner flex column: minHeight:100% + justifyContent:flex-end pins messages to bottom */}
+          <div style={{
+            minHeight: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            boxSizing: 'border-box',
+          }}>
           <div style={{ padding: '12px 14px 8px' }}>
 
           <AnimatePresence>
@@ -301,7 +309,8 @@ export function ChatWindow() {
 
             <div ref={bottomRef} />
           </div>{/* end content padding */}
-        </div>{/* end height:100% scroll container */}
+          </div>{/* end minHeight flex-end inner */}
+        </div>{/* end scroll container */}
       </div>{/* end messages area */}
 
       {/* ── Quick actions ── */}
