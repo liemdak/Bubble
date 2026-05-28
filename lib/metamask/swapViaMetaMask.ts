@@ -179,7 +179,15 @@ export async function swapViaMetaMask(
     return origFetch(input, init)
   }
 
-  // 7. Execute swap — MetaMask will prompt for approval
+  // 7. Execute swap — MetaMask will prompt for Permit2 approval then the swap itself.
+  //
+  // Why allowanceStrategy: 'approve' (not the default 'permit'):
+  //   Arc Testnet's native USDC (0x3600...) does NOT support EIP-2612 permit signatures.
+  //   The default "permit with fallback to approve" strategy tries the permit path first,
+  //   fails silently, then simulates the swap WITHOUT having submitted an approve tx yet —
+  //   the simulation reverts because the Permit2 allowance isn't set.
+  //   Forcing 'approve' makes the SDK submit the approve tx first (MetaMask prompts once),
+  //   wait for it to confirm, then simulate and execute the swap successfully.
   try {
     const kit = new AppKit()
     const result = await kit.swap({
@@ -187,7 +195,11 @@ export async function swapViaMetaMask(
       tokenIn:  tokenIn  as 'USDC' | 'EURC',
       tokenOut: tokenOut as 'USDC' | 'EURC',
       amountIn,
-      ...(kitKey ? { config: { kitKey } } : {}),
+      config: {
+        ...(kitKey ? { kitKey } : {}),
+        allowanceStrategy: 'approve' as 'approve',
+        slippageBps: 100,
+      },
     })
 
     const arcScanUrl = result.txHash

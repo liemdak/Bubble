@@ -31,20 +31,28 @@ const TOKEN_CONTRACTS: Record<string, string> = {
 
 
 /**
- * Transfer EURC or USYC from the agent wallet via Circle createContractExecutionTransaction.
+ * Transfer any ERC-20 token from the agent wallet via Circle createContractExecutionTransaction.
  * Uses abiFunctionSignature + abiParameters — the correct Circle API method for ERC-20 calls.
  * Docs: https://docs.arc.io/arc/tutorials/interact-with-contracts#transfer-tokens
+ *
+ * @param rawAmountStr - If provided, used directly as the transfer amount (avoids float-rounding
+ *   errors). Pass this when withdrawing the full balance — balanceReader.toFixed(2) can round UP
+ *   (e.g. 5.006 → "5.01" → 5010000 raw), which exceeds the real balance and causes INSUFFICIENT_TOKEN.
  */
 async function sendTokenDirect(
   walletId: string,
   recipientAddress: string,
   amount: string,
   contractAddress: string,
+  rawAmountStr?: string,
 ): Promise<string> {
   const client = getCircleClient()
 
-  // EURC and USYC use 6 decimals — amount is human-readable (e.g. "10.5")
-  const amountWei = BigInt(Math.round(parseFloat(amount) * 1_000_000)).toString()
+  // Use raw bigint from balanceOf when available — avoids rounding errors.
+  // Fallback: compute from human-readable amount (USDC/EURC/USYC all use 6 decimals on Arc).
+  const amountWei = rawAmountStr
+    ? rawAmountStr
+    : BigInt(Math.round(parseFloat(amount) * 1_000_000)).toString()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const res = await (client as any).createContractExecutionTransaction({
@@ -268,7 +276,11 @@ async function executeRefundAgent(
 
   // ── Resolve actual on-chain balance via viem — never trust intent.amount ──
   // Claude may produce "9999", "all", or a stale value — always use real balance.
+  // We keep both the human-readable amount (for display) and the raw bigint string
+  // (for the transfer call) to avoid float-rounding errors with toFixed(2).
   let finalAmount: string
+  let finalRaw: string | undefined = undefined
+
   try {
     const { readWalletBalances } = await import('@/lib/viem/balanceReader')
     const balances = await readWalletBalances(wallet.address)
@@ -282,8 +294,9 @@ async function executeRefundAgent(
       )
     }
 
-    finalAmount = actual.toString()
-    console.log(`[executeRefundAgent] withdrawing real balance: ${finalAmount} ${intent.token}`)
+    finalAmount = found!.amount    // human-readable for display (e.g. "5.01")
+    finalRaw    = found!.raw       // exact on-chain bigint string (e.g. "5006000")
+    console.log(`[executeRefundAgent] withdrawing real balance: ${finalAmount} ${intent.token} (raw: ${finalRaw})`)
   } catch (err) {
     console.error('[executeRefundAgent] balance fetch failed:', err)
     // Fallback: use intent.amount only if it looks like a real number ≤ 10k
@@ -295,42 +308,29 @@ async function executeRefundAgent(
       )
     }
     finalAmount = intent.amount
+    // finalRaw stays undefined → sendTokenDirect will compute from float
   }
 
   // ── Execute transfer ──────────────────────────────────────────────────────
 
-  // EURC / USYC — standard ERC-20 contracts: raw calldata approach
-  if (intent.token === 'EURC' || intent.token === 'USYC') {
-    const contractAddress = TOKEN_CONTRACTS[intent.token]
-    try {
-      const txHash = await sendTokenDirect(wallet.id, destination, finalAmount, contractAddress)
-      return NextResponse.json({
-        txHash,
-        message:    `Withdrew ${finalAmount} ${intent.token} back to your wallet!`,
-        arcScanUrl: `${explorerBase}/tx/${txHash}`,
-        status:     'complete',
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Withdraw failed'
-      console.error('[executeRefundAgent EURC/USYC]', err)
-      return NextResponse.json({ error: `Withdraw failed: ${msg}` }, { status: 500 })
-    }
+  // All tokens (USDC, EURC, USYC) — use sendTokenDirect with the exact raw balance.
+  // Passing finalRaw bypasses float conversion and avoids INSUFFICIENT_TOKEN from rounding.
+  const contractAddress = TOKEN_CONTRACTS[intent.token]
+  if (!contractAddress) {
+    return NextResponse.json({ error: `No contract for ${intent.token}` }, { status: 400 })
   }
 
-  // USDC — use sendTokenDirect (createContractExecutionTransaction) same as EURC/USYC.
-  // kit.send() with Circle Wallets adapter triggers an RPC endpoint error on Arc Testnet.
-  // The USDC ERC-20 interface uses 6 decimals (same as EURC/USYC) despite being the native token.
   try {
-    const txHash = await sendTokenDirect(wallet.id, destination, finalAmount, TOKEN_CONTRACTS.USDC)
+    const txHash = await sendTokenDirect(wallet.id, destination, finalAmount, contractAddress, finalRaw)
     return NextResponse.json({
       txHash,
-      message:    `Withdrew ${finalAmount} USDC back to your wallet!`,
+      message:    `Withdrew ${finalAmount} ${intent.token} back to your wallet!`,
       arcScanUrl: `${explorerBase}/tx/${txHash}`,
       status:     'complete',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Withdraw failed'
-    console.error('[executeRefundAgent USDC]', err)
+    console.error('[executeRefundAgent]', err)
     return NextResponse.json({ error: `Withdraw failed: ${msg}` }, { status: 500 })
   }
 }
