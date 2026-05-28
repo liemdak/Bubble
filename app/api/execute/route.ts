@@ -294,9 +294,26 @@ async function executeRefundAgent(
       )
     }
 
-    finalAmount = found!.amount    // human-readable for display (e.g. "5.01")
-    finalRaw    = found!.raw       // exact on-chain bigint string (e.g. "5006000")
-    console.log(`[executeRefundAgent] withdrawing real balance: ${finalAmount} ${intent.token} (raw: ${finalRaw})`)
+    // On Arc, USDC covers BOTH the transfer AND gas from the same shared balance.
+    // Sending the exact raw balance causes FAILED_ON_ONCHAIN: the EVM deducts gas
+    // from the native USDC balance first, so by the time transfer() runs the ERC-20
+    // balance is slightly less than found.raw → the transfer reverts.
+    // ERC-20 transfer costs ~65k gas at ~20 Gwei ≈ 1 300 raw units (0.0013 USDC).
+    // We reserve 10 000 raw (0.01 USDC) — a 7× safety margin — and transfer the rest.
+    const rawBig      = BigInt(found!.raw)
+    const GAS_RESERVE = 10_000n   // 0.01 USDC (7× actual gas cost)
+
+    if (rawBig <= GAS_RESERVE) {
+      return NextResponse.json(
+        { error: `Agent wallet balance (${(Number(rawBig) / 1_000_000).toFixed(4)} ${intent.token}) is too small to withdraw. At least 0.01 ${intent.token} is needed to cover gas fees.` },
+        { status: 400 }
+      )
+    }
+
+    const safeRaw   = rawBig - GAS_RESERVE
+    finalRaw    = safeRaw.toString()
+    finalAmount = (Number(safeRaw) / 1_000_000).toFixed(2)
+    console.log(`[executeRefundAgent] withdrawing: ${finalAmount} ${intent.token} (safe raw: ${finalRaw}, original raw: ${found!.raw})`)
   } catch (err) {
     console.error('[executeRefundAgent] balance fetch failed:', err)
     // Fallback: use intent.amount only if it looks like a real number ≤ 10k

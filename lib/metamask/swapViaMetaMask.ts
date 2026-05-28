@@ -2,7 +2,25 @@
  * Swap tokens from the user's MetaMask wallet via Circle App Kit.
  * Client-side only — tokens stay in user's main (MetaMask) wallet.
  * Pattern mirrors bridgeViaMetaMask.ts.
+ *
+ * Why we pre-approve USDC/EURC → Permit2 before calling kit.swap():
+ * Arc docs: "Before executing FX trades, StableFX must be able to transfer
+ * USDC from your wallet. Grant a USDC allowance to the Permit2 contract."
+ * kit.swap() simulates the transaction with eth_call before asking MetaMask
+ * to sign. The default "permit" strategy embeds an EIP-712 off-chain
+ * signature into the calldata, but the simulation runs with a placeholder
+ * signature that Permit2 rejects → "Simulation failed / Transaction reverted".
+ * By pre-approving on-chain (approve(Permit2, maxUint256)), the simulation
+ * sees a real allowance in state and succeeds. We then pass
+ * allowanceStrategy: "approve" so the SDK uses the existing approval.
  */
+
+// Arc Testnet contract addresses
+const PERMIT2_ADDR = '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+const TOKEN_CONTRACTS: Record<string, string> = {
+  USDC: '0x3600000000000000000000000000000000000000',
+  EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+}
 
 type EthProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
@@ -29,6 +47,87 @@ function isUserRejection(msg: string): boolean {
     lower.includes('user refused') ||
     lower.includes('user closed')
   )
+}
+
+/** Poll until the transaction is mined (up to timeoutMs). Throws on failure or timeout. */
+async function waitForReceipt(
+  provider: EthProvider,
+  txHash: string,
+  timeoutMs = 30_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 700))
+    const receipt = await provider.request({
+      method: 'eth_getTransactionReceipt',
+      params: [txHash],
+    }) as { status: string } | null
+    if (receipt?.status === '0x1') return
+    if (receipt?.status === '0x0') {
+      throw new Error('USDC approval transaction failed on-chain. Please try again.')
+    }
+  }
+  throw new Error('USDC approval transaction timed out. Please try again.')
+}
+
+/**
+ * Ensure Permit2 has a sufficient USDC or EURC allowance from userAddress.
+ * Arc docs require this one-time approval before StableFX/FxEscrow can execute swaps.
+ * If the allowance is already ≥ amountInRaw, this is a no-op.
+ * On first swap: MetaMask will show an "Approve" popup — this is expected.
+ */
+async function ensurePermit2Allowance(
+  provider: EthProvider,
+  tokenIn: string,
+  amountIn: string,
+  userAddress: string,
+): Promise<void> {
+  const tokenAddr = TOKEN_CONTRACTS[tokenIn.toUpperCase()]
+  if (!tokenAddr) return   // unknown token — let kit.swap handle it
+
+  // allowance(owner, spender) — ABI selector 0xdd62ed3e
+  const allowanceData =
+    '0xdd62ed3e' +
+    userAddress.replace('0x', '').padStart(64, '0') +
+    PERMIT2_ADDR.replace('0x', '').padStart(64, '0')
+
+  const rawResult = await provider.request({
+    method: 'eth_call',
+    params: [{ to: tokenAddr, data: allowanceData }, 'latest'],
+  }) as string
+
+  const currentAllowance = rawResult && rawResult !== '0x' ? BigInt(rawResult) : 0n
+  // USDC/EURC use 6 decimals; amountIn is human-readable (e.g. "1.00")
+  const amountInRaw = BigInt(Math.round(parseFloat(amountIn) * 1_000_000))
+
+  if (currentAllowance >= amountInRaw) return   // already approved — skip
+
+  // approve(spender, uint256 max) — ABI selector 0x095ea7b3
+  const approveData =
+    '0x095ea7b3' +
+    PERMIT2_ADDR.replace('0x', '').padStart(64, '0') +
+    'f'.repeat(64) // uint256 max
+
+  let approveTxHash: string
+  try {
+    approveTxHash = await provider.request({
+      method: 'eth_sendTransaction',
+      params: [{ from: userAddress, to: tokenAddr, data: approveData }],
+    }) as string
+  } catch (err: unknown) {
+    const msg = extractMsg(err)
+    if (isUserRejection(msg)) {
+      throw new Error(
+        `${tokenIn} approval cancelled. ` +
+        `A one-time approval is required before your first swap so that StableFX can access your ${tokenIn}. ` +
+        `Please try again and approve the permission in MetaMask.`
+      )
+    }
+    throw new Error(`${tokenIn} approval failed: ${msg}`)
+  }
+
+  // Wait for the approval to be mined before proceeding (~0.5s on Arc Testnet)
+  await waitForReceipt(provider, approveTxHash)
 }
 
 async function getProviderForAddress(userAddress: string): Promise<EthProvider> {
@@ -122,6 +221,7 @@ export interface SwapResult {
 /**
  * Swap tokens using the user's MetaMask wallet on Arc Testnet.
  * MetaMask will prompt to approve and sign the swap transaction.
+ * On the first swap, MetaMask may show an extra "Approve" popup for Permit2 — this is normal.
  *
  * @param tokenIn  - Input token symbol (e.g. 'USDC')
  * @param tokenOut - Output token symbol (e.g. 'EURC')
@@ -166,7 +266,21 @@ export async function swapViaMetaMask(
     )
   }
 
-  // 6. Proxy window.fetch so that kit.swap() calls to api.circle.com are routed
+  if (!kitKey.startsWith('KIT_KEY:')) {
+    throw new Error(
+      `Invalid kit key format. Expected "KIT_KEY:…" but got "${kitKey.slice(0, 20)}…". ` +
+      `Check CIRCLE_KIT_KEY in your Vercel environment variables — ` +
+      `copy the full key from Circle Console including the "KIT_KEY:" prefix.`
+    )
+  }
+
+  // 6. Ensure Permit2 has a sufficient allowance for tokenIn.
+  //    Arc docs: "Before executing FX trades, grant USDC allowance to the Permit2 contract."
+  //    This is a one-time approval (~0.001 USDC gas). Subsequent swaps skip this step.
+  //    We do this BEFORE the window.fetch proxy so it's unaffected by the proxy.
+  await ensurePermit2Allowance(provider, tokenIn, amountIn, userAddress)
+
+  // 7. Proxy window.fetch so that kit.swap() calls to api.circle.com are routed
   //    through the Next.js rewrite at /api/circle-proxy instead of hitting the
   //    Circle origin directly (which the browser blocks with a CORS error).
   const origFetch = window.fetch.bind(window)
@@ -179,17 +293,10 @@ export async function swapViaMetaMask(
     return origFetch(input, init)
   }
 
-  // 7. Execute swap — follows Circle App Kit docs exactly.
-  //    kitKey must be in format "KIT_KEY:id:secret" from Circle Console.
-  //    allowanceStrategy and slippageBps use SDK defaults (permit→approve fallback, 300 bps).
-  if (!kitKey.startsWith('KIT_KEY:')) {
-    throw new Error(
-      `Invalid kit key format. Expected "KIT_KEY:…" but got "${kitKey.slice(0, 20)}…". ` +
-      `Check CIRCLE_KIT_KEY in your Vercel environment variables — ` +
-      `copy the full key from Circle Console including the "KIT_KEY:" prefix.`
-    )
-  }
-
+  // 8. Execute swap.
+  //    allowanceStrategy: "approve" — uses the on-chain Permit2 approval we set in step 6.
+  //    This ensures the simulation (eth_call) sees a real allowance in state and passes,
+  //    instead of failing on an unsigned placeholder permit.
   try {
     const kit = new AppKit()
     const result = await kit.swap({
@@ -197,7 +304,7 @@ export async function swapViaMetaMask(
       tokenIn:  tokenIn  as 'USDC' | 'EURC',
       tokenOut: tokenOut as 'USDC' | 'EURC',
       amountIn,
-      config:   { kitKey },
+      config:   { kitKey, allowanceStrategy: 'approve' },
     })
 
     const arcScanUrl = result.txHash
@@ -217,7 +324,7 @@ export async function swapViaMetaMask(
         : msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')
         ? `Insufficient ${tokenIn} in your wallet. Check your balance and try again.`
         : msg.toLowerCase().includes('simulation failed') || msg.toLowerCase().includes('transaction reverted')
-        ? `Swap simulation failed on Arc Testnet. This usually means your wallet has no ${tokenIn}, or the FxEscrow liquidity pool is temporarily unavailable. Try again in a moment or check your balance.`
+        ? `Swap failed: simulation reverted on Arc Testnet. Try a smaller amount (leave a little USDC for gas), or try again in a moment if the liquidity pool is busy.`
         : `Swap failed: ${msg}`
     )
   } finally {
