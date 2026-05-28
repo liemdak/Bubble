@@ -96,7 +96,7 @@ async function ensurePermit2Allowance(
     params: [{ to: tokenAddr, data: allowanceData }, 'latest'],
   }) as string
 
-  const currentAllowance = rawResult && rawResult !== '0x' ? BigInt(rawResult) : 0n
+  const currentAllowance = rawResult && rawResult !== '0x' ? BigInt(rawResult) : BigInt(0)
   // USDC/EURC use 6 decimals; amountIn is human-readable (e.g. "1.00")
   const amountInRaw = BigInt(Math.round(parseFloat(amountIn) * 1_000_000))
 

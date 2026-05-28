@@ -301,7 +301,7 @@ async function executeRefundAgent(
     // ERC-20 transfer costs ~65k gas at ~20 Gwei ≈ 1 300 raw units (0.0013 USDC).
     // We reserve 10 000 raw (0.01 USDC) — a 7× safety margin — and transfer the rest.
     const rawBig      = BigInt(found!.raw)
-    const GAS_RESERVE = 10_000n   // 0.01 USDC (7× actual gas cost)
+    const GAS_RESERVE = BigInt(10_000)   // 0.01 USDC (7× actual gas cost)
 
     if (rawBig <= GAS_RESERVE) {
       return NextResponse.json(
