@@ -317,33 +317,15 @@ async function executeRefundAgent(
     }
   }
 
-  // USDC — use kit.send() with Circle Wallets adapter (same as executeSend, proven to work)
-  const apiKey       = process.env.CIRCLE_API_KEY
-  const entitySecret = process.env.CIRCLE_ENTITY_SECRET
-  if (!apiKey || !entitySecret) {
-    return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
-  }
-
+  // USDC — use sendTokenDirect (createContractExecutionTransaction) same as EURC/USYC.
+  // kit.send() with Circle Wallets adapter triggers an RPC endpoint error on Arc Testnet.
+  // The USDC ERC-20 interface uses 6 decimals (same as EURC/USYC) despite being the native token.
   try {
-    const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
-    const { AppKit } = await import('@circle-fin/app-kit')
-
-    const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
-    const kit     = new AppKit()
-
-    const result = await kit.send({
-      from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
-      to:     destination,
-      amount: finalAmount,
-      token:  'USDC',
-    })
-
-    const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
-
+    const txHash = await sendTokenDirect(wallet.id, destination, finalAmount, TOKEN_CONTRACTS.USDC)
     return NextResponse.json({
-      txHash:     result.txHash,
+      txHash,
       message:    `Withdrew ${finalAmount} USDC back to your wallet!`,
-      arcScanUrl,
+      arcScanUrl: `${explorerBase}/tx/${txHash}`,
       status:     'complete',
     })
   } catch (err) {

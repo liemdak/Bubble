@@ -166,7 +166,20 @@ export async function swapViaMetaMask(
     )
   }
 
-  // 6. Execute swap — MetaMask will prompt for approval
+  // 6. Proxy window.fetch so that kit.swap() calls to api.circle.com are routed
+  //    through the Next.js rewrite at /api/circle-proxy instead of hitting the
+  //    Circle origin directly (which the browser blocks with a CORS error).
+  const origFetch = window.fetch.bind(window)
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : String(input)
+    if (url.startsWith('https://api.circle.com')) {
+      const proxied = url.replace('https://api.circle.com', '/api/circle-proxy')
+      return origFetch(proxied, init)
+    }
+    return origFetch(input, init)
+  }
+
+  // 7. Execute swap — MetaMask will prompt for approval
   try {
     const kit = new AppKit()
     const result = await kit.swap({
@@ -195,5 +208,8 @@ export async function swapViaMetaMask(
         ? `Insufficient ${tokenIn} in your wallet. Check your balance and try again.`
         : `Swap failed: ${msg}`
     )
+  } finally {
+    // Always restore the original fetch regardless of success or failure
+    window.fetch = origFetch
   }
 }
