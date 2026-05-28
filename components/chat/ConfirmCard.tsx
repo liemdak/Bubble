@@ -112,8 +112,8 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
             <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
             <CardRow label="From"   value={intent.from_chain.toUpperCase()} />
             <CardRow label="To"     value={intent.to_chain.toUpperCase()} />
-            <CardRow label="Via"    value="Agent wallet · CCTP v2 (~20s)" />
-            <CardRow label="Gas"    value={`~${gas_fee} (sponsored)`} />
+            <CardRow label="Via"    value="MetaMask · CCTP v2 (~20s)" />
+            <CardRow label="Gas"    value={`~${gas_fee} (Arc sponsored)`} />
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
               <CardRow label="Total" value={total_display} bold />
             </div>

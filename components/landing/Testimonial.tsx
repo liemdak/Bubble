@@ -1,29 +1,39 @@
-import { BubbleField } from '../bubbles/BubbleField'
-
 export function Testimonial() {
   return (
     <section style={{
       position: 'relative',
       background: '#fbbf25',
-      padding: '80px 24px',
+      padding: '72px 24px',
       overflow: 'hidden',
       textAlign: 'center',
     }}>
-      <BubbleField count={5} sizeRange={[40, 100]} opacityRange={[0.08, 0.15]} seed={13} />
+      {/* Decorative large circles */}
+      <div aria-hidden style={{
+        position: 'absolute', width: 320, height: 320, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+        top: -80, left: -60, pointerEvents: 'none',
+      }} />
+      <div aria-hidden style={{
+        position: 'absolute', width: 200, height: 200, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.2)',
+        bottom: -40, right: 80, pointerEvents: 'none',
+      }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 600, margin: '0 auto' }}>
         <blockquote style={{
-          fontSize: 'clamp(18px, 3vw, 24px)',
+          fontSize: 'clamp(17px, 3vw, 22px)',
           fontWeight: 700,
-          lineHeight: 1.4,
+          lineHeight: 1.45,
           letterSpacing: '-0.24px',
-          marginBottom: 24,
+          marginBottom: 20,
+          color: '#000',
         }}>
-          "Bubble made paying my team in different countries actually simple."
+          &ldquo;Finally an app where I just type what I want to do and it works.
+          No confusing wallet UI, no gas estimations. Just done.&rdquo;
         </blockquote>
 
-        <p style={{ fontWeight: 500, fontSize: 15, marginBottom: 16 }}>
-          — Alex K., Startup Founder
+        <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 14, color: '#333' }}>
+          — Beta tester, Arc Testnet
         </p>
 
         <div style={{
@@ -31,12 +41,12 @@ export function Testimonial() {
           background: '#ffffff',
           border: '1px solid #171717',
           borderRadius: 100,
-          padding: '6px 14px',
-          fontSize: 13,
-          fontWeight: 500,
+          padding: '5px 14px',
+          fontSize: 12,
+          fontWeight: 600,
           boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
         }}>
-          ✓ Verified user
+          Testnet — free to try
         </div>
       </div>
     </section>

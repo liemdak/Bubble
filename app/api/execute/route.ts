@@ -16,7 +16,56 @@ import type { PaymentIntent, SwapIntent, BridgeIntent } from '@/types/intent'
  *  5. Token validated (USDC | EURC | USYC)
  *
  * Transaction history is available on ArcScan — no need to store locally.
+ *
+ * Note: bridge_tokens is handled client-side (bridgeViaMetaMask.ts) — not routed here.
  */
+
+// ── EURC / USYC contract addresses on Arc Testnet ────────────────────────────
+// kit.send() does not resolve these tokens — use direct contract execution instead.
+const NON_USDC_CONTRACTS: Record<string, string> = {
+  EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+  USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
+}
+
+/**
+ * Transfer EURC or USYC from the agent wallet using a direct ERC-20 contract call.
+ * Bypasses kit.send() which does not support these tokens on Arc Testnet.
+ */
+async function sendTokenDirect(
+  walletId: string,
+  recipientAddress: string,
+  amount: string,
+  contractAddress: string,
+): Promise<string> {
+  const client = getCircleClient()
+
+  // ERC-20 uses 6 decimals (same as USDC)
+  const amountWei = BigInt(Math.round(parseFloat(amount) * 1_000_000)).toString()
+
+  const res = await client.createContractExecutionTransaction({
+    walletId,
+    contractAddress,
+    abiFunctionSignature: 'transfer(address,uint256)',
+    abiParameters: [recipientAddress, amountWei],
+    fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+  })
+
+  const txId = res.data?.id
+  if (!txId) throw new Error('No transaction ID returned from Circle')
+
+  // Poll until confirmed (max ~60s)
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 2000))
+    const txRes = await client.getTransaction({ id: txId })
+    const tx    = txRes.data?.transaction
+    if (!tx) continue
+    if (tx.state === 'CONFIRMED' && tx.txHash) return tx.txHash
+    if (tx.state === 'FAILED') {
+      throw new Error(`Transfer failed on-chain: ${tx.errorReason ?? 'unknown reason'}`)
+    }
+  }
+  throw new Error('Transaction timeout — check ArcScan for the latest status')
+}
 export async function POST(req: NextRequest) {
   try {
     // ── Auth check ────────────────────────────────────────────────────
@@ -111,7 +160,28 @@ async function executeSend(
     return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
   }
 
-  // 5. Execute via App Kit — same pattern as executeSwap / executeBridge
+  const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
+
+  // 5a. EURC / USYC — kit.send() does not resolve these on Arc Testnet
+  //     Use direct ERC-20 transfer via Circle contract execution API instead
+  if (intent.token === 'EURC' || intent.token === 'USYC') {
+    const contractAddress = NON_USDC_CONTRACTS[intent.token]
+    try {
+      const txHash = await sendTokenDirect(wallet.id, addr, intent.amount, contractAddress)
+      return NextResponse.json({
+        txHash,
+        message:    `✅ Sent ${intent.amount} ${intent.token} successfully!`,
+        arcScanUrl: `${explorerBase}/tx/${txHash}`,
+        status:     'complete',
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Send failed'
+      console.error('[executeSend EURC/USYC]', err)
+      return NextResponse.json({ error: `Send failed: ${msg}` }, { status: 500 })
+    }
+  }
+
+  // 5b. USDC — use kit.send() as before
   try {
     const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
     const { AppKit } = await import('@circle-fin/app-kit')
@@ -120,17 +190,12 @@ async function executeSend(
     const kit = new AppKit()
 
     const result = await kit.send({
-      from: {
-        adapter,
-        chain:   'Arc_Testnet',
-        address: wallet.address,
-      },
+      from: { adapter, chain: 'Arc_Testnet', address: wallet.address },
       to:     addr,
       amount: intent.amount,
-      token:  intent.token,   // "USDC" | "EURC" | "USYC"
+      token:  intent.token,
     })
 
-    const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
     const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
 
     return NextResponse.json({
@@ -180,6 +245,27 @@ async function executeRefundAgent(
     return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
   }
 
+  const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
+
+  // EURC / USYC — use direct ERC-20 transfer (kit.send() does not support these on Arc Testnet)
+  if (intent.token === 'EURC' || intent.token === 'USYC') {
+    const contractAddress = NON_USDC_CONTRACTS[intent.token]
+    try {
+      const txHash = await sendTokenDirect(wallet.id, userAddress, intent.amount, contractAddress)
+      return NextResponse.json({
+        txHash,
+        message:    `✅ Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
+        arcScanUrl: `${explorerBase}/tx/${txHash}`,
+        status:     'complete',
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Withdraw failed'
+      console.error('[executeRefundAgent EURC/USYC]', err)
+      return NextResponse.json({ error: `Withdraw failed: ${msg}` }, { status: 500 })
+    }
+  }
+
+  // USDC — use kit.send()
   try {
     const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
     const { AppKit } = await import('@circle-fin/app-kit')
@@ -187,7 +273,6 @@ async function executeRefundAgent(
     const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
     const kit = new AppKit()
 
-    // Same as kit.send() but destination is the user's own MetaMask address
     const result = await kit.send({
       from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
       to:     userAddress,
@@ -195,7 +280,6 @@ async function executeRefundAgent(
       token:  intent.token,
     })
 
-    const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
     const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
 
     return NextResponse.json({

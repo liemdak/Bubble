@@ -111,22 +111,67 @@ export function ChatWindow() {
   async function handleConfirm(card: ConfirmationCard, cardId: string) {
     setConfirmLoading(true)
 
-    // ── fund_agent: MetaMask ERC-20 transfer (client-side, no server needed) ──
+    // ── fund_agent: MetaMask ERC-20 transfer (client-side) ───────────────────
     if (card.intent.type === 'fund_agent') {
-      // Destructure BEFORE entering closures so TypeScript retains narrowed type
       const { agent_address, user_address, amount, token } = card.intent
       try {
         const { fundAgentViaMetaMask } = await import('@/lib/metamask/fundAgent')
         const txHash = await fundAgentViaMetaMask(agent_address, user_address, amount, token)
-        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
-          id: crypto.randomUUID(),
-          type: 'success',
-          txHash,
-          message: `${amount} ${token} sent to agent wallet!`,
-          arcScanUrl: `https://testnet.arcscan.app/tx/${txHash}`,
-        }))
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat(
+          {
+            id: crypto.randomUUID(),
+            type: 'success',
+            txHash,
+            message: `${amount} ${token} sent to agent wallet!`,
+            arcScanUrl: `https://testnet.arcscan.app/tx/${txHash}`,
+          },
+          {
+            id: crypto.randomUUID(),
+            type: 'assistant',
+            content: `Agent wallet funded. Type "Withdraw from agent" anytime to send funds back to your main wallet.`,
+          }
+        ))
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'MetaMask transaction failed.'
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(),
+          type: 'assistant',
+          content: `⚠️ ${msg}`,
+        }))
+      } finally {
+        setConfirmLoading(false)
+      }
+      return
+    }
+
+    // ── bridge_tokens: MetaMask + CCTP v2 (client-side, same pattern as Bento) ──
+    if (card.intent.type === 'bridge_tokens') {
+      const { from_chain, to_chain, amount } = card.intent
+      try {
+        const balRes  = await fetch('/api/balance')
+        const balData = await balRes.json()
+        const userAddress: string = balData.address ?? balData.userWallet?.address ?? ''
+        if (!userAddress) throw new Error('Could not determine your wallet address. Please refresh.')
+
+        const { bridgeViaMetaMask } = await import('@/lib/metamask/bridgeViaMetaMask')
+        const result = await bridgeViaMetaMask(from_chain, to_chain, amount, userAddress)
+
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat(
+          {
+            id: crypto.randomUUID(),
+            type: 'success',
+            txHash: result.txHash,
+            message: result.message,
+            arcScanUrl: result.arcScanUrl ?? result.explorerUrl,
+          },
+          {
+            id: crypto.randomUUID(),
+            type: 'assistant',
+            content: `Bridge initiated! USDC is moving to ${to_chain.toUpperCase()} (~20s). Check your wallet on the destination chain once confirmed.`,
+          }
+        ))
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Bridge failed.'
         setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
           id: crypto.randomUUID(),
           type: 'assistant',
