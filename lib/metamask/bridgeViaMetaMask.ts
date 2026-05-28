@@ -212,7 +212,8 @@ export async function bridgeViaMetaMask(
 
   // 5. Create viem adapter from MetaMask provider
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const adapter = createViemAdapterFromProvider({ provider: provider as any })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adapter = await createViemAdapterFromProvider({ provider: provider as any })
 
   // 6. Execute bridge (MetaMask will prompt for approve + burn)
   try {
