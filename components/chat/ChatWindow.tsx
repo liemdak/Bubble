@@ -204,13 +204,19 @@ export function ChatWindow() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── Messages area ── */}
-      {/* Outer div is flex-column; the flex:1 spacer at top pushes messages to the bottom */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-
-        {/* Spacer — collapses when content overflows, so scroll works naturally */}
-        <div style={{ flex: 1 }} />
-
-        <div style={{ padding: '0 14px 8px' }}>
+      {/* position:relative gives the absolute child a sizing reference */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {/* Scroll container fills the space absolutely */}
+        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
+          {/* minHeight:100% + justifyContent:flex-end → messages stick to bottom */}
+          <div style={{
+            minHeight: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            padding: '12px 14px 8px',
+            boxSizing: 'border-box',
+          }}>
 
           <AnimatePresence>
             {!hasMessages && (
@@ -300,8 +306,9 @@ export function ChatWindow() {
           })}
 
           <div ref={bottomRef} />
-        </div>
-      </div>
+          </div>{/* end inner minHeight wrapper */}
+        </div>{/* end scroll container */}
+      </div>{/* end messages area */}
 
       {/* ── Quick actions ── */}
       <QuickActions onAction={handleSend} onPrefill={handlePrefill} />

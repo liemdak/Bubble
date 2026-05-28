@@ -35,10 +35,11 @@ export function AppHeader({ address }: AppHeaderProps) {
 
   return (
     <header style={{
-      background: 'rgba(0,0,0,0.65)',
+      position: 'relative',   /* required for zIndex to apply as flex child */
+      background: 'rgba(4,4,12,0.80)',
       backdropFilter: 'blur(28px)',
       WebkitBackdropFilter: 'blur(28px)',
-      borderBottom: '1px solid rgba(255,255,255,0.07)',
+      borderBottom: '1px solid rgba(255,255,255,0.10)',
       padding: '0 18px',
       height: 54,
       display: 'flex',
