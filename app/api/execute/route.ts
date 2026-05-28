@@ -30,6 +30,8 @@ const NON_USDC_CONTRACTS: Record<string, string> = {
 /**
  * Transfer EURC or USYC from the agent wallet using a direct ERC-20 contract call.
  * Bypasses kit.send() which does not support these tokens on Arc Testnet.
+ *
+ * Uses raw calldata approach (no fee param) so Circle Gas Station auto-sponsors on Arc.
  */
 async function sendTokenDirect(
   walletId: string,
@@ -39,14 +41,19 @@ async function sendTokenDirect(
 ): Promise<string> {
   const client = getCircleClient()
 
-  // ERC-20 uses 6 decimals (same as USDC)
-  const amountWei = BigInt(Math.round(parseFloat(amount) * 1_000_000)).toString()
+  // Manually encode ERC-20 transfer(address,uint256) calldata
+  // selector = keccak256("transfer(address,uint256)").slice(0,4) = 0xa9059cbb
+  const amountWei  = BigInt(Math.round(parseFloat(amount) * 1_000_000)) // 6 decimals
+  const paddedAddr = recipientAddress.slice(2).toLowerCase().padStart(64, '0')
+  const paddedAmt  = amountWei.toString(16).padStart(64, '0')
+  const calldata   = `0xa9059cbb${paddedAddr}${paddedAmt}` as `0x${string}`
 
-  const res = await client.createContractExecutionTransaction({
+  // Use createTransaction with raw calldata — avoids fee/RPC issues with
+  // createContractExecutionTransaction on Arc Testnet
+  const res = await client.createTransaction({
     walletId,
-    contractAddress,
-    abiFunctionSignature: 'transfer(address,uint256)',
-    abiParameters: [recipientAddress, amountWei],
+    destinationAddress: contractAddress,
+    calldata,
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
   })
 
@@ -245,13 +252,38 @@ async function executeRefundAgent(
     return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
   }
 
+  // ── Session guard: destination must NOT equal the agent wallet (broken-session bug) ──
+  // Old sessions stored session.address = Circle wallet address instead of MetaMask address.
+  // If they match, look up the wallet's refId (which was set to MetaMask address at creation).
+  let destination = userAddress
+  if (destination.toLowerCase() === wallet.address.toLowerCase()) {
+    console.warn('[executeRefundAgent] session.address === agent wallet — attempting refId recovery')
+    try {
+      const walletRes = await getCircleClient().getWallet({ id: wallet.id })
+      const refId = walletRes.data?.wallet?.refId
+      if (refId && /^0x[0-9a-fA-F]{40}$/.test(refId)) {
+        destination = refId
+        console.log('[executeRefundAgent] Recovered MetaMask address:', destination)
+      } else {
+        return NextResponse.json({
+          error: 'Could not resolve your main wallet address. Please log out and log in again, then retry.',
+        }, { status: 400 })
+      }
+    } catch (err) {
+      console.error('[executeRefundAgent] refId lookup failed', err)
+      return NextResponse.json({
+        error: 'Session error: source and destination are the same wallet. Please log out and log in again.',
+      }, { status: 400 })
+    }
+  }
+
   const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
 
   // EURC / USYC — use direct ERC-20 transfer (kit.send() does not support these on Arc Testnet)
   if (intent.token === 'EURC' || intent.token === 'USYC') {
     const contractAddress = NON_USDC_CONTRACTS[intent.token]
     try {
-      const txHash = await sendTokenDirect(wallet.id, userAddress, intent.amount, contractAddress)
+      const txHash = await sendTokenDirect(wallet.id, destination, intent.amount, contractAddress)
       return NextResponse.json({
         txHash,
         message:    `✅ Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
@@ -275,7 +307,7 @@ async function executeRefundAgent(
 
     const result = await kit.send({
       from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
-      to:     userAddress,
+      to:     destination,
       amount: intent.amount,
       token:  intent.token,
     })
