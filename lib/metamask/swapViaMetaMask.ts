@@ -150,10 +150,23 @@ export async function swapViaMetaMask(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adapter = await createViemAdapterFromProvider({ provider: provider as any })
 
-  // kitKey is safe to expose publicly — used for analytics/routing only, not a payment secret
-  const kitKey = process.env.NEXT_PUBLIC_CIRCLE_KIT_KEY
+  // 5. Fetch kitKey from server (reuses CIRCLE_KIT_KEY — no new env var needed)
+  let kitKey = ''
+  try {
+    const cfgRes = await fetch('/api/config')
+    if (cfgRes.ok) {
+      const cfg = await cfgRes.json() as { kitKey?: string }
+      kitKey = cfg.kitKey ?? ''
+    }
+  } catch { /* proceed without kitKey if fetch fails */ }
 
-  // 5. Execute swap — MetaMask will prompt for approval
+  if (!kitKey) {
+    throw new Error(
+      'Kit key not configured. Please set CIRCLE_KIT_KEY in your environment variables.'
+    )
+  }
+
+  // 6. Execute swap — MetaMask will prompt for approval
   try {
     const kit = new AppKit()
     const result = await kit.swap({
