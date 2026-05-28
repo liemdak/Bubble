@@ -110,12 +110,12 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
           flex: 1,
           display: 'flex', alignItems: 'center',
           background: 'rgba(255,255,255,0.07)',
-          border: `1.5px solid ${hasValue ? '#38bdf8' : 'rgba(255,255,255,0.12)'}`,
+          border: `1.5px solid ${hasValue ? 'rgba(163,230,53,0.55)' : 'rgba(255,255,255,0.10)'}`,
           borderRadius: 14,
           padding: '0 14px',
           height: 46,
           transition: 'border-color 0.15s, box-shadow 0.15s',
-          boxShadow: hasValue ? 'rgba(56,189,248,0.35) 0 0 12px 0' : 'none',
+          boxShadow: hasValue ? 'rgba(163,230,53,0.18) 0 0 16px 0' : 'none',
         }}>
           <input
             ref={inputRef}
@@ -146,13 +146,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             borderRadius: 12,
             padding: '0 18px',
             background: hasValue
-              ? hoverSend ? '#7dd3fc' : '#38bdf8'
+              ? hoverSend ? '#b3ef50' : '#a3e635'
               : 'rgba(255,255,255,0.07)',
-            border: hasValue ? '1px solid #0284c7' : '1px solid rgba(255,255,255,0.1)',
+            border: hasValue ? 'none' : '1px solid rgba(255,255,255,0.10)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: hasValue ? 'pointer' : 'not-allowed',
             transition: 'all 0.12s',
-            boxShadow: hasValue && !pressSend ? 'rgb(10,10,13) 2px 2px 0px 0px' : 'none',
+            boxShadow: hasValue && !pressSend ? 'rgba(163,230,53,0.25) 0 4px 16px' : 'none',
             transform: pressSend ? 'translate(2px,2px)' : hoverSend ? 'translateY(-1px)' : 'none',
             fontSize: 13, fontWeight: 700,
             color: hasValue ? '#000' : 'rgba(255,255,255,0.25)',

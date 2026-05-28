@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { BubbleLogo } from '@/components/ui/BubbleLogo'
 import { playBubbleTap } from '@/lib/sounds'
 
 interface AppHeaderProps {
@@ -36,7 +35,7 @@ export function AppHeader({ address }: AppHeaderProps) {
 
   return (
     <header style={{
-      background: 'rgba(0,0,0,0.6)',
+      background: 'rgba(0,0,0,0.65)',
       backdropFilter: 'blur(28px)',
       WebkitBackdropFilter: 'blur(28px)',
       borderBottom: '1px solid rgba(255,255,255,0.07)',
@@ -50,36 +49,37 @@ export function AppHeader({ address }: AppHeaderProps) {
       gap: 12,
     }}>
 
-      {/* ── Left: logo → Chat ── */}
+      {/* Left: wordmark → /chat */}
       <Link href="/chat" style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        textDecoration: 'none', flexShrink: 0,
+        fontWeight: 600,
+        fontSize: 15,
+        letterSpacing: '-0.2px',
+        color: '#ffffff',
+        textDecoration: 'none',
+        flexShrink: 0,
       }}>
-        <BubbleLogo size={24} />
-        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.2px', color: '#fff' }}>
-          Bubble
-        </span>
+        Bubble
       </Link>
 
-      {/* ── Center: ARC badge ── */}
+      {/* Center: ARC badge */}
       <div style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.12)',
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.10)',
         borderRadius: 100,
         padding: '3px 11px',
         fontSize: 10,
-        fontWeight: 700,
-        color: 'rgba(255,255,255,0.5)',
-        letterSpacing: '0.08em',
+        fontWeight: 600,
+        color: 'rgba(255,255,255,0.35)',
+        letterSpacing: '0.10em',
         flexShrink: 0,
       }}>
         ARC TESTNET
       </div>
 
-      {/* ── Right: nav + wallet ── */}
+      {/* Right: nav + wallet */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
 
-        {/* Nav links — Balance / Contacts / History */}
+        {/* Nav links */}
         <nav style={{ display: 'flex', alignItems: 'center', gap: 2, marginRight: 8 }}>
           {NAV_LINKS.map(({ href, label }) => {
             const active = pathname === href
@@ -90,24 +90,24 @@ export function AppHeader({ address }: AppHeaderProps) {
                 onClick={() => playBubbleTap()}
                 style={{
                   padding: '5px 11px',
-                  borderRadius: 8,
+                  borderRadius: 100,
                   fontSize: 12,
-                  fontWeight: active ? 700 : 500,
-                  color: active ? '#38bdf8' : 'rgba(255,255,255,0.45)',
+                  fontWeight: active ? 600 : 400,
+                  color: active ? '#a3e635' : 'rgba(255,255,255,0.40)',
                   textDecoration: 'none',
-                  background: active ? 'rgba(56,189,248,0.1)' : 'transparent',
-                  border: active ? '1px solid rgba(56,189,248,0.2)' : '1px solid transparent',
+                  background: active ? 'rgba(163,230,53,0.08)' : 'transparent',
+                  border: active ? '1px solid rgba(163,230,53,0.18)' : '1px solid transparent',
                   transition: 'all 0.15s',
                 }}
                 onMouseEnter={e => {
                   if (!active) {
-                    e.currentTarget.style.color = 'rgba(255,255,255,0.75)'
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.70)'
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
                   }
                 }}
                 onMouseLeave={e => {
                   if (!active) {
-                    e.currentTarget.style.color = 'rgba(255,255,255,0.45)'
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.40)'
                     e.currentTarget.style.background = 'transparent'
                   }
                 }}
@@ -121,29 +121,32 @@ export function AppHeader({ address }: AppHeaderProps) {
         {/* Wallet address pill */}
         {shortAddr ? (
           <div style={{
-            background: 'rgba(255,255,255,0.07)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.10)',
             borderRadius: 100,
             padding: '4px 11px',
             fontSize: 11,
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.6)',
-            display: 'flex', alignItems: 'center', gap: 5,
+            fontWeight: 400,
+            color: 'rgba(255,255,255,0.50)',
+            display: 'flex', alignItems: 'center', gap: 6,
             letterSpacing: '0.02em',
           }}>
             <div style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: '#38bdf8',
-              boxShadow: '0 0 6px rgba(56,189,248,0.8)',
+              width: 5, height: 5, borderRadius: '50%',
+              background: '#a3e635',
+              boxShadow: '0 0 6px rgba(163,230,53,0.7)',
             }} />
             {shortAddr}
           </div>
         ) : (
           <Link href="/login" style={{
-            background: '#38bdf8',
+            background: '#a3e635',
             border: 'none',
-            borderRadius: 100, padding: '5px 14px',
-            fontSize: 11, fontWeight: 700, color: '#000',
+            borderRadius: 100,
+            padding: '5px 14px',
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#000',
             textDecoration: 'none',
           }}>
             Connect
@@ -157,14 +160,14 @@ export function AppHeader({ address }: AppHeaderProps) {
           onMouseEnter={() => setHoverLogout(true)}
           onMouseLeave={() => setHoverLogout(false)}
           style={{
-            height: 30, borderRadius: 100,
-            background: hoverLogout ? 'rgba(255,80,80,0.12)' : 'transparent',
-            border: `1px solid ${hoverLogout ? 'rgba(255,80,80,0.3)' : 'rgba(255,255,255,0.1)'}`,
+            height: 28, borderRadius: 100,
+            background: hoverLogout ? 'rgba(255,80,80,0.10)' : 'transparent',
+            border: `1px solid ${hoverLogout ? 'rgba(255,80,80,0.25)' : 'rgba(255,255,255,0.08)'}`,
             padding: '0 11px',
             display: 'flex', alignItems: 'center',
             cursor: loggingOut ? 'wait' : 'pointer',
-            fontSize: 11, fontWeight: 500,
-            color: hoverLogout ? '#ff6b6b' : 'rgba(255,255,255,0.35)',
+            fontSize: 11, fontWeight: 400,
+            color: hoverLogout ? 'rgba(255,120,120,0.9)' : 'rgba(255,255,255,0.28)',
             transition: 'all 0.15s',
             fontFamily: 'inherit',
           }}
