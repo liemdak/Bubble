@@ -132,6 +132,33 @@ export function ChatWindow() {
       return
     }
 
+    // ── swap_tokens: MetaMask client-side (tokens stay in user's main wallet) ──
+    if (card.intent.type === 'swap_tokens') {
+      const { token_in, token_out, amount_in } = card.intent
+      try {
+        const balRes      = await fetch('/api/balance')
+        const balData     = await balRes.json()
+        const userAddress: string = balData.address ?? balData.userWallet?.address ?? ''
+        if (!userAddress) throw new Error('Could not determine your wallet address. Please refresh.')
+
+        const { swapViaMetaMask } = await import('@/lib/metamask/swapViaMetaMask')
+        const result = await swapViaMetaMask(token_in, token_out, amount_in, userAddress)
+
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat(
+          { id: crypto.randomUUID(), type: 'success', txHash: result.txHash, message: result.message, arcScanUrl: result.arcScanUrl },
+          { id: crypto.randomUUID(), type: 'assistant', content: `Swap done! ${amount_in} ${token_in} → ${token_out} is now in your wallet.` }
+        ))
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Swap failed.'
+        setMessages((prev) => prev.filter((m) => m.id !== cardId).concat({
+          id: crypto.randomUUID(), type: 'assistant', content: msg,
+        }))
+      } finally {
+        setConfirmLoading(false)
+      }
+      return
+    }
+
     // ── bridge_tokens: MetaMask + CCTP v2 (client-side) ──────────────────
     if (card.intent.type === 'bridge_tokens') {
       const { from_chain, to_chain, amount } = card.intent

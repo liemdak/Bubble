@@ -29,50 +29,11 @@ const TOKEN_CONTRACTS: Record<string, string> = {
   USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
 }
 
-// Kept for backward-compat reference in executeSend (EURC/USYC only)
-const NON_USDC_CONTRACTS: Record<string, string> = {
-  EURC: TOKEN_CONTRACTS.EURC,
-  USYC: TOKEN_CONTRACTS.USYC,
-}
 
 /**
- * Send USDC (native token on Arc Testnet) via Circle createTransaction with amounts[].
- * USDC on Arc is the native currency — NOT an ERC-20, so calldata approach fails.
- * Using amounts[] tells Circle to do a native value transfer, same as sending ETH on Ethereum.
- */
-async function sendNativeUSDC(
-  walletId: string,
-  recipientAddress: string,
-  amount: string,  // decimal string e.g. "5.99"
-): Promise<string> {
-  const client = getCircleClient()
-
-  const res = await client.createTransaction({
-    walletId,
-    destinationAddress: recipientAddress,
-    amounts: [amount],
-    fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-  } as unknown as Parameters<typeof client.createTransaction>[0])
-
-  const txId = res.data?.id
-  if (!txId) throw new Error('No transaction ID returned from Circle')
-
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 2000))
-    const txRes = await client.getTransaction({ id: txId })
-    const tx    = txRes.data?.transaction
-    if (!tx) continue
-    if (tx.state === 'CONFIRMED' && tx.txHash) return tx.txHash
-    if (tx.state === 'FAILED') {
-      throw new Error(`Transfer failed on-chain: ${tx.errorReason ?? 'unknown reason'}`)
-    }
-  }
-  throw new Error('Transaction timeout — check ArcScan for the latest status')
-}
-
-/**
- * Transfer EURC or USYC from the agent wallet using a direct ERC-20 contract call.
- * Bypasses kit.send() which does not support these tokens on Arc Testnet.
+ * Transfer EURC or USYC from the agent wallet via Circle createContractExecutionTransaction.
+ * Uses abiFunctionSignature + abiParameters — the correct Circle API method for ERC-20 calls.
+ * Docs: https://docs.arc.io/arc/tutorials/interact-with-contracts#transfer-tokens
  */
 async function sendTokenDirect(
   walletId: string,
@@ -82,24 +43,17 @@ async function sendTokenDirect(
 ): Promise<string> {
   const client = getCircleClient()
 
-  // Manually encode ERC-20 transfer(address,uint256) calldata
-  // selector = keccak256("transfer(address,uint256)").slice(0,4) = 0xa9059cbb
-  const amountWei  = BigInt(Math.round(parseFloat(amount) * 1_000_000)) // 6 decimals
-  const paddedAddr = recipientAddress.slice(2).toLowerCase().padStart(64, '0')
-  const paddedAmt  = amountWei.toString(16).padStart(64, '0')
-  const calldata   = `0xa9059cbb${paddedAddr}${paddedAmt}` as `0x${string}`
+  // EURC and USYC use 6 decimals — amount is human-readable (e.g. "10.5")
+  const amountWei = BigInt(Math.round(parseFloat(amount) * 1_000_000)).toString()
 
-  // Use createTransaction with raw calldata — avoids fee/RPC issues with
-  // createContractExecutionTransaction on Arc Testnet.
-  // The Circle SDK TypeScript types don't expose `calldata` in the param union,
-  // but the underlying REST API accepts it. Cast through unknown to bypass.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const res = await client.createTransaction({
+  const res = await (client as any).createContractExecutionTransaction({
     walletId,
-    destinationAddress: contractAddress,
-    calldata,
+    contractAddress,
+    abiFunctionSignature: 'transfer(address,uint256)',
+    abiParameters:        [recipientAddress, amountWei],
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-  } as unknown as Parameters<typeof client.createTransaction>[0])
+  })
 
   const txId = res.data?.id
   if (!txId) throw new Error('No transaction ID returned from Circle')
@@ -216,7 +170,7 @@ async function executeSend(
   // 5a. EURC / USYC — kit.send() does not resolve these on Arc Testnet
   //     Use direct ERC-20 transfer via Circle contract execution API instead
   if (intent.token === 'EURC' || intent.token === 'USYC') {
-    const contractAddress = NON_USDC_CONTRACTS[intent.token]
+    const contractAddress = TOKEN_CONTRACTS[intent.token]
     try {
       const txHash = await sendTokenDirect(wallet.id, addr, intent.amount, contractAddress)
       return NextResponse.json({
@@ -363,13 +317,33 @@ async function executeRefundAgent(
     }
   }
 
-  // USDC — Arc native token: use amounts[] (not calldata, not kit.send RPC)
+  // USDC — use kit.send() with Circle Wallets adapter (same as executeSend, proven to work)
+  const apiKey       = process.env.CIRCLE_API_KEY
+  const entitySecret = process.env.CIRCLE_ENTITY_SECRET
+  if (!apiKey || !entitySecret) {
+    return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
+  }
+
   try {
-    const txHash = await sendNativeUSDC(wallet.id, destination, finalAmount)
+    const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+    const { AppKit } = await import('@circle-fin/app-kit')
+
+    const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
+    const kit     = new AppKit()
+
+    const result = await kit.send({
+      from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
+      to:     destination,
+      amount: finalAmount,
+      token:  'USDC',
+    })
+
+    const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
+
     return NextResponse.json({
-      txHash,
+      txHash:     result.txHash,
       message:    `Withdrew ${finalAmount} USDC back to your wallet!`,
-      arcScanUrl: `${explorerBase}/tx/${txHash}`,
+      arcScanUrl,
       status:     'complete',
     })
   } catch (err) {
