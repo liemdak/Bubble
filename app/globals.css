@@ -1,82 +1,97 @@
 @import "tailwindcss";
 
-/* ─── Tailwind v4 theme block — all design tokens ─── */
+/* ─── Tailwind v4 theme tokens ─── */
 @theme {
-  /* Colors */
-  --color-midnight-ink: #000000;
-  --color-canvas-white: #ffffff;
-  --color-charcoal-border: #171717;
-  --color-shadow-base: #0a0a0d;
-  --color-pale-ash: #f5f5f5;
+  /* Core dark palette */
+  --color-midnight-canvas: #000000;
+  --color-frost-white: #ffffff;
+  --color-deep-shadow: #181818;
+  --color-whisper-gray: #6d6d6d;
+  --color-misty-gray: #636363;
+
+  /* Glass surfaces */
+  --color-glass-surface:   rgba(255, 255, 255, 0.04);
+  --color-glass-surface-2: rgba(255, 255, 255, 0.08);
+  --color-glass-border:    rgba(255, 255, 255, 0.10);
+  --color-glass-border-2:  rgba(255, 255, 255, 0.18);
+
+  /* Brand accent */
   --color-accent-green: #a3e635;
-  --color-card-saffron: #fef3c8;
-  --color-card-lavender: #fae9ff;
-  --color-card-mint: #d2fae5;
-  --color-card-pink: #f5d1fe;
-  --color-highlight-yellow: #fbbf25;
+
+  /* Token colors — functional */
   --color-token-usdc: #2775CA;
   --color-token-eurc: #E8A838;
   --color-token-usyc: #7C3AED;
 
-  /* Fonts */
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'Courier New', monospace;
 
-  /* Font sizes */
-  --text-caption: 12px;
-  --text-body-sm: 14px;
-  --text-body: 16px;
-  --text-subheading: 18px;
-  --text-heading-sm: 20px;
-  --text-heading: 24px;
-  --text-heading-lg: 32px;
-  --text-display-sm: 36px;
-  --text-display: 48px;
-  --text-display-lg: 64px;
+  /* Type scale */
+  --text-caption:     11px;
+  --text-body-sm:     14px;
+  --text-body:        16px;
+  --text-subheading:  18px;
+  --text-heading-sm:  29px;
+  --text-heading:     39px;
+  --text-heading-lg:  54px;
+  --text-display:     78px;
+
+  /* Line heights */
+  --leading-caption:    1.58;
+  --leading-body:       1.25;
+  --leading-subheading: 1.22;
+  --leading-heading-sm: 1.21;
+  --leading-heading:    1.15;
+  --leading-heading-lg: 1.39;
+
+  /* Spacing */
+  --spacing-8:  8px;
+  --spacing-12: 12px;
+  --spacing-28: 28px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
 
   /* Border radius */
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
-  --radius-2xl-2: 20px;
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   10px;
+  --radius-xl:   14px;
   --radius-full: 100px;
-
-  /* Shadows — offset style, no blur */
-  --shadow-subtle:   2px 2px 0px 0px rgb(10 10 13);
-  --shadow-subtle-2: 4px 4px 0px 0px rgb(10 10 13);
-  --shadow-subtle-3: 1px 1px 0px 0px rgb(10 10 13);
-  --shadow-subtle-4: 4px 4px 0px 0px rgb(23 23 23);
 }
 
-/* ─── CSS variables for gradients ─── */
+/* ─── Gradient atmosphere tokens ─── */
 :root {
-  --gradient-sky-breeze: linear-gradient(
-    rgb(137, 229, 240),
-    rgb(182, 239, 246) 27%,
-    rgb(204, 243, 250) 35%,
-    rgb(197, 243, 248) 55%
+  /* Deep ocean gradient — deeper than reference, per user request */
+  --gradient-atmosphere: linear-gradient(
+    135deg,
+    rgb(10, 80, 42)   0%,
+    rgb(160, 85, 8)   50%,
+    rgb(85, 10, 10)   100%
   );
-  --gradient-honey-dew: linear-gradient(rgb(253, 229, 177), rgb(252, 214, 131));
-  --gradient-lime-spritz: linear-gradient(rgb(219, 244, 181), rgb(198, 238, 137));
+  --gradient-atmosphere-deep: linear-gradient(
+    135deg,
+    rgb(5, 40, 20)    0%,
+    rgb(100, 52, 5)   50%,
+    rgb(55, 6, 6)     100%
+  );
+  /* Orb radial gradients */
+  --orb-green:   radial-gradient(circle, rgba(12, 95, 48, 0.55) 0%, transparent 68%);
+  --orb-amber:   radial-gradient(circle, rgba(185, 105, 8,  0.42) 0%, transparent 65%);
+  --orb-crimson: radial-gradient(circle, rgba(105, 10, 10,  0.38) 0%, transparent 65%);
 }
 
 /* ─── Global base ─── */
 html {
-  /* JetBrains Mono — injected by next/font, CSS variable exposed as --font-jetbrains-mono */
-  font-family: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
-  font-weight: 500;
-  color: #000000;
-  background: #ffffff;
+  font-family: var(--font-inter, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  font-weight: 400;
+  color: #ffffff;
+  background: #000000;
 }
 
-body {
-  font-family: inherit;
-}
-
-/* Override Tailwind Preflight which resets font-family on html */
-*, *::before, *::after {
-  font-family: inherit;
-}
+body    { font-family: inherit; }
+*, *::before, *::after { font-family: inherit; }
 
 * {
   box-sizing: border-box;
@@ -84,88 +99,57 @@ body {
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+a { color: inherit; text-decoration: none; }
+
+/* ─── Atmospheric orb animations ─── */
+@keyframes orb-drift-a {
+  0%, 100% { transform: translate(0px,    0px)   scale(1);    }
+  33%      { transform: translate(50px,  -35px)  scale(1.06); }
+  66%      { transform: translate(-30px,  20px)  scale(0.96); }
 }
 
-/* ─── Bubble keyframes ─── */
-@keyframes bubble-float {
-  0%   { transform: translateY(0px) scale(1); opacity: var(--bubble-opacity, 0.15); }
-  50%  { transform: translateY(-40px) scale(1.05); opacity: calc(var(--bubble-opacity, 0.15) * 1.2); }
-  100% { transform: translateY(-80px) scale(0.95); opacity: 0; }
+@keyframes orb-drift-b {
+  0%, 100% { transform: translate(0px,   0px)   scale(1);    }
+  40%      { transform: translate(-45px, 30px)  scale(1.08); }
+  80%      { transform: translate(25px, -20px)  scale(0.94); }
 }
 
-@keyframes bubble-drift {
-  0%   { transform: translate(0, 0) scale(1); }
-  33%  { transform: translate(12px, -20px) scale(1.03); }
-  66%  { transform: translate(-8px, -40px) scale(0.97); }
-  100% { transform: translate(4px, -60px) scale(1); }
+@keyframes orb-drift-c {
+  0%, 100% { transform: translate(0px,   0px)   scale(1);    }
+  50%      { transform: translate(30px,  -25px) scale(1.05); }
 }
 
+/* ─── Chat / UI keyframes ─── */
 @keyframes typing-dot {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30%           { transform: translateY(-6px); opacity: 1; }
+  0%, 60%, 100% { transform: translateY(0);   opacity: 0.4; }
+  30%           { transform: translateY(-6px); opacity: 1;   }
 }
 
-/* ─── Bubble element ─── */
-.bubble {
-  position: absolute;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.4);
-  background: radial-gradient(
-    circle at 30% 30%,
-    rgba(255, 255, 255, 0.5),
-    transparent 60%
-  );
-  backdrop-filter: blur(2px);
-  animation: bubble-drift var(--duration, 12s) ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
-  pointer-events: none;
-}
-
-/* ─── Mobile / PWA base ─── */
-
-/* Prevent content from going behind notch/home indicator on iOS */
-html {
-  height: 100%;
-}
+/* ─── Mobile / PWA ─── */
+html { height: 100%; }
 body {
   min-height: 100%;
   min-height: 100dvh;
-  /* -webkit-overflow-scrolling: touch is deprecated, but harmless */
   overscroll-behavior: none;
 }
 
-/* Remove 300ms tap delay on all touch devices */
-* {
-  touch-action: manipulation;
-}
+* { touch-action: manipulation; }
 
-/* Smooth momentum scrolling in scrollable containers */
 [data-scroll], .scroll-area {
   -webkit-overflow-scrolling: touch;
   overflow-y: auto;
 }
 
-/* Hide scrollbars globally (cosmetic) */
-::-webkit-scrollbar {
-  display: none;
-}
-* {
-  scrollbar-width: none;
-}
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
 
-/* ─── Responsive: contacts & history cards full-width on small screens ─── */
 @media (max-width: 480px) {
-  /* Give pages breathing room from screen edges */
   .page-container {
-    padding-left: 12px !important;
+    padding-left:  12px !important;
     padding-right: 12px !important;
   }
 }
 
-/* ─── Prevent text size inflation on rotate (iOS) ─── */
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;

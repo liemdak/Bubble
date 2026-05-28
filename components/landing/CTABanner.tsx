@@ -4,36 +4,56 @@ export function CTABanner() {
   return (
     <section style={{
       position: 'relative',
-      background: 'linear-gradient(135deg, rgb(219,244,181) 0%, rgb(198,238,137) 100%)',
-      padding: '80px 24px',
+      padding: '120px 24px',
       overflow: 'hidden',
       textAlign: 'center',
+      background: '#000000',
+      borderTop: '1px solid rgba(255,255,255,0.06)',
     }}>
-      {/* Decorative circles */}
+      {/* Deep gradient atmosphere — the most prominent gradient use */}
       <div aria-hidden style={{
-        position: 'absolute', width: 280, height: 280, borderRadius: '50%',
-        background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)',
-        top: -80, right: -40, pointerEvents: 'none',
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(135deg, rgb(8,55,28) 0%, rgb(130,68,5) 50%, rgb(70,8,8) 100%)',
+        opacity: 0.7,
+        pointerEvents: 'none',
       }} />
+      {/* Top fade from black */}
       <div aria-hidden style={{
-        position: 'absolute', width: 180, height: 180, borderRadius: '50%',
-        background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.05)',
-        bottom: -50, left: 60, pointerEvents: 'none',
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: 80,
+        background: 'linear-gradient(to bottom, #000000, transparent)',
+        pointerEvents: 'none',
+        zIndex: 1,
+      }} />
+      {/* Bottom fade to black */}
+      <div aria-hidden style={{
+        position: 'absolute',
+        bottom: 0, left: 0, right: 0,
+        height: 80,
+        background: 'linear-gradient(to top, #000000, transparent)',
+        pointerEvents: 'none',
+        zIndex: 1,
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 560, margin: '0 auto' }}>
+      <div style={{ position: 'relative', zIndex: 2, maxWidth: 520, margin: '0 auto' }}>
         <h2 style={{
-          fontSize: 'clamp(26px, 4vw, 38px)',
-          fontWeight: 700,
-          letterSpacing: '-0.5px',
-          marginBottom: 12,
-          color: '#000',
+          fontSize: 'clamp(28px, 4.5vw, 48px)',
+          fontWeight: 300,
+          letterSpacing: '-1px',
+          marginBottom: 16,
+          color: '#ffffff',
+          lineHeight: 1.15,
         }}>
-          Try it on Arc Testnet.
+          Start sending in 60 seconds.
         </h2>
         <p style={{
-          fontSize: 16, fontWeight: 500,
-          color: '#333', marginBottom: 36, lineHeight: 1.55,
+          fontSize: 15,
+          fontWeight: 300,
+          color: 'rgba(255,255,255,0.55)',
+          marginBottom: 40,
+          lineHeight: 1.6,
         }}>
           No real money. Get testnet USDC from the faucet,
           then send, swap, and bridge for free.
@@ -42,13 +62,15 @@ export function CTABanner() {
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link href="/register" style={{
             display: 'inline-block',
-            background: '#000000', color: '#a3e635',
-            borderRadius: 4, padding: '13px 32px',
-            fontWeight: 700, fontSize: 16,
-            boxShadow: 'rgb(163,230,53) 2px 2px 0px 0px',
+            background: '#a3e635',
+            color: '#000000',
+            borderRadius: 100,
+            padding: '13px 32px',
+            fontWeight: 600,
+            fontSize: 15,
             textDecoration: 'none',
           }}>
-            Create free account →
+            Create free account
           </Link>
           <a
             href="https://faucet.circle.com"
@@ -56,15 +78,17 @@ export function CTABanner() {
             rel="noopener noreferrer"
             style={{
               display: 'inline-block',
-              background: '#ffffff', color: '#000',
-              border: '1px solid #171717',
-              borderRadius: 4, padding: '13px 24px',
-              fontWeight: 500, fontSize: 16,
-              boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
+              background: 'rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.75)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              borderRadius: 100,
+              padding: '13px 28px',
+              fontWeight: 400,
+              fontSize: 15,
               textDecoration: 'none',
             }}
           >
-            Get testnet USDC ↗
+            Get testnet USDC
           </a>
         </div>
       </div>

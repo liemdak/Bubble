@@ -1,4 +1,3 @@
-import { BubbleField } from '@/components/bubbles/BubbleField'
 import { AppHeader } from '@/components/app/AppHeader'
 import { BottomNav } from '@/components/app/BottomNav'
 import { Sidebar } from '@/components/app/Sidebar'
@@ -24,9 +23,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppHeader address={session?.address} />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        {/* Subtle bubbles behind glass */}
-        <BubbleField count={6} sizeRange={[50, 130]} opacityRange={[0.08, 0.18]} seed={55} />
-
         {/* Sidebar — desktop only */}
         <Sidebar />
 

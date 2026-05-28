@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from 'next'
-import { JetBrains_Mono } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
-const jetbrainsMono = JetBrains_Mono({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '700'],
+  weight: ['300', '400', '600'],
   display: 'swap',
-  variable: '--font-jetbrains-mono',
+  variable: '--font-inter',
 })
 
 export const metadata: Metadata = {
@@ -15,13 +15,12 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
 }
 
-// Separate viewport export (Next.js 14+)
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: 'cover',     // enables safe-area-inset-* on iOS notch devices
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -30,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${jetbrainsMono.variable} ${jetbrainsMono.className}`}>
+    <html lang="en" className={`${inter.variable} ${inter.className}`}>
       <body style={{ margin: 0, padding: 0, WebkitTapHighlightColor: 'transparent' }}>
         {children}
       </body>

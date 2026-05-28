@@ -3,9 +3,9 @@ import Link from 'next/link'
 export function Footer() {
   return (
     <footer style={{
-      background: '#f5f5f5',
-      borderTop: '1px solid #171717',
-      padding: '40px 24px',
+      background: '#000000',
+      borderTop: '1px solid rgba(255,255,255,0.07)',
+      padding: '44px 28px',
     }}>
       <div style={{
         maxWidth: 1100,
@@ -16,33 +16,57 @@ export function Footer() {
         flexWrap: 'wrap',
         gap: 24,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 16 }}>
-          <span>🫧</span>
-          <span>Bubble</span>
-        </div>
+        {/* Logo — text only, no icon */}
+        <span style={{
+          fontWeight: 600,
+          fontSize: 16,
+          color: '#ffffff',
+          letterSpacing: '-0.2px',
+        }}>
+          Bubble
+        </span>
 
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+        {/* Nav links */}
+        <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
           {['Features', 'How it works', 'FAQ'].map((label) => (
-            <a key={label} href={`#${label.toLowerCase().replace(/ /g, '-')}`} style={{ fontWeight: 500, fontSize: 14, color: '#333' }}>
+            <a
+              key={label}
+              href={`#${label.toLowerCase().replace(/ /g, '-')}`}
+              style={{
+                fontWeight: 400,
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.38)',
+                transition: 'color 0.15s',
+              }}
+            >
               {label}
             </a>
           ))}
-          <Link href="/login" style={{ fontWeight: 500, fontSize: 14, color: '#333' }}>Login</Link>
+          <Link href="/login" style={{
+            fontWeight: 400,
+            fontSize: 13,
+            color: 'rgba(255,255,255,0.38)',
+          }}>
+            Login
+          </Link>
         </div>
 
+        {/* Attribution pill */}
         <div style={{
           display: 'inline-flex',
           gap: 6,
-          background: '#ffffff',
-          border: '1px solid #171717',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.09)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
           borderRadius: 100,
-          padding: '6px 14px',
-          fontSize: 13,
-          fontWeight: 500,
-          boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
+          padding: '6px 16px',
+          fontSize: 11,
+          fontWeight: 400,
+          color: 'rgba(255,255,255,0.35)',
+          letterSpacing: '0.04em',
         }}>
-          <span>⚡</span>
-          <span>Built on Arc · Secured by Circle</span>
+          Built on Arc · Secured by Circle
         </div>
       </div>
     </footer>

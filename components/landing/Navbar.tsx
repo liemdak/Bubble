@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
 
 export function Navbar() {
   const [open, setOpen] = useState(false)
@@ -12,37 +11,43 @@ export function Navbar() {
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      background: '#ffffff',
-      borderBottom: '1px solid #171717',
+      background: 'rgba(0, 0, 0, 0.65)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
     }}>
       <div style={{
-        maxWidth: 1200,
+        maxWidth: 1100,
         margin: '0 auto',
-        padding: '0 24px',
+        padding: '0 28px',
         height: 64,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
         {/* Logo */}
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 20 }}>
-          <span style={{ fontSize: 24 }}>🫧</span>
-          <span>Bubble</span>
+        <Link href="/" style={{
+          fontWeight: 600,
+          fontSize: 18,
+          color: '#ffffff',
+          letterSpacing: '-0.3px',
+        }}>
+          Bubble
         </Link>
 
         {/* Desktop nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="desktop-nav">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }} className="desktop-nav">
           <NavLinks />
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
             <Link href="/login" style={{
-              background: '#ffffff',
-              color: '#000000',
-              border: '1px solid #171717',
-              borderRadius: 4,
-              padding: '8px 16px',
-              fontWeight: 500,
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.75)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              borderRadius: 100,
+              padding: '8px 20px',
+              fontWeight: 400,
               fontSize: 14,
-              boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
+              transition: 'color 0.15s, border-color 0.15s',
             }}>
               Log in
             </Link>
@@ -50,13 +55,12 @@ export function Navbar() {
               background: '#a3e635',
               color: '#000000',
               border: 'none',
-              borderRadius: 4,
-              padding: '8px 16px',
-              fontWeight: 700,
+              borderRadius: 100,
+              padding: '8px 20px',
+              fontWeight: 600,
               fontSize: 14,
-              boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
             }}>
-              Get Started →
+              Get Started
             </Link>
           </div>
         </div>
@@ -64,42 +68,54 @@ export function Navbar() {
         {/* Mobile hamburger */}
         <button
           onClick={() => setOpen(!open)}
-          style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{
+            display: 'none',
+            background: 'none',
+            border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            padding: '6px 10px',
+            color: '#ffffff',
+            fontSize: 18,
+            lineHeight: 1,
+          }}
           className="mobile-menu-btn"
           aria-label="Toggle menu"
         >
-          {open ? <X size={24} /> : <Menu size={24} />}
+          {open ? '✕' : '≡'}
         </button>
       </div>
 
       {/* Mobile dropdown */}
       {open && (
         <div style={{
-          borderTop: '1px solid #171717',
-          padding: '16px 24px',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+          padding: '20px 28px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          gap: 18,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
         }}>
           <NavLinks mobile />
-          <Link href="/login" style={{ fontWeight: 500, fontSize: 15 }}>Log in</Link>
+          <Link href="/login" style={{ fontWeight: 400, fontSize: 15, color: 'rgba(255,255,255,0.7)' }}>Log in</Link>
           <Link href="/register" style={{
             background: '#a3e635',
             color: '#000',
-            borderRadius: 4,
-            padding: '10px 16px',
-            fontWeight: 700,
+            borderRadius: 100,
+            padding: '11px 20px',
+            fontWeight: 600,
             textAlign: 'center',
-            boxShadow: 'rgb(10,10,13) 1px 1px 0px 0px',
           }}>
-            Get Started →
+            Get Started
           </Link>
         </div>
       )}
 
       <style>{`
         @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
+          .desktop-nav   { display: none !important; }
           .mobile-menu-btn { display: block !important; }
         }
       `}</style>
@@ -109,9 +125,9 @@ export function Navbar() {
 
 function NavLinks({ mobile = false }: { mobile?: boolean }) {
   const links = [
-    { href: '#features', label: 'Features' },
+    { href: '#features',     label: 'Features'     },
     { href: '#how-it-works', label: 'How it works' },
-    { href: '#faq', label: 'FAQ' },
+    { href: '#faq',          label: 'FAQ'          },
   ]
   return (
     <>
@@ -120,10 +136,11 @@ function NavLinks({ mobile = false }: { mobile?: boolean }) {
           key={href}
           href={href}
           style={{
-            color: '#000',
-            fontWeight: 500,
+            color: 'rgba(255,255,255,0.6)',
+            fontWeight: 400,
             fontSize: mobile ? 15 : 14,
-            textDecoration: 'none',
+            letterSpacing: '0.01em',
+            transition: 'color 0.15s',
           }}
         >
           {label}

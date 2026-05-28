@@ -1,21 +1,18 @@
 const STEPS = [
   {
-    bg: '#fef3c8',
-    num: '1',
+    num: '01',
     title: 'Type what you want',
     detail: '"Send 50 USDC to Sarah"',
     desc: 'Plain English. No wallet addresses, no forms.',
   },
   {
-    bg: '#d2fae5',
-    num: '2',
+    num: '02',
     title: 'Review the card',
     detail: 'Amount, recipient, fee — all shown clearly',
-    desc: 'Nothing moves until you tap Confirm.',
+    desc: 'Nothing moves until you confirm.',
   },
   {
-    bg: '#fae9ff',
-    num: '3',
+    num: '03',
     title: 'Done',
     detail: 'Arc confirms in under a second',
     desc: 'Transaction recorded on-chain. Check ArcScan anytime.',
@@ -24,55 +21,97 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" style={{ background: '#f5f5f5', padding: '80px 24px' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <h2 style={{
-          fontSize: 'clamp(26px, 4vw, 38px)',
-          fontWeight: 700,
-          letterSpacing: '-0.5px',
+    <section id="how-it-works" style={{
+      position: 'relative',
+      background: '#000000',
+      padding: '100px 24px',
+      borderTop: '1px solid rgba(255,255,255,0.06)',
+      overflow: 'hidden',
+    }}>
+      {/* Ambient orb */}
+      <div aria-hidden style={{
+        position: 'absolute',
+        width: 600, height: 600,
+        background: 'radial-gradient(circle, rgba(100,52,5,0.22) 0%, transparent 65%)',
+        bottom: -150, left: -100,
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 900, margin: '0 auto' }}>
+        <p style={{
           textAlign: 'center',
-          marginBottom: 12,
+          fontSize: 11,
+          fontWeight: 600,
+          color: 'rgba(255,255,255,0.35)',
+          letterSpacing: '0.14em',
+          marginBottom: 16,
+          textTransform: 'uppercase',
         }}>
           How it works
-        </h2>
-        <p style={{
-          textAlign: 'center', fontSize: 16, color: '#555',
-          fontWeight: 500, marginBottom: 48,
-        }}>
-          Three steps. No crypto knowledge needed.
         </p>
+        <h2 style={{
+          fontSize: 'clamp(28px, 4vw, 42px)',
+          fontWeight: 300,
+          letterSpacing: '-0.8px',
+          textAlign: 'center',
+          color: '#ffffff',
+          marginBottom: 64,
+          lineHeight: 1.2,
+        }}>
+          Three steps.
+        </h2>
 
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 20,
+          gap: 2,
         }}>
           {STEPS.map((s) => (
             <div
               key={s.num}
               style={{
-                background: s.bg,
-                border: '1px solid #171717',
-                borderRadius: 8,
-                padding: '28px 24px',
-                boxShadow: 'rgb(10,10,13) 2px 2px 0px 0px',
-                position: 'relative',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 10,
+                padding: '34px 28px',
               }}
             >
-              {/* Step number */}
               <div style={{
-                width: 34, height: 34,
-                borderRadius: '50%',
-                background: '#000', color: '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: 15,
-                marginBottom: 16,
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.25)',
+                letterSpacing: '0.14em',
+                marginBottom: 20,
               }}>
                 {s.num}
               </div>
-              <h3 style={{ fontWeight: 700, fontSize: 17, marginBottom: 8, letterSpacing: '-0.2px' }}>{s.title}</h3>
-              <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, color: '#000', fontFamily: 'monospace' }}>→ {s.detail}</p>
-              <p style={{ fontWeight: 500, fontSize: 14, color: '#444', lineHeight: 1.55 }}>{s.desc}</p>
+              <h3 style={{
+                fontWeight: 400,
+                fontSize: 18,
+                color: '#ffffff',
+                marginBottom: 10,
+                letterSpacing: '-0.2px',
+              }}>
+                {s.title}
+              </h3>
+              <p style={{
+                fontWeight: 400,
+                fontSize: 12,
+                marginBottom: 8,
+                color: 'rgba(163,230,53,0.7)',
+                fontFamily: 'ui-monospace, monospace',
+                letterSpacing: '0.02em',
+              }}>
+                {s.detail}
+              </p>
+              <p style={{
+                fontWeight: 300,
+                fontSize: 14,
+                color: 'rgba(255,255,255,0.42)',
+                lineHeight: 1.65,
+              }}>
+                {s.desc}
+              </p>
             </div>
           ))}
         </div>
