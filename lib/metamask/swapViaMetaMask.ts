@@ -179,15 +179,17 @@ export async function swapViaMetaMask(
     return origFetch(input, init)
   }
 
-  // 7. Execute swap — MetaMask will prompt for Permit2 approval then the swap itself.
-  //
-  // Why allowanceStrategy: 'approve' (not the default 'permit'):
-  //   Arc Testnet's native USDC (0x3600...) does NOT support EIP-2612 permit signatures.
-  //   The default "permit with fallback to approve" strategy tries the permit path first,
-  //   fails silently, then simulates the swap WITHOUT having submitted an approve tx yet —
-  //   the simulation reverts because the Permit2 allowance isn't set.
-  //   Forcing 'approve' makes the SDK submit the approve tx first (MetaMask prompts once),
-  //   wait for it to confirm, then simulate and execute the swap successfully.
+  // 7. Execute swap — follows Circle App Kit docs exactly.
+  //    kitKey must be in format "KIT_KEY:id:secret" from Circle Console.
+  //    allowanceStrategy and slippageBps use SDK defaults (permit→approve fallback, 300 bps).
+  if (!kitKey.startsWith('KIT_KEY:')) {
+    throw new Error(
+      `Invalid kit key format. Expected "KIT_KEY:…" but got "${kitKey.slice(0, 20)}…". ` +
+      `Check CIRCLE_KIT_KEY in your Vercel environment variables — ` +
+      `copy the full key from Circle Console including the "KIT_KEY:" prefix.`
+    )
+  }
+
   try {
     const kit = new AppKit()
     const result = await kit.swap({
@@ -195,11 +197,7 @@ export async function swapViaMetaMask(
       tokenIn:  tokenIn  as 'USDC' | 'EURC',
       tokenOut: tokenOut as 'USDC' | 'EURC',
       amountIn,
-      config: {
-        ...(kitKey ? { kitKey } : {}),
-        allowanceStrategy: 'approve' as 'approve',
-        slippageBps: 100,
-      },
+      config:   { kitKey },
     })
 
     const arcScanUrl = result.txHash
@@ -218,6 +216,8 @@ export async function swapViaMetaMask(
         ? 'Swap cancelled.'
         : msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')
         ? `Insufficient ${tokenIn} in your wallet. Check your balance and try again.`
+        : msg.toLowerCase().includes('simulation failed') || msg.toLowerCase().includes('transaction reverted')
+        ? `Swap simulation failed on Arc Testnet. This usually means your wallet has no ${tokenIn}, or the FxEscrow liquidity pool is temporarily unavailable. Try again in a moment or check your balance.`
         : `Swap failed: ${msg}`
     )
   } finally {

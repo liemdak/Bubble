@@ -141,6 +141,22 @@ export function ChatWindow() {
         const userAddress: string = balData.address ?? balData.userWallet?.address ?? ''
         if (!userAddress) throw new Error('Could not determine your wallet address. Please refresh.')
 
+        // ── Pre-check: MetaMask wallet must have enough token_in ─────────
+        // Swap runs from the MetaMask wallet, not the agent wallet.
+        // If MetaMask balance is insufficient (e.g. all USDC was sent to agent),
+        // kit.swap() will fail with "Simulation failed / Transaction reverted"
+        // without any useful message. Catch it here with a clear explanation.
+        const walletBal = balData.userWallet as Record<string, string> | undefined
+        const haveAmt   = parseFloat(walletBal?.[token_in] ?? '0')
+        const needAmt   = parseFloat(amount_in)
+        if (haveAmt < needAmt) {
+          throw new Error(
+            `Your MetaMask wallet only has ${haveAmt.toFixed(2)} ${token_in} ` +
+            `(need ${amount_in}). ` +
+            `Get more from faucet.circle.com (select Arc Testnet) or type "Withdraw all from agent wallet" first.`
+          )
+        }
+
         const { swapViaMetaMask } = await import('@/lib/metamask/swapViaMetaMask')
         const result = await swapViaMetaMask(token_in, token_out, amount_in, userAddress)
 
