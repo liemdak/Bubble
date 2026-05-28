@@ -21,7 +21,7 @@ function RichText({ text }: { text: string }) {
             href={part}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: '#38bdf8', textDecoration: 'underline', wordBreak: 'break-all' }}
+            style={{ color: 'rgba(163,230,53,0.85)', textDecoration: 'underline', wordBreak: 'break-all' }}
           >
             {part}
           </a>
@@ -49,47 +49,42 @@ export function MessageBubble({ role, content, isTyping = false }: MessageBubble
         paddingRight: isUser ? 0 : 48,
       }}
     >
-      {/* Avatar — assistant only */}
+      {/* Indicator dot — assistant only */}
       {!isUser && (
         <div style={{
-          width: 28, height: 28,
+          width: 6, height: 6,
           borderRadius: '50%',
-          background: 'rgba(56,189,248,0.15)',
-          border: '1px solid rgba(56,189,248,0.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 14,
+          background: '#a3e635',
           flexShrink: 0,
           alignSelf: 'flex-end',
           marginRight: 8,
-          marginBottom: 2,
-          boxShadow: '0 0 12px rgba(56,189,248,0.2)',
-        }}>
-          🫧
-        </div>
+          marginBottom: 10,
+          boxShadow: '0 0 8px rgba(163,230,53,0.5)',
+        }} />
       )}
 
       <div style={{
         background: isUser
-          ? '#38bdf8'
-          : 'rgba(255,255,255,0.07)',
+          ? '#a3e635'
+          : 'rgba(255,255,255,0.06)',
         border: isUser
-          ? '1.5px solid #0284c7'
-          : '1px solid rgba(255,255,255,0.12)',
+          ? 'none'
+          : '1px solid rgba(255,255,255,0.10)',
         borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
         padding: isTyping ? '12px 16px' : '10px 14px',
         fontSize: 14,
-        fontWeight: 500,
+        fontWeight: isUser ? 500 : 400,
         lineHeight: 1.6,
         fontFamily: 'inherit',
-        backdropFilter: isUser ? 'none' : 'blur(16px)',
-        WebkitBackdropFilter: isUser ? 'none' : 'blur(16px)',
+        backdropFilter: isUser ? 'none' : 'blur(20px)',
+        WebkitBackdropFilter: isUser ? 'none' : 'blur(20px)',
         boxShadow: isUser
-          ? 'rgb(10,10,13) 2px 2px 0px 0px'
-          : '0 4px 16px rgba(0,0,0,0.3)',
+          ? '0 2px 12px rgba(163,230,53,0.25)'
+          : '0 2px 12px rgba(0,0,0,0.25)',
         maxWidth: '100%',
         wordBreak: 'break-word',
         whiteSpace: 'pre-line',
-        color: isUser ? '#000' : '#fff',
+        color: isUser ? '#000' : 'rgba(255,255,255,0.88)',
       }}>
         {isTyping ? <TypingDots /> : <RichText text={content} />}
       </div>

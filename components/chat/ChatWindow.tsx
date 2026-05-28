@@ -252,37 +252,40 @@ export function ChatWindow() {
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 style={{ textAlign: 'center', padding: '32px 16px 24px' }}
               >
-                {/* Bubble icon */}
+                {/* Ambient orb */}
                 <motion.div
                   animate={{
                     y: [0, -6, 0],
-                    scale: [1, 1.04, 1],
+                    opacity: [0.7, 1, 0.7],
                   }}
-                  transition={{ repeat: Infinity, duration: 3.5, ease: 'easeInOut' }}
+                  transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: 72,
-                    height: 72,
+                    width: 56,
+                    height: 56,
                     borderRadius: '50%',
-                    background: 'rgba(56,189,248,0.12)',
+                    background: 'radial-gradient(circle at 35% 35%, rgba(163,230,53,0.25), rgba(163,230,53,0.04) 70%)',
                     backdropFilter: 'blur(12px)',
-                    border: '1.5px solid rgba(56,189,248,0.35)',
-                    fontSize: 36,
-                    marginBottom: 18,
-                    boxShadow: '0 0 32px rgba(56,189,248,0.3), 0 8px 32px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(163,230,53,0.22)',
+                    marginBottom: 20,
+                    boxShadow: '0 0 28px rgba(163,230,53,0.18)',
                   }}
                 >
-                  🫧
+                  <div style={{
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: '#a3e635',
+                    boxShadow: '0 0 12px rgba(163,230,53,0.8)',
+                  }} />
                 </motion.div>
 
-                <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px', marginBottom: 6, color: '#fff' }}>
-                  {getGreeting()} 👋
+                <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.3px', marginBottom: 8, color: '#fff' }}>
+                  {getGreeting()}
                 </div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 260, margin: '0 auto' }}>
-                  I&apos;m your payment assistant.<br />
-                  Type what you need — I&apos;ll handle the rest.
+                <div style={{ fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,0.45)', lineHeight: 1.8, maxWidth: 240, margin: '0 auto' }}>
+                  Your payment assistant.<br />
+                  Type what you need.
                 </div>
 
               </motion.div>

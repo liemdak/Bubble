@@ -20,11 +20,19 @@ import type { PaymentIntent, SwapIntent, BridgeIntent } from '@/types/intent'
  * Note: bridge_tokens is handled client-side (bridgeViaMetaMask.ts) — not routed here.
  */
 
-// ── EURC / USYC contract addresses on Arc Testnet ────────────────────────────
-// kit.send() does not resolve these tokens — use direct contract execution instead.
-const NON_USDC_CONTRACTS: Record<string, string> = {
+// ── Token contract addresses on Arc Testnet ───────────────────────────────────
+// Used by sendTokenDirect() for raw ERC-20 transfer calldata approach,
+// which is more reliable than kit.send() (bypasses viem RPC calls).
+const TOKEN_CONTRACTS: Record<string, string> = {
+  USDC: '0x3600000000000000000000000000000000000000',
   EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
   USYC: '0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C',
+}
+
+// Kept for backward-compat reference in executeSend (EURC/USYC only)
+const NON_USDC_CONTRACTS: Record<string, string> = {
+  EURC: TOKEN_CONTRACTS.EURC,
+  USYC: TOKEN_CONTRACTS.USYC,
 }
 
 /**
@@ -282,46 +290,21 @@ async function executeRefundAgent(
 
   const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
 
-  // EURC / USYC — use direct ERC-20 transfer (kit.send() does not support these on Arc Testnet)
-  if (intent.token === 'EURC' || intent.token === 'USYC') {
-    const contractAddress = NON_USDC_CONTRACTS[intent.token]
-    try {
-      const txHash = await sendTokenDirect(wallet.id, destination, intent.amount, contractAddress)
-      return NextResponse.json({
-        txHash,
-        message:    `✅ Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
-        arcScanUrl: `${explorerBase}/tx/${txHash}`,
-        status:     'complete',
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Withdraw failed'
-      console.error('[executeRefundAgent EURC/USYC]', err)
-      return NextResponse.json({ error: `Withdraw failed: ${msg}` }, { status: 500 })
-    }
+  // All tokens — use sendTokenDirect() which calls Circle's createTransaction API directly.
+  // This bypasses kit.send() which makes viem RPC calls that can fail with
+  // "RPC endpoint error on Arc Testnet" under load or when the node is temporarily unreachable.
+  const contractAddress = TOKEN_CONTRACTS[intent.token]
+  if (!contractAddress) {
+    return NextResponse.json({ error: `No contract address found for ${intent.token}` }, { status: 400 })
   }
 
-  // USDC — use kit.send()
   try {
-    const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
-    const { AppKit } = await import('@circle-fin/app-kit')
-
-    const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
-    const kit = new AppKit()
-
-    const result = await kit.send({
-      from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
-      to:     destination,
-      amount: intent.amount,
-      token:  intent.token,
-    })
-
-    const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
-
+    const txHash = await sendTokenDirect(wallet.id, destination, intent.amount, contractAddress)
     return NextResponse.json({
-      txHash:     result.txHash,
-      message:    `✅ Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
-      arcScanUrl,
-      status:     result.state,
+      txHash,
+      message:    `Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
+      arcScanUrl: `${explorerBase}/tx/${txHash}`,
+      status:     'complete',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Withdraw failed'
