@@ -52,8 +52,8 @@ export function AppHeader({ address }: AppHeaderProps) {
       {/* Left: wordmark → /chat */}
       <Link href="/chat" style={{
         fontWeight: 600,
-        fontSize: 15,
-        letterSpacing: '-0.2px',
+        fontSize: 20,
+        letterSpacing: '-0.5px',
         color: '#ffffff',
         textDecoration: 'none',
         flexShrink: 0,
@@ -89,26 +89,33 @@ export function AppHeader({ address }: AppHeaderProps) {
                 href={href}
                 onClick={() => playBubbleTap()}
                 style={{
-                  padding: '5px 11px',
+                  padding: '5px 12px',
                   borderRadius: 100,
                   fontSize: 12,
                   fontWeight: active ? 600 : 400,
-                  color: active ? '#a3e635' : 'rgba(255,255,255,0.40)',
+                  color: active ? '#ffffff' : 'rgba(255,255,255,0.35)',
                   textDecoration: 'none',
-                  background: active ? 'rgba(163,230,53,0.08)' : 'transparent',
-                  border: active ? '1px solid rgba(163,230,53,0.18)' : '1px solid transparent',
-                  transition: 'all 0.15s',
+                  background: active
+                    ? 'linear-gradient(135deg, rgba(12,95,48,0.55), rgba(185,105,8,0.35))'
+                    : 'transparent',
+                  border: active
+                    ? '1px solid rgba(163,230,53,0.22)'
+                    : '1px solid rgba(255,255,255,0.07)',
+                  transition: 'all 0.18s',
+                  letterSpacing: active ? '-0.1px' : '0',
                 }}
                 onMouseEnter={e => {
                   if (!active) {
-                    e.currentTarget.style.color = 'rgba(255,255,255,0.70)'
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.75)'
                     e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
                   }
                 }}
                 onMouseLeave={e => {
                   if (!active) {
-                    e.currentTarget.style.color = 'rgba(255,255,255,0.40)'
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.35)'
                     e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'
                   }
                 }}
               >

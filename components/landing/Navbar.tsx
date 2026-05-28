@@ -28,9 +28,9 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" style={{
           fontWeight: 600,
-          fontSize: 18,
+          fontSize: 22,
           color: '#ffffff',
-          letterSpacing: '-0.3px',
+          letterSpacing: '-0.5px',
         }}>
           Bubble
         </Link>

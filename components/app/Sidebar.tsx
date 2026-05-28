@@ -57,22 +57,22 @@ export function Sidebar() {
             background: 'transparent',
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 600,
-            color: 'rgba(255,255,255,0.25)',
+            fontSize: 16, fontWeight: 400,
+            color: 'rgba(255,255,255,0.20)',
             transition: 'background 0.12s, color 0.12s',
             textDecoration: 'none',
-            letterSpacing: '-0.2px',
+            letterSpacing: '2px',
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(163,230,53,0.10)'
+            (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(163,230,53,0.08)'
             ;(e.currentTarget as HTMLAnchorElement).style.color = '#a3e635'
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
-            ;(e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.25)'
+            ;(e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.20)'
           }}
         >
-          B
+          ···
         </Link>
       </div>
 

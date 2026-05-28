@@ -36,8 +36,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <nav style={{ position: 'relative', zIndex: 10, padding: '24px 28px' }}>
         <Link href="/" style={{
           display: 'inline-flex', alignItems: 'center',
-          fontWeight: 600, fontSize: 17,
-          color: '#ffffff', letterSpacing: '-0.2px',
+          fontWeight: 600, fontSize: 22,
+          color: '#ffffff', letterSpacing: '-0.5px',
           textDecoration: 'none',
         }}>
           Bubble

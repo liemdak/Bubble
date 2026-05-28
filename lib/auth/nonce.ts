@@ -34,5 +34,5 @@ export function consumeNonce(address: string): string | null {
 
 /** The exact message the wallet signs — must match client-side exactly */
 export function buildSignMessage(address: string, nonce: string): string {
-  return `Welcome to Bubble 🫧\n\nSign this message to connect your wallet. This does not cost any gas.\n\nWallet: ${address}\nNonce: ${nonce}`
+  return `Welcome to Bubble\n\nSign this message to connect your wallet. This does not cost any gas.\n\nWallet: ${address}\nNonce: ${nonce}`
 }
