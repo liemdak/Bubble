@@ -290,25 +290,49 @@ async function executeRefundAgent(
 
   const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
 
-  // All tokens — use sendTokenDirect() which calls Circle's createTransaction API directly.
-  // This bypasses kit.send() which makes viem RPC calls that can fail with
-  // "RPC endpoint error on Arc Testnet" under load or when the node is temporarily unreachable.
-  const contractAddress = TOKEN_CONTRACTS[intent.token]
-  if (!contractAddress) {
-    return NextResponse.json({ error: `No contract address found for ${intent.token}` }, { status: 400 })
+  // EURC / USYC — standard ERC-20, use raw calldata (kit.send() doesn't resolve these on Arc)
+  if (intent.token === 'EURC' || intent.token === 'USYC') {
+    const contractAddress = TOKEN_CONTRACTS[intent.token]
+    try {
+      const txHash = await sendTokenDirect(wallet.id, destination, intent.amount, contractAddress)
+      return NextResponse.json({
+        txHash,
+        message:    `Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
+        arcScanUrl: `${explorerBase}/tx/${txHash}`,
+        status:     'complete',
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Withdraw failed'
+      console.error('[executeRefundAgent EURC/USYC]', err)
+      return NextResponse.json({ error: `Withdraw failed: ${msg}` }, { status: 500 })
+    }
   }
 
+  // USDC — Arc Testnet native token: use kit.send() (same path as executeSend which works)
   try {
-    const txHash = await sendTokenDirect(wallet.id, destination, intent.amount, contractAddress)
+    const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
+    const { AppKit } = await import('@circle-fin/app-kit')
+
+    const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
+    const kit = new AppKit()
+
+    const result = await kit.send({
+      from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
+      to:     destination,
+      amount: intent.amount,
+      token:  'USDC',
+    })
+
+    const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
     return NextResponse.json({
-      txHash,
-      message:    `Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
-      arcScanUrl: `${explorerBase}/tx/${txHash}`,
-      status:     'complete',
+      txHash:     result.txHash,
+      message:    `Withdrew ${intent.amount} USDC back to your wallet!`,
+      arcScanUrl,
+      status:     result.state,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Withdraw failed'
-    console.error('[executeRefundAgent]', err)
+    console.error('[executeRefundAgent USDC]', err)
     return NextResponse.json({ error: `Withdraw failed: ${msg}` }, { status: 500 })
   }
 }
