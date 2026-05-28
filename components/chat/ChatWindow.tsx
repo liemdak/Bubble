@@ -204,19 +204,13 @@ export function ChatWindow() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── Messages area ── */}
-      {/* position:relative gives the absolute child a sizing reference */}
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        {/* Scroll container fills the space absolutely */}
-        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
-          {/* minHeight:100% + justifyContent:flex-end → messages stick to bottom */}
-          <div style={{
-            minHeight: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'flex-end',
-            padding: '12px 14px 8px',
-            boxSizing: 'border-box',
-          }}>
+      {/* overflow:hidden on parent establishes definite height for child height:100% */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {/* height:100% scroll container — flex column with spacer pushes messages to bottom */}
+        <div style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* Grows to fill empty space; collapses when messages overflow → scroll kicks in */}
+          <div style={{ flex: 1 }} />
+          <div style={{ padding: '12px 14px 8px' }}>
 
           <AnimatePresence>
             {!hasMessages && (
@@ -305,9 +299,9 @@ export function ChatWindow() {
             return null
           })}
 
-          <div ref={bottomRef} />
-          </div>{/* end inner minHeight wrapper */}
-        </div>{/* end scroll container */}
+            <div ref={bottomRef} />
+          </div>{/* end content padding */}
+        </div>{/* end height:100% scroll container */}
       </div>{/* end messages area */}
 
       {/* ── Quick actions ── */}

@@ -36,10 +36,43 @@ const NON_USDC_CONTRACTS: Record<string, string> = {
 }
 
 /**
+ * Send USDC (native token on Arc Testnet) via Circle createTransaction with amounts[].
+ * USDC on Arc is the native currency — NOT an ERC-20, so calldata approach fails.
+ * Using amounts[] tells Circle to do a native value transfer, same as sending ETH on Ethereum.
+ */
+async function sendNativeUSDC(
+  walletId: string,
+  recipientAddress: string,
+  amount: string,  // decimal string e.g. "5.99"
+): Promise<string> {
+  const client = getCircleClient()
+
+  const res = await client.createTransaction({
+    walletId,
+    destinationAddress: recipientAddress,
+    amounts: [amount],
+    fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+  } as unknown as Parameters<typeof client.createTransaction>[0])
+
+  const txId = res.data?.id
+  if (!txId) throw new Error('No transaction ID returned from Circle')
+
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 2000))
+    const txRes = await client.getTransaction({ id: txId })
+    const tx    = txRes.data?.transaction
+    if (!tx) continue
+    if (tx.state === 'CONFIRMED' && tx.txHash) return tx.txHash
+    if (tx.state === 'FAILED') {
+      throw new Error(`Transfer failed on-chain: ${tx.errorReason ?? 'unknown reason'}`)
+    }
+  }
+  throw new Error('Transaction timeout — check ArcScan for the latest status')
+}
+
+/**
  * Transfer EURC or USYC from the agent wallet using a direct ERC-20 contract call.
  * Bypasses kit.send() which does not support these tokens on Arc Testnet.
- *
- * Uses raw calldata approach (no fee param) so Circle Gas Station auto-sponsors on Arc.
  */
 async function sendTokenDirect(
   walletId: string,
@@ -242,11 +275,6 @@ async function executeRefundAgent(
   sessionWallet: WalletInfo | null,
   userAddress: string,         // MetaMask address (destination)
 ) {
-  const amount = parseFloat(intent.amount)
-  if (!intent.amount || isNaN(amount) || amount <= 0) {
-    return NextResponse.json({ error: 'Amount must be positive' }, { status: 400 })
-  }
-
   const ALLOWED_TOKENS = ['USDC', 'EURC', 'USYC'] as const
   if (!ALLOWED_TOKENS.includes(intent.token as typeof ALLOWED_TOKENS[number])) {
     return NextResponse.json({ error: 'Unsupported token' }, { status: 400 })
@@ -255,12 +283,6 @@ async function executeRefundAgent(
   const wallet = sessionWallet ?? await resolveUserWallet('arc')
   if (!wallet) {
     return NextResponse.json({ error: 'No Circle wallet found.' }, { status: 404 })
-  }
-
-  const apiKey       = process.env.CIRCLE_API_KEY
-  const entitySecret = process.env.CIRCLE_ENTITY_SECRET
-  if (!apiKey || !entitySecret) {
-    return NextResponse.json({ error: 'Circle credentials not configured.' }, { status: 500 })
   }
 
   // ── Session guard: destination must NOT equal the agent wallet (broken-session bug) ──
@@ -290,14 +312,52 @@ async function executeRefundAgent(
 
   const explorerBase = process.env.NEXT_PUBLIC_ARC_EXPLORER ?? 'https://testnet.arcscan.app'
 
-  // EURC / USYC — standard ERC-20, use raw calldata (kit.send() doesn't resolve these on Arc)
+  // ── Resolve actual on-chain balance — never trust intent.amount ───────────
+  // Claude may produce "9999", "all", or a stale value — always use real balance.
+  let finalAmount: string
+  try {
+    const balRes   = await getCircleClient().listWalletTokenBalances({ walletId: wallet.id })
+    const balances = balRes.data?.tokenBalances ?? []
+
+    const found = balances.find(b =>
+      intent.token === 'USDC'
+        ? b.token?.symbol === 'USDC'                       // native; match by symbol
+        : b.token?.symbol === intent.token                 // EURC / USYC
+    )
+
+    const actual = parseFloat(found?.amount ?? '0')
+    if (actual <= 0) {
+      return NextResponse.json(
+        { error: `No ${intent.token} in agent wallet to withdraw.` },
+        { status: 400 }
+      )
+    }
+
+    finalAmount = actual.toString()
+    console.log(`[executeRefundAgent] withdrawing real balance: ${finalAmount} ${intent.token}`)
+  } catch (err) {
+    console.error('[executeRefundAgent] balance fetch failed:', err)
+    // Fallback: use intent.amount only if it looks like a real number
+    const parsed = parseFloat(intent.amount)
+    if (isNaN(parsed) || parsed <= 0 || parsed > 10_000) {
+      return NextResponse.json(
+        { error: 'Could not determine withdrawal amount. Please try again.' },
+        { status: 400 }
+      )
+    }
+    finalAmount = intent.amount
+  }
+
+  // ── Execute transfer ──────────────────────────────────────────────────────
+
+  // EURC / USYC — standard ERC-20 contracts: raw calldata approach
   if (intent.token === 'EURC' || intent.token === 'USYC') {
     const contractAddress = TOKEN_CONTRACTS[intent.token]
     try {
-      const txHash = await sendTokenDirect(wallet.id, destination, intent.amount, contractAddress)
+      const txHash = await sendTokenDirect(wallet.id, destination, finalAmount, contractAddress)
       return NextResponse.json({
         txHash,
-        message:    `Withdrew ${intent.amount} ${intent.token} back to your wallet!`,
+        message:    `Withdrew ${finalAmount} ${intent.token} back to your wallet!`,
         arcScanUrl: `${explorerBase}/tx/${txHash}`,
         status:     'complete',
       })
@@ -308,27 +368,14 @@ async function executeRefundAgent(
     }
   }
 
-  // USDC — Arc Testnet native token: use kit.send() (same path as executeSend which works)
+  // USDC — Arc native token: use amounts[] (not calldata, not kit.send RPC)
   try {
-    const { createCircleWalletsAdapter } = await import('@circle-fin/adapter-circle-wallets')
-    const { AppKit } = await import('@circle-fin/app-kit')
-
-    const adapter = createCircleWalletsAdapter({ apiKey, entitySecret })
-    const kit = new AppKit()
-
-    const result = await kit.send({
-      from:   { adapter, chain: 'Arc_Testnet', address: wallet.address },
-      to:     destination,
-      amount: intent.amount,
-      token:  'USDC',
-    })
-
-    const arcScanUrl = result.txHash ? `${explorerBase}/tx/${result.txHash}` : result.explorerUrl
+    const txHash = await sendNativeUSDC(wallet.id, destination, finalAmount)
     return NextResponse.json({
-      txHash:     result.txHash,
-      message:    `Withdrew ${intent.amount} USDC back to your wallet!`,
-      arcScanUrl,
-      status:     result.state,
+      txHash,
+      message:    `Withdrew ${finalAmount} USDC back to your wallet!`,
+      arcScanUrl: `${explorerBase}/tx/${txHash}`,
+      status:     'complete',
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Withdraw failed'
