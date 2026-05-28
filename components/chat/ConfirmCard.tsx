@@ -13,11 +13,11 @@ interface ConfirmCardProps {
 }
 
 const STRIP_COLORS: Record<string, string> = {
-  send_payment:  '#2775CA',
-  swap_tokens:   '#fbbf25',
-  bridge_tokens: '#38bdf8',
-  fund_agent:    '#38bdf8',
-  refund_agent:  '#2D9B6F',
+  send_payment:   '#2775CA',   // USDC blue
+  swap_tokens:    '#fbbf25',   // amber
+  bridge_tokens:  '#a3e635',   // green
+  fund_agent:     '#a3e635',   // green
+  refund_agent:   '#2D9B6F',   // teal
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -33,7 +33,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: ConfirmCardProps) {
   const { intent, resolved_address, gas_fee, total_display } = card
-  const stripColor  = STRIP_COLORS[intent.type] ?? '#38bdf8'
+  const stripColor  = STRIP_COLORS[intent.type] ?? '#a3e635'
   const actionLabel = ACTION_LABELS[intent.type] ?? intent.type
 
   const [hoverConfirm, setHoverConfirm] = useState(false)
@@ -42,16 +42,15 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       style={{
-        background: 'rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 16,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        background: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(28px)',
+        WebkitBackdropFilter: 'blur(28px)',
+        border: '1px solid rgba(255,255,255,0.10)',
+        borderRadius: 14,
         overflow: 'hidden',
         marginBottom: 8,
         maxWidth: 340,
@@ -59,40 +58,40 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
     >
       {/* Header */}
       <div style={{
-        borderLeft: `4px solid ${stripColor}`,
-        padding: '12px 14px',
+        borderLeft: `3px solid ${stripColor}`,
+        padding: '11px 14px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(255,255,255,0.04)',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        background: 'rgba(255,255,255,0.03)',
       }}>
-        <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.02em', color: '#fff' }}>{actionLabel}</span>
+        <span style={{ fontWeight: 600, fontSize: 12, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase' }}>
+          {actionLabel}
+        </span>
         <button
           onClick={() => { playBubbleTap(); onCancel() }}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 16, color: 'rgba(255,255,255,0.3)', lineHeight: 1, padding: '2px 4px',
-            borderRadius: 4, transition: 'color 0.12s',
-            fontFamily: 'inherit',
+            fontSize: 16, color: 'rgba(255,255,255,0.25)', lineHeight: 1, padding: '2px 4px',
+            borderRadius: 4, transition: 'color 0.12s', fontFamily: 'inherit',
           }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
+          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
         >
           ×
         </button>
       </div>
 
       {/* Details */}
-      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
         {intent.type === 'fund_agent' ? (
           <>
             <CardRow label="From"   value={`MetaMask · ${intent.user_address.slice(0,6)}...${intent.user_address.slice(-4)}`} />
-            <CardRow label="To"     value={`Agent wallet · ${intent.agent_address.slice(0,6)}...${intent.agent_address.slice(-4)}`} />
+            <CardRow label="To"     value={`Agent · ${intent.agent_address.slice(0,6)}...${intent.agent_address.slice(-4)}`} />
             <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
-            <CardRow label="Via"    value="MetaMask (on-chain transfer)" />
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
-              <CardRow label="Total" value={total_display} bold />
-            </div>
+            <CardRow label="Via"    value="MetaMask · on-chain" />
+            <Divider />
+            <CardRow label="Total"  value={total_display} bold />
           </>
 
         ) : intent.type === 'refund_agent' ? (
@@ -100,10 +99,9 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
             <CardRow label="From"   value="Agent wallet" />
             <CardRow label="To"     value="Your main wallet" />
             <CardRow label="Amount" value={`${intent.amount} ${intent.token}`} />
-            <CardRow label="Via"    value="Agent (no MetaMask needed)" />
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
-              <CardRow label="Total" value={total_display} bold />
-            </div>
+            <CardRow label="Via"    value="Agent · no MetaMask needed" />
+            <Divider />
+            <CardRow label="Total"  value={total_display} bold />
           </>
 
         ) : intent.type === 'bridge_tokens' ? (
@@ -113,10 +111,9 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
             <CardRow label="From"   value={intent.from_chain.toUpperCase()} />
             <CardRow label="To"     value={intent.to_chain.toUpperCase()} />
             <CardRow label="Via"    value="MetaMask · CCTP v2 (~20s)" />
-            <CardRow label="Gas"    value={`~${gas_fee} (Arc sponsored)`} />
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
-              <CardRow label="Total" value={total_display} bold />
-            </div>
+            <CardRow label="Gas"    value={`~${gas_fee} (sponsored)`} />
+            <Divider />
+            <CardRow label="Total"  value={total_display} bold />
           </>
 
         ) : (
@@ -133,17 +130,16 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
                 ? `${intent.amount_in} ${intent.token_in} → ${intent.token_out}`
                 : '—'
             } />
-            <CardRow label="Gas" value={`~${gas_fee} (sponsored)`} />
+            <CardRow label="Gas"   value={`~${gas_fee} (sponsored)`} />
             <CardRow label="Chain" value={'chain' in intent ? intent.chain.toUpperCase() : 'ARC'} />
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 9 }}>
-              <CardRow label="Total" value={total_display} bold />
-            </div>
+            <Divider />
+            <CardRow label="Total" value={total_display} bold />
           </>
         )}
       </div>
 
       {/* Buttons */}
-      <div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
+      <div style={{ padding: '0 14px 14px', display: 'flex', gap: 8 }}>
         <button
           onClick={() => { playBubbleConfirm(); onConfirm() }}
           disabled={loading}
@@ -153,11 +149,13 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
           onMouseUp={() => setPressConfirm(false)}
           style={{
             flex: 1,
-            background: loading ? 'rgba(56,189,248,0.3)' : hoverConfirm ? '#7dd3fc' : '#38bdf8',
+            background: loading
+              ? 'rgba(163,230,53,0.25)'
+              : hoverConfirm ? '#b3ef50' : '#a3e635',
             color: '#000',
             border: 'none',
             borderRadius: 10,
-            padding: '11px',
+            padding: '10px',
             fontWeight: 700, fontSize: 13,
             cursor: loading ? 'not-allowed' : 'pointer',
             boxShadow: pressConfirm || loading ? 'none' : 'rgb(10,10,13) 2px 2px 0px 0px',
@@ -166,19 +164,19 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
             fontFamily: 'inherit',
           }}
         >
-          {loading ? 'Confirming…' : '✓ Confirm'}
+          {loading ? 'Confirming…' : 'Confirm'}
         </button>
         <button
           onClick={() => { playBubbleTap(); onCancel() }}
           onMouseEnter={() => setHoverCancel(true)}
           onMouseLeave={() => setHoverCancel(false)}
           style={{
-            background: hoverCancel ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.15)',
+            background: hoverCancel ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.05)',
+            color: 'rgba(255,255,255,0.65)',
+            border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: 10,
-            padding: '11px 18px',
-            fontWeight: 600, fontSize: 13,
+            padding: '10px 18px',
+            fontWeight: 500, fontSize: 13,
             cursor: 'pointer',
             transition: 'background 0.12s',
             fontFamily: 'inherit',
@@ -191,11 +189,17 @@ export function ConfirmCard({ card, onConfirm, onCancel, loading = false }: Conf
   )
 }
 
+function Divider() {
+  return <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '2px 0' }} />
+}
+
 function CardRow({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-      <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: bold ? 700 : 500, textAlign: 'right', color: '#fff' }}>{value}</span>
+      <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 12.5, fontWeight: bold ? 600 : 400, textAlign: 'right', color: bold ? '#fff' : 'rgba(255,255,255,0.80)' }}>
+        {value}
+      </span>
     </div>
   )
 }

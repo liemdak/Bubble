@@ -5,10 +5,10 @@ import { motion } from 'framer-motion'
 import { playBubbleTap } from '@/lib/sounds'
 
 const SUGGESTIONS = [
-  { text: 'Send 50 USDC to ',    desc: 'Transfer stablecoins instantly',  accent: 'rgba(56,189,248,0.2)',  prefillOnly: true  },
-  { text: 'Swap 100 USDC to EURC', desc: 'Exchange between tokens',       accent: 'rgba(250,233,255,0.2)', prefillOnly: true  },
-  { text: 'Show my QR code',      desc: 'Share your receive address',      accent: 'rgba(137,229,240,0.18)', prefillOnly: false },
-  { text: 'Check my balance',     desc: 'USDC · EURC · USYC',             accent: 'rgba(196,181,253,0.18)', prefillOnly: false },
+  { text: 'Send 50 USDC to ',      desc: 'Transfer stablecoins instantly',  prefillOnly: true  },
+  { text: 'Swap 100 USDC to EURC', desc: 'Exchange between tokens',          prefillOnly: true  },
+  { text: 'Show my QR code',       desc: 'Share your receive address',        prefillOnly: false },
+  { text: 'Check my balance',      desc: 'USDC · EURC · USYC',               prefillOnly: false },
 ]
 
 interface EmptySuggestionsProps {
@@ -17,7 +17,7 @@ interface EmptySuggestionsProps {
 }
 
 function SuggestionCard({
-  text, desc, accent, prefillOnly, onSelect, onPrefill,
+  text, desc, prefillOnly, onSelect, onPrefill,
 }: typeof SUGGESTIONS[0] & { onSelect: (t: string) => void; onPrefill: (t: string) => void }) {
   const [hover, setHover] = useState(false)
   const [press, setPress] = useState(false)
@@ -30,25 +30,24 @@ function SuggestionCard({
       onMouseDown={() => setPress(true)}
       onMouseUp={() => setPress(false)}
       style={{
-        background: hover ? accent : 'rgba(255,255,255,0.05)',
-        border: `1px solid ${hover ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.09)'}`,
+        background: hover ? 'rgba(163,230,53,0.06)' : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${hover ? 'rgba(163,230,53,0.18)' : 'rgba(255,255,255,0.08)'}`,
         borderRadius: 12,
-        padding: '14px 14px 14px 13px',
+        padding: '13px 14px',
         textAlign: 'left',
         cursor: 'pointer',
         fontFamily: 'inherit',
         width: '100%',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        boxShadow: press ? 'none' : hover ? 'rgb(10,10,13) 3px 3px 0px 0px' : 'rgb(10,10,13) 2px 2px 0px 0px',
-        transform: press ? 'translate(2px,2px)' : hover ? 'translateY(-2px)' : 'none',
-        transition: 'transform 0.12s, box-shadow 0.12s, background 0.12s',
+        transform: press ? 'scale(0.98)' : hover ? 'translateY(-2px)' : 'none',
+        transition: 'transform 0.12s, background 0.12s, border-color 0.12s',
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4, lineHeight: 1.3 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,0.80)', marginBottom: 3, lineHeight: 1.3 }}>
         {text}
       </div>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', fontWeight: 300 }}>
         {desc}
       </div>
     </button>
@@ -60,15 +59,15 @@ export function EmptySuggestions({ onSelect, onPrefill }: EmptySuggestionsProps)
     <div style={{
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
-      gap: 9,
-      padding: '0 16px 20px',
+      gap: 8,
+      padding: '0 0 20px',
     }}>
       {SUGGESTIONS.map((s, i) => (
         <motion.div
           key={s.text}
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, delay: i * 0.06 + 0.1 }}
+          transition={{ duration: 0.20, delay: i * 0.05 + 0.08 }}
         >
           <SuggestionCard {...s} onSelect={onSelect} onPrefill={onPrefill} />
         </motion.div>
