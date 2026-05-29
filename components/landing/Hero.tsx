@@ -69,7 +69,7 @@ export function Hero() {
           color: '#ffffff',
           marginBottom: 24,
         }}>
-          Send money the way<br />you talk.
+          Send USDC the way<br />you talk.
         </h1>
 
         {/* Subheading */}

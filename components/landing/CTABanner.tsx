@@ -46,7 +46,7 @@ export function CTABanner() {
           color: '#ffffff',
           lineHeight: 1.15,
         }}>
-          Start sending in 60 seconds.
+          Try it yourself, right now.
         </h2>
         <p style={{
           fontSize: 15,
@@ -55,8 +55,8 @@ export function CTABanner() {
           marginBottom: 40,
           lineHeight: 1.6,
         }}>
-          No real money. Get testnet USDC from the faucet,
-          then send, swap, and bridge for free.
+          On Arc Testnet — no real money needed.
+          Get free USDC from the faucet and experience instant cross-chain payments.
         </p>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>

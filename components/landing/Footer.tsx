@@ -27,7 +27,7 @@ export function Footer() {
         </span>
 
         {/* Nav links */}
-        <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'center' }}>
           {['Features', 'How it works', 'FAQ'].map((label) => (
             <a
               key={label}
@@ -36,6 +36,7 @@ export function Footer() {
                 fontWeight: 400,
                 fontSize: 13,
                 color: 'rgba(255,255,255,0.38)',
+                textDecoration: 'none',
                 transition: 'color 0.15s',
               }}
             >
@@ -46,27 +47,68 @@ export function Footer() {
             fontWeight: 400,
             fontSize: 13,
             color: 'rgba(255,255,255,0.38)',
+            textDecoration: 'none',
           }}>
             Login
           </Link>
         </div>
 
-        {/* Attribution pill */}
-        <div style={{
-          display: 'inline-flex',
-          gap: 6,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.09)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          borderRadius: 100,
-          padding: '6px 16px',
-          fontSize: 11,
-          fontWeight: 400,
-          color: 'rgba(255,255,255,0.35)',
-          letterSpacing: '0.04em',
-        }}>
-          Built on Arc · Secured by Circle
+        {/* Social + attribution */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          {/* Twitter / X */}
+          <a
+            href="https://x.com/bubblepayapp"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontWeight: 400, fontSize: 13,
+              color: 'rgba(255,255,255,0.38)',
+              textDecoration: 'none',
+              transition: 'color 0.15s',
+            }}
+          >
+            {/* X logo */}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            Twitter
+          </a>
+
+          {/* Website */}
+          <a
+            href="https://bubble-arc.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontWeight: 400, fontSize: 13,
+              color: 'rgba(255,255,255,0.38)',
+              textDecoration: 'none',
+              transition: 'color 0.15s',
+            }}
+          >
+            {/* Globe icon */}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            Website
+          </a>
+
+          {/* Attribution pill */}
+          <div style={{
+            display: 'inline-flex', gap: 6,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            borderRadius: 100,
+            padding: '6px 16px',
+            fontSize: 11,
+            fontWeight: 400,
+            color: 'rgba(255,255,255,0.35)',
+            letterSpacing: '0.04em',
+          }}>
+            Built on Arc · Secured by Circle
+          </div>
         </div>
       </div>
     </footer>

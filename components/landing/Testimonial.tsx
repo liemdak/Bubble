@@ -35,8 +35,8 @@ export function Testimonial() {
           marginBottom: 28,
           color: 'rgba(255,255,255,0.80)',
         }}>
-          &ldquo;Finally an app where I just type what I want to do and it works.
-          No confusing wallet UI, no gas estimations. Just done.&rdquo;
+          &ldquo;Finally an app where I just type what I want and it works.
+          No confusing wallet UI, no network switching. Type, confirm, done.&rdquo;
         </blockquote>
 
         <p style={{
@@ -46,7 +46,7 @@ export function Testimonial() {
           color: 'rgba(255,255,255,0.32)',
           letterSpacing: '0.04em',
         }}>
-          — Beta tester, Arc Testnet
+          Beta tester, Arc Testnet
         </p>
 
         <div style={{
