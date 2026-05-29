@@ -190,6 +190,10 @@ async function executeSend(
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Send failed'
       console.error('[executeSend EURC/USYC]', err)
+      const lower = msg.toLowerCase()
+      if (lower.includes('rpc') || lower.includes('endpoint') || lower.includes('network') || lower.includes('timeout')) {
+        return NextResponse.json({ error: 'Arc Testnet is temporarily unavailable. Please wait a minute and try again.' }, { status: 503 })
+      }
       return NextResponse.json({ error: `Send failed: ${msg}` }, { status: 500 })
     }
   }
@@ -221,10 +225,25 @@ async function executeSend(
     const msg = err instanceof Error ? err.message : 'Send failed'
     console.error('[executeSend]', err)
 
-    if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')) {
+    const lower = msg.toLowerCase()
+    if (lower.includes('insufficient') || lower.includes('balance')) {
       return NextResponse.json({
         error: `Insufficient ${intent.token} in your agent wallet. Fund the agent wallet first via "Fund Agent".`,
       }, { status: 400 })
+    }
+    // RPC / network errors — Arc Testnet occasionally has downtime
+    if (
+      lower.includes('rpc') ||
+      lower.includes('endpoint') ||
+      lower.includes('network') ||
+      lower.includes('econnrefused') ||
+      lower.includes('etimedout') ||
+      lower.includes('fetch failed') ||
+      lower.includes('failed to fetch')
+    ) {
+      return NextResponse.json({
+        error: 'Arc Testnet is temporarily unavailable (RPC endpoint issue). Please wait a minute and try again.',
+      }, { status: 503 })
     }
     return NextResponse.json({ error: `Send failed: ${msg}` }, { status: 500 })
   }
@@ -421,6 +440,10 @@ async function executeSwap(intent: SwapIntent, sessionWallet: WalletInfo | null)
         error: `This swap route (${intent.token_in} → ${intent.token_out}) is not supported on Arc Testnet yet.`,
       }, { status: 400 })
     }
+    const lowerSwap = msg.toLowerCase()
+    if (lowerSwap.includes('rpc') || lowerSwap.includes('endpoint') || lowerSwap.includes('network') || lowerSwap.includes('timeout')) {
+      return NextResponse.json({ error: 'Arc Testnet is temporarily unavailable. Please wait a minute and try again.' }, { status: 503 })
+    }
     return NextResponse.json({ error: `Swap failed: ${msg}` }, { status: 500 })
   }
 }
@@ -503,6 +526,10 @@ async function executeBridge(intent: BridgeIntent, sessionWallet: WalletInfo | n
       return NextResponse.json({
         error: `Insufficient USDC in your Circle wallet on ${intent.from_chain}. Fund your Circle wallet first.`,
       }, { status: 400 })
+    }
+    const lowerBridge = msg.toLowerCase()
+    if (lowerBridge.includes('rpc') || lowerBridge.includes('endpoint') || lowerBridge.includes('network') || lowerBridge.includes('timeout')) {
+      return NextResponse.json({ error: 'Arc Testnet is temporarily unavailable. Please wait a minute and try again.' }, { status: 503 })
     }
     return NextResponse.json({ error: `Bridge failed: ${msg}` }, { status: 500 })
   }
