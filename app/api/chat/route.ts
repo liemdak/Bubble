@@ -48,6 +48,27 @@ export async function POST(req: NextRequest) {
     // Circle wallet address = nơi funds thực sự nằm
     const circleWalletAddress = session?.circleWalletAddress ?? null
 
+    // ── /help — list all quick commands ─────────────────────────────
+    if (/^\/help$/i.test(message.trim())) {
+      return NextResponse.json({
+        type: 'text',
+        message: `**⚡ Quick commands**\n\n` +
+          `\`/p BTC\` — giá BTC + chart 7 ngày\n` +
+          `\`/p ETH 30d\` — chart 30 ngày\n` +
+          `\`/p SOL 1d\` — chart 24 giờ\n` +
+          `\`/p USDC EURC\` — tỷ giá giữa 2 token\n\n` +
+          `**Tokens hỗ trợ:** BTC ETH SOL BNB ADA XRP DOT AVAX ATOM SUI APT ARB OP MATIC LINK UNI INJ PYTH DOGE SHIB PEPE WIF BONK USDC EURC USDT DAI\n\n` +
+          `**Nhắn tự nhiên cũng được:**\n` +
+          `"send 50 USDC to Mike"\n` +
+          `"swap 100 USDC to EURC"\n` +
+          `"bridge 50 USDC to Ethereum"\n` +
+          `"check my balance"\n` +
+          `"my QR code"\n` +
+          `"fund agent 20 USDC"\n` +
+          `"withdraw from agent"`,
+      })
+    }
+
     // ── /p <token> [period] | /p <tokenA> <tokenB> ───────────────────
     // /p BTC          → price + 7d chart
     // /p BTC 30d      → price + 30d chart
@@ -56,7 +77,7 @@ export async function POST(req: NextRequest) {
     if (priceCmd) {
       const token1  = priceCmd[1].toUpperCase()
       const period  = (priceCmd[2] ?? '7d').toLowerCase()
-      const token2  = priceCmd[3]?.toUpperCase()   // set only for exchange-rate form
+      const token2  = priceCmd[3]?.toUpperCase()
       const days    = period === '30d' ? 30 : period === '1d' ? 1 : 7
 
       try {
@@ -79,8 +100,10 @@ export async function POST(req: NextRequest) {
         const price = prices[id]
 
         if (!price || price.usd === 0) {
-          return NextResponse.json({ type: 'text', message: `❓ "${token1}" not found on CoinGecko.\nTry: /p BTC  /p ETH  /p SOL  /p EURC` })
+          return NextResponse.json({ type: 'text', message: `❓ "${token1}" không tìm thấy trên CoinGecko.\nThử: /p BTC  /p ETH  /p SOL  /p DOGE\nGõ /help để xem danh sách đầy đủ.` })
         }
+
+        const priceLine = `${price.change24h >= 0 ? '↑' : '↓'} ${price.usd >= 1000 ? '$' + price.usd.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '$' + price.usd.toFixed(2)} (${price.change24h >= 0 ? '+' : ''}${price.change24h.toFixed(2)}% 24h)`
 
         return NextResponse.json({
           type:         'chart',
@@ -91,12 +114,19 @@ export async function POST(req: NextRequest) {
           period:       `${days}d`,
           high:         history.high,
           low:          history.low,
-          // fallback message field — shown if client doesn't support chart type yet
-          message:      `${token1} ${price.change24h >= 0 ? '↑' : '↓'} $${price.usd >= 1000 ? price.usd.toLocaleString('en-US', { maximumFractionDigits: 0 }) : price.usd.toFixed(2)} (${price.change24h >= 0 ? '+' : ''}${price.change24h.toFixed(2)}% 24h)`,
+          marketCap:    price.marketCap,
+          volume24h:    price.volume24h,
+          message:      `${token1} ${priceLine}`,
         })
       } catch (err) {
+        const isRateLimit = err instanceof Error && err.message === 'RATE_LIMITED'
         console.error('[/p cmd]', err)
-        return NextResponse.json({ type: 'text', message: `⚠️ Could not fetch data for ${token1}. Try again in a moment.` })
+        return NextResponse.json({
+          type: 'text',
+          message: isRateLimit
+            ? `⏳ CoinGecko đang bị rate limit (30 req/phút). Chờ 1 phút rồi thử lại, hoặc thử token khác trước.`
+            : `⚠️ Không lấy được data cho ${priceCmd[1].toUpperCase()}. Thử lại sau giây lát.`,
+        })
       }
     }
 

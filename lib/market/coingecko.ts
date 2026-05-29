@@ -13,8 +13,10 @@
  */
 
 export interface TokenPrice {
-  usd:       number   // price in USD
-  change24h: number   // 24h % change
+  usd:        number    // price in USD
+  change24h:  number    // 24h % change
+  marketCap?: number    // market cap in USD
+  volume24h?: number    // 24h trading volume in USD
 }
 
 export interface MarketData {
@@ -24,21 +26,41 @@ export interface MarketData {
 
 // Symbol → CoinGecko coin ID mapping for common tokens
 export const SYMBOL_TO_ID: Record<string, string> = {
+  // Stablecoins
   USDC:  'usd-coin',
   EURC:  'eurc',
-  USYC:  'usd-coin',    // USYC ≈ $1, not reliably listed — fallback to USDC price
+  USYC:  'usd-coin',
+  USDT:  'tether',
+  DAI:   'dai',
+  PYUSD: 'paypal-usd',
+  // Layer 1
   BTC:   'bitcoin',
   ETH:   'ethereum',
   SOL:   'solana',
   BNB:   'binancecoin',
+  ADA:   'cardano',
+  XRP:   'ripple',
+  DOT:   'polkadot',
+  AVAX:  'avalanche-2',
+  ATOM:  'cosmos',
+  SUI:   'sui',
+  APT:   'aptos',
+  SEI:   'sei-network',
+  TIA:   'celestia',
+  // Layer 2 / DeFi
   ARB:   'arbitrum',
   OP:    'optimism',
   MATIC: 'matic-network',
-  AVAX:  'avalanche-2',
-  USDT:  'tether',
-  DAI:   'dai',
   LINK:  'chainlink',
   UNI:   'uniswap',
+  INJ:   'injective-protocol',
+  PYTH:  'pyth-network',
+  // Meme
+  DOGE:  'dogecoin',
+  SHIB:  'shiba-inu',
+  PEPE:  'pepe',
+  WIF:   'dogwifcoin',
+  BONK:  'bonk',
 }
 
 // In-memory cache — shared across requests on the same serverless instance
@@ -76,22 +98,32 @@ export async function fetchPrices(
       `https://api.coingecko.com/api/v3/simple/price` +
       `?ids=${toFetch.join(',')}` +
       `&vs_currencies=usd` +
-      `&include_24hr_change=true`
+      `&include_24hr_change=true` +
+      `&include_market_cap=true` +
+      `&include_24hr_vol=true`
 
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal:  AbortSignal.timeout(5_000),
     })
 
+    if (res.status === 429) throw new Error('RATE_LIMITED')
     if (!res.ok) throw new Error(`CoinGecko returned HTTP ${res.status}`)
 
-    const raw = await res.json() as Record<string, { usd?: number; usd_24h_change?: number }>
+    const raw = await res.json() as Record<string, {
+      usd?: number
+      usd_24h_change?: number
+      usd_market_cap?: number
+      usd_24h_vol?: number
+    }>
 
     for (const id of toFetch) {
       const entry = raw[id]
       const price: TokenPrice = {
-        usd:       entry?.usd           ?? 0,
-        change24h: entry?.usd_24h_change ?? 0,
+        usd:        entry?.usd             ?? 0,
+        change24h:  entry?.usd_24h_change  ?? 0,
+        marketCap:  entry?.usd_market_cap,
+        volume24h:  entry?.usd_24h_vol,
       }
       result[id] = price
       _cache.set(id, { price, at: Date.now() })
@@ -167,17 +199,26 @@ export function formatRateMessage(
  *   "💰 Bitcoin (BTC)
  *    $68,420 ↓ (24h: -1.20%)"
  */
+/** Format large numbers: $1.35T, $28.5B, $450M */
+export function fmtBig(n: number): string {
+  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`
+  if (n >= 1e9)  return `$${(n / 1e9).toFixed(2)}B`
+  if (n >= 1e6)  return `$${(n / 1e6).toFixed(2)}M`
+  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
 export function formatPriceMessage(
   symbol:   string,
   price:    TokenPrice,
 ): string {
   const sym = symbol.toUpperCase()
-  return (
-    `💰 **${sym}**\n\n` +
-    `${dollars(price.usd)}${trend(price.change24h)}\n` +
-    `24h: ${sign(price.change24h)}\n\n` +
-    `_Live via CoinGecko_`
-  )
+  let msg = `💰 **${sym}**\n\n`
+  msg += `${dollars(price.usd)}${trend(price.change24h)}\n`
+  msg += `24h: ${sign(price.change24h)}\n`
+  if (price.marketCap) msg += `Mcap: ${fmtBig(price.marketCap)}\n`
+  if (price.volume24h) msg += `Vol 24h: ${fmtBig(price.volume24h)}\n`
+  msg += `\n_Live via CoinGecko_`
+  return msg
 }
 
 // ── Price history for charts ──────────────────────────────────────────────────

@@ -21,7 +21,7 @@ type ChatMessage =
   | { id: string; type: 'confirm'; card: ConfirmationCard }
   | { id: string; type: 'success'; txHash: string; message: string; arcScanUrl?: string }
   | { id: string; type: 'qr'; address: string; message: string }
-  | { id: string; type: 'chart'; symbol: string; currentPrice: number; change24h: number; chartData: ChartPoint[]; period: string; high: number; low: number }
+  | { id: string; type: 'chart'; symbol: string; currentPrice: number; change24h: number; chartData: ChartPoint[]; period: string; high: number; low: number; marketCap?: number; volume24h?: number }
   | { id: string; type: 'typing' }
 
 function getGreeting() {
@@ -111,6 +111,8 @@ export function ChatWindow() {
             period:       data.period,
             high:         data.high,
             low:          data.low,
+            marketCap:    data.marketCap,
+            volume24h:    data.volume24h,
           }]
         }
         return [...without, { id: crypto.randomUUID(), type: 'assistant', content: data.message ?? 'Done.' }]
@@ -376,6 +378,8 @@ export function ChatWindow() {
                     period={msg.period}
                     high={msg.high}
                     low={msg.low}
+                    marketCap={msg.marketCap}
+                    volume24h={msg.volume24h}
                   />
                 </div>
               )

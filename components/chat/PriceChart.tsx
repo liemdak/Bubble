@@ -11,15 +11,24 @@ export interface PriceChartProps {
   currentPrice: number
   change24h:    number
   chartData:    ChartPoint[]
-  period:       string   // '7d' | '30d' | '1d'
+  period:       string
   high:         number
   low:          number
+  marketCap?:   number
+  volume24h?:   number
 }
 
 function fmt$(n: number): string {
   if (n >= 1_000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
   if (n >= 1)     return `$${n.toFixed(2)}`
   return `$${n.toFixed(6)}`
+}
+
+function fmtBig(n: number): string {
+  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`
+  if (n >= 1e9)  return `$${(n / 1e9).toFixed(2)}B`
+  if (n >= 1e6)  return `$${(n / 1e6).toFixed(2)}M`
+  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 }
 
 function fmtDate(ts: number, period: string): string {
@@ -30,7 +39,7 @@ function fmtDate(ts: number, period: string): string {
 }
 
 export function PriceChart({
-  symbol, currentPrice, change24h, chartData, period, high, low,
+  symbol, currentPrice, change24h, chartData, period, high, low, marketCap, volume24h,
 }: PriceChartProps) {
   const isUp  = change24h >= 0
   const color = isUp ? '#a3e635' : '#f87171'
@@ -41,17 +50,18 @@ export function PriceChart({
       background:   '#0d0d0d',
       border:       '1px solid rgba(255,255,255,0.08)',
       borderRadius: 14,
-      padding:      '12px 14px 10px',
-      width:        282,
+      padding:      '14px 16px 12px',
+      width:        'min(calc(100vw - 56px), 480px)',
       boxShadow:    'rgb(10,10,13) 2px 2px 0px 0px',
     }}>
+
       {/* ── Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, marginBottom: 2 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.35)', letterSpacing: 1.2, marginBottom: 3 }}>
             {symbol.toUpperCase()}
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1.1, letterSpacing: '-0.5px' }}>
+          <div style={{ fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1.1, letterSpacing: '-0.5px' }}>
             {fmt$(currentPrice)}
           </div>
         </div>
@@ -61,7 +71,7 @@ export function PriceChart({
           color:      color,
           background: isUp ? 'rgba(163,230,53,0.12)' : 'rgba(248,113,113,0.12)',
           border:     `1px solid ${isUp ? 'rgba(163,230,53,0.2)' : 'rgba(248,113,113,0.2)'}`,
-          padding:    '3px 9px',
+          padding:    '4px 10px',
           borderRadius: 100,
           marginTop:  2,
         }}>
@@ -70,7 +80,7 @@ export function PriceChart({
       </div>
 
       {/* ── Sparkline chart ── */}
-      <ResponsiveContainer width="100%" height={76}>
+      <ResponsiveContainer width="100%" height={150}>
         <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -112,11 +122,36 @@ export function PriceChart({
         </AreaChart>
       </ResponsiveContainer>
 
+      {/* ── Market cap + Volume row ── */}
+      {(marketCap || volume24h) && (
+        <div style={{
+          display:        'flex',
+          justifyContent: 'space-between',
+          marginTop:      10,
+          padding:        '8px 0',
+          borderTop:      '1px solid rgba(255,255,255,0.06)',
+          borderBottom:   '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {marketCap ? (
+            <div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', letterSpacing: 0.8, marginBottom: 2 }}>MARKET CAP</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{fmtBig(marketCap)}</div>
+            </div>
+          ) : <div />}
+          {volume24h ? (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.28)', letterSpacing: 0.8, marginBottom: 2 }}>VOL 24H</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{fmtBig(volume24h)}</div>
+            </div>
+          ) : <div />}
+        </div>
+      )}
+
       {/* ── Footer ── */}
       <div style={{
         display:        'flex',
         justifyContent: 'space-between',
-        marginTop:      6,
+        marginTop:      8,
         fontSize:       10,
         color:          'rgba(255,255,255,0.28)',
       }}>
