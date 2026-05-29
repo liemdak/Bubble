@@ -48,6 +48,31 @@ export async function POST(req: NextRequest) {
     // Circle wallet address = nơi funds thực sự nằm
     const circleWalletAddress = session?.circleWalletAddress ?? null
 
+    // ── /c <symbol> — quick price lookup ─────────────────────────────
+    // Matches: /c BTC  /price eth  /p SOL  /rate USDC EURC
+    const priceCmd = message.match(/^\/(?:c|p|price|rate)\s+([A-Za-z]+)(?:\s+([A-Za-z]+))?/i)
+    if (priceCmd) {
+      const tokenIn  = priceCmd[1].toUpperCase()
+      const tokenOut = (priceCmd[2] ?? 'USD').toUpperCase()
+      try {
+        const { getExchangeRate, fetchPrices, formatRateMessage, formatPriceMessage, SYMBOL_TO_ID } =
+          await import('@/lib/market/coingecko')
+        if (tokenOut === 'USD') {
+          const prices = await fetchPrices([tokenIn])
+          const id     = SYMBOL_TO_ID[tokenIn] ?? tokenIn.toLowerCase()
+          const price  = prices[id]
+          if (!price || price.usd === 0) {
+            return NextResponse.json({ type: 'text', message: `❓ "${tokenIn}" not found. Try: /c BTC, /c ETH, /c SOL, /c EURC` })
+          }
+          return NextResponse.json({ type: 'text', message: formatPriceMessage(tokenIn, price) })
+        }
+        const { rate, priceIn, priceOut } = await getExchangeRate(tokenIn, tokenOut)
+        return NextResponse.json({ type: 'text', message: formatRateMessage(tokenIn, tokenOut, 1, rate, priceIn, priceOut) })
+      } catch {
+        return NextResponse.json({ type: 'text', message: `⚠️ Could not fetch price for ${tokenIn}. Try again in a moment.` })
+      }
+    }
+
     // ── Fund agent shortcut ───────────────────────────────────────────
     // Detect: "nạp agent", "top up agent", "fund agent", "nạp ví agent", etc.
     if (/nạp.*(agent|ví agent)|top[\s-]?up.*(agent|wallet)|fund.*(agent|wallet)|chuyển.*agent|(agent|ví agent).*(nạp|tiền)/i.test(message)) {
