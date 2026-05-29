@@ -59,15 +59,14 @@ export async function POST(req: NextRequest) {
       const token2  = priceCmd[3]?.toUpperCase()   // set only for exchange-rate form
       const days    = period === '30d' ? 30 : period === '1d' ? 1 : 7
 
-      const { fetchPrices, fetchPriceHistory, getExchangeRate, formatRateMessage, SYMBOL_TO_ID } =
-        await import('@/lib/market/coingecko')
-
       try {
+        const { fetchPrices, fetchPriceHistory, getExchangeRate, formatRateMessage, SYMBOL_TO_ID } =
+          await import('@/lib/market/coingecko')
+
         // Exchange rate between two tokens → text (no chart)
         if (token2) {
           const { rate, priceIn, priceOut } = await getExchangeRate(token1, token2)
-          const { formatRateMessage: fmt } = await import('@/lib/market/coingecko')
-          return NextResponse.json({ type: 'text', message: fmt(token1, token2, 1, rate, priceIn, priceOut) })
+          return NextResponse.json({ type: 'text', message: formatRateMessage(token1, token2, 1, rate, priceIn, priceOut) })
         }
 
         // Single token → price + sparkline chart
@@ -92,6 +91,8 @@ export async function POST(req: NextRequest) {
           period:       `${days}d`,
           high:         history.high,
           low:          history.low,
+          // fallback message field — shown if client doesn't support chart type yet
+          message:      `${token1} ${price.change24h >= 0 ? '↑' : '↓'} $${price.usd >= 1000 ? price.usd.toLocaleString('en-US', { maximumFractionDigits: 0 }) : price.usd.toFixed(2)} (${price.change24h >= 0 ? '+' : ''}${price.change24h.toFixed(2)}% 24h)`,
         })
       } catch (err) {
         console.error('[/p cmd]', err)

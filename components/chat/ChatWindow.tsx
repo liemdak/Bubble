@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MessageBubble } from './MessageBubble'
 import { ConfirmCard } from './ConfirmCard'
@@ -9,9 +10,11 @@ import { EmptySuggestions } from './EmptySuggestions'
 import { QRCard } from './QRCard'
 import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
-import { PriceChart } from './PriceChart'
 import type { ChartPoint } from './PriceChart'
 import type { ConfirmationCard } from '@/types/intent'
+
+// Dynamic import prevents recharts from being bundled in SSR pass
+const PriceChart = dynamic(() => import('./PriceChart').then(m => m.PriceChart), { ssr: false })
 
 type ChatMessage =
   | { id: string; type: 'user' | 'assistant'; content: string }
