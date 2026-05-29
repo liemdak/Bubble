@@ -48,28 +48,54 @@ export async function POST(req: NextRequest) {
     // Circle wallet address = nơi funds thực sự nằm
     const circleWalletAddress = session?.circleWalletAddress ?? null
 
-    // ── /c <symbol> — quick price lookup ─────────────────────────────
-    // Matches: /c BTC  /price eth  /p SOL  /rate USDC EURC
-    const priceCmd = message.match(/^\/(?:c|p|price|rate)\s+([A-Za-z]+)(?:\s+([A-Za-z]+))?/i)
+    // ── /p <token> [period] | /p <tokenA> <tokenB> ───────────────────
+    // /p BTC          → price + 7d chart
+    // /p BTC 30d      → price + 30d chart
+    // /p USDC EURC    → exchange rate (text, no chart)
+    const priceCmd = message.match(/^\/p\s+([A-Za-z]+)(?:\s+(7d|30d|1d)|\s+([A-Za-z]+))?/i)
     if (priceCmd) {
-      const tokenIn  = priceCmd[1].toUpperCase()
-      const tokenOut = (priceCmd[2] ?? 'USD').toUpperCase()
+      const token1  = priceCmd[1].toUpperCase()
+      const period  = (priceCmd[2] ?? '7d').toLowerCase()
+      const token2  = priceCmd[3]?.toUpperCase()   // set only for exchange-rate form
+      const days    = period === '30d' ? 30 : period === '1d' ? 1 : 7
+
+      const { fetchPrices, fetchPriceHistory, getExchangeRate, formatRateMessage, SYMBOL_TO_ID } =
+        await import('@/lib/market/coingecko')
+
       try {
-        const { getExchangeRate, fetchPrices, formatRateMessage, formatPriceMessage, SYMBOL_TO_ID } =
-          await import('@/lib/market/coingecko')
-        if (tokenOut === 'USD') {
-          const prices = await fetchPrices([tokenIn])
-          const id     = SYMBOL_TO_ID[tokenIn] ?? tokenIn.toLowerCase()
-          const price  = prices[id]
-          if (!price || price.usd === 0) {
-            return NextResponse.json({ type: 'text', message: `❓ "${tokenIn}" not found. Try: /c BTC, /c ETH, /c SOL, /c EURC` })
-          }
-          return NextResponse.json({ type: 'text', message: formatPriceMessage(tokenIn, price) })
+        // Exchange rate between two tokens → text (no chart)
+        if (token2) {
+          const { rate, priceIn, priceOut } = await getExchangeRate(token1, token2)
+          const { formatRateMessage: fmt } = await import('@/lib/market/coingecko')
+          return NextResponse.json({ type: 'text', message: fmt(token1, token2, 1, rate, priceIn, priceOut) })
         }
-        const { rate, priceIn, priceOut } = await getExchangeRate(tokenIn, tokenOut)
-        return NextResponse.json({ type: 'text', message: formatRateMessage(tokenIn, tokenOut, 1, rate, priceIn, priceOut) })
-      } catch {
-        return NextResponse.json({ type: 'text', message: `⚠️ Could not fetch price for ${tokenIn}. Try again in a moment.` })
+
+        // Single token → price + sparkline chart
+        const [prices, history] = await Promise.all([
+          fetchPrices([token1]),
+          fetchPriceHistory(token1, days),
+        ])
+
+        const id    = SYMBOL_TO_ID[token1] ?? token1.toLowerCase()
+        const price = prices[id]
+
+        if (!price || price.usd === 0) {
+          return NextResponse.json({ type: 'text', message: `❓ "${token1}" not found on CoinGecko.\nTry: /p BTC  /p ETH  /p SOL  /p EURC` })
+        }
+
+        return NextResponse.json({
+          type:         'chart',
+          symbol:       token1,
+          currentPrice: price.usd,
+          change24h:    price.change24h,
+          chartData:    history.points,
+          period:       `${days}d`,
+          high:         history.high,
+          low:          history.low,
+        })
+      } catch (err) {
+        console.error('[/p cmd]', err)
+        return NextResponse.json({ type: 'text', message: `⚠️ Could not fetch data for ${token1}. Try again in a moment.` })
       }
     }
 

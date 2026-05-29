@@ -180,6 +180,48 @@ export function formatPriceMessage(
   )
 }
 
+// ── Price history for charts ──────────────────────────────────────────────────
+
+export interface ChartPoint { t: number; p: number }   // unix-ms timestamp, price
+
+/**
+ * Fetch historical prices for a token.
+ * Returns ~60 downsampled data points (enough for a sparkline, not too heavy).
+ * CoinGecko free: daily data for days > 90, hourly for 1–90 days.
+ */
+export async function fetchPriceHistory(
+  token: string,
+  days:  number = 7,
+): Promise<{ points: ChartPoint[]; high: number; low: number }> {
+  const id  = SYMBOL_TO_ID[token.toUpperCase()] ?? token.toLowerCase()
+  const url =
+    `https://api.coingecko.com/api/v3/coins/${id}/market_chart` +
+    `?vs_currency=usd&days=${days}`
+
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal:  AbortSignal.timeout(8_000),
+  })
+  if (!res.ok) throw new Error(`CoinGecko chart returned HTTP ${res.status}`)
+
+  const raw = await res.json() as { prices: [number, number][] }
+  const rawPrices = raw.prices
+
+  // Downsample to ~60 points so the chart stays lightweight
+  const step   = Math.max(1, Math.floor(rawPrices.length / 60))
+  const points: ChartPoint[] = []
+  for (let i = 0; i < rawPrices.length; i += step) {
+    points.push({ t: rawPrices[i][0], p: rawPrices[i][1] })
+  }
+
+  const vals = rawPrices.map(p => p[1])
+  return {
+    points,
+    high: Math.max(...vals),
+    low:  Math.min(...vals),
+  }
+}
+
 /** Fallback rates when CoinGecko is unreachable. */
 export const FALLBACK_RATE: Record<string, number> = {
   'USDC-EURC': 0.92,

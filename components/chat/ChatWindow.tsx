@@ -9,6 +9,8 @@ import { EmptySuggestions } from './EmptySuggestions'
 import { QRCard } from './QRCard'
 import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
+import { PriceChart } from './PriceChart'
+import type { ChartPoint } from './PriceChart'
 import type { ConfirmationCard } from '@/types/intent'
 
 type ChatMessage =
@@ -16,6 +18,7 @@ type ChatMessage =
   | { id: string; type: 'confirm'; card: ConfirmationCard }
   | { id: string; type: 'success'; txHash: string; message: string; arcScanUrl?: string }
   | { id: string; type: 'qr'; address: string; message: string }
+  | { id: string; type: 'chart'; symbol: string; currentPrice: number; change24h: number; chartData: ChartPoint[]; period: string; high: number; low: number }
   | { id: string; type: 'typing' }
 
 function getGreeting() {
@@ -94,6 +97,18 @@ export function ChatWindow() {
         }
         if (data.type === 'qr') {
           return [...without, { id: crypto.randomUUID(), type: 'qr', address: data.address, message: data.message }]
+        }
+        if (data.type === 'chart') {
+          return [...without, {
+            id: crypto.randomUUID(), type: 'chart' as const,
+            symbol:       data.symbol,
+            currentPrice: data.currentPrice,
+            change24h:    data.change24h,
+            chartData:    data.chartData,
+            period:       data.period,
+            high:         data.high,
+            low:          data.low,
+          }]
         }
         return [...without, { id: crypto.randomUUID(), type: 'assistant', content: data.message ?? 'Done.' }]
       })
@@ -344,6 +359,21 @@ export function ChatWindow() {
               return (
                 <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
                   <QRCard address={msg.address} message={msg.message} />
+                </div>
+              )
+            }
+            if (msg.type === 'chart') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                  <PriceChart
+                    symbol={msg.symbol}
+                    currentPrice={msg.currentPrice}
+                    change24h={msg.change24h}
+                    chartData={msg.chartData}
+                    period={msg.period}
+                    high={msg.high}
+                    low={msg.low}
+                  />
                 </div>
               )
             }
