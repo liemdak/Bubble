@@ -54,9 +54,9 @@ export async function fetchPrices(
   tokens: string[],
 ): Promise<Record<string, TokenPrice>> {
   // Resolve symbols → coin IDs, deduplicate
-  const ids = [...new Set(
+  const ids = Array.from(new Set(
     tokens.map(t => SYMBOL_TO_ID[t.toUpperCase()] ?? t.toLowerCase())
-  )]
+  ))
 
   // Split into cached vs needs-fetch
   const result: Record<string, TokenPrice> = {}
