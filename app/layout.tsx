@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { ChunkErrorRecovery } from '@/components/ChunkErrorRecovery'
 import './globals.css'
 
 const inter = Inter({
@@ -31,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${inter.className}`}>
       <body style={{ margin: 0, padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+        <ChunkErrorRecovery />
         {children}
       </body>
     </html>
