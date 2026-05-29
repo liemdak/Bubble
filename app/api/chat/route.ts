@@ -52,20 +52,17 @@ export async function POST(req: NextRequest) {
     if (/^\/help$/i.test(message.trim())) {
       return NextResponse.json({
         type: 'text',
-        message: `**⚡ Quick commands**\n\n` +
-          `\`/p BTC\` — giá BTC + chart 7 ngày\n` +
-          `\`/p ETH 30d\` — chart 30 ngày\n` +
-          `\`/p SOL 1d\` — chart 24 giờ\n` +
-          `\`/p USDC EURC\` — tỷ giá giữa 2 token\n\n` +
-          `**Tokens hỗ trợ:** BTC ETH SOL BNB ADA XRP DOT AVAX ATOM SUI APT ARB OP MATIC LINK UNI INJ PYTH DOGE SHIB PEPE WIF BONK USDC EURC USDT DAI\n\n` +
-          `**Nhắn tự nhiên cũng được:**\n` +
-          `"send 50 USDC to Mike"\n` +
-          `"swap 100 USDC to EURC"\n` +
-          `"bridge 50 USDC to Ethereum"\n` +
-          `"check my balance"\n` +
-          `"my QR code"\n` +
-          `"fund agent 20 USDC"\n` +
-          `"withdraw from agent"`,
+        message:
+          `⚡ **Quick commands**\n\n` +
+          `\`/p BTC\` — price + 7d chart\n` +
+          `\`/p ETH 30d\` — 30-day chart\n` +
+          `\`/p SOL 1d\` — 24h chart\n` +
+          `\`/p USDC EURC\` — exchange rate\n` +
+          `\`/help\` — show this message\n\n` +
+          `Supports BTC, ETH, SOL, BNB, ADA, XRP, DOGE, SHIB, PEPE, SUI, APT, PYTH and 15+ more.\n\n` +
+          `**Natural language works too:**\n` +
+          `"send 50 USDC to Mike" · "swap 100 USDC to EURC"\n` +
+          `"bridge to Ethereum" · "check balance" · "my QR"`,
       })
     }
 
