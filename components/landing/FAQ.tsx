@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 
-const FAQS = [
+const FAQS: { q: string; a: string; link?: { text: string; href: string } }[] = [
   {
     q: 'What is Bubble?',
-    a: 'Bubble is a conversational payment app. You type what you want — "send 50 USDC to Sarah" — and Bubble handles the wallet, fees, and blockchain under the hood. No crypto knowledge required.',
+    a: 'Bubble is a conversational payment app. You type what you want - "send 50 USDC to Sarah" - and Bubble handles the wallet, fees, and blockchain under the hood. No crypto knowledge required.',
   },
   {
     q: 'Do I need a crypto wallet to sign up?',
-    a: 'Yes, you connect with MetaMask to verify your identity. Bubble then creates a smart wallet for you automatically — you never have to manage keys or seed phrases.',
+    a: 'Yes, you connect with MetaMask to verify your identity. Bubble then creates a smart wallet for you automatically - you never have to manage keys or seed phrases.',
   },
   {
     q: 'Is it free to use?',
@@ -33,7 +33,8 @@ const FAQS = [
   },
   {
     q: 'Who built Bubble?',
-    a: 'Bubble was built by Dak.',
+    a: 'Bubble was built by Dak. Follow on X for updates.',
+    link: { text: '@liemdak', href: 'https://x.com/liemdak' },
   },
 ]
 
@@ -141,7 +142,17 @@ export function FAQ() {
                     color: 'rgba(255,255,255,0.50)',
                     lineHeight: 1.7,
                   }}>
-                    {item.a}
+                    {item.a}{' '}
+                    {item.link && (
+                      <a
+                        href={item.link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#a3e635', textDecoration: 'none' }}
+                      >
+                        {item.link.text}
+                      </a>
+                    )}
                   </p>
                 )}
               </div>

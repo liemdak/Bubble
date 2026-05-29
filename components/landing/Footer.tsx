@@ -57,7 +57,7 @@ export function Footer() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           {/* Twitter / X */}
           <a
-            href="https://x.com/bubblepayapp"
+            href="https://x.com/liemdak"
             target="_blank"
             rel="noopener noreferrer"
             style={{
