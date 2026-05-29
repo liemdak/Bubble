@@ -71,15 +71,29 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_rate',
-      description: 'Get exchange rate between two stablecoins',
+      description:
+        'Get live price or exchange rate for any crypto token. ' +
+        'Use for: "BTC price?", "ETH giá bao nhiêu?", "USDC/EURC rate?", "SOL hôm nay thế nào?". ' +
+        'token_in is the token to price; token_out is the quote currency (default USD). ' +
+        'For exchange rates between two tokens, set both token_in and token_out. ' +
+        'For a single token price in USD, set token_in to the token and token_out to "USD".',
       parameters: {
         type: 'object',
         properties: {
-          token_in:  { type: 'string', enum: ['USDC', 'EURC', 'USYC'] },
-          token_out: { type: 'string', enum: ['USDC', 'EURC', 'USYC'] },
-          amount:    { type: 'string' },
+          token_in:  {
+            type: 'string',
+            description: 'Token symbol or CoinGecko coin ID, e.g. BTC, ETH, SOL, USDC, EURC',
+          },
+          token_out: {
+            type: 'string',
+            description: 'Quote token or "USD" for USD price. e.g. EURC, USD, BTC',
+          },
+          amount: {
+            type: 'string',
+            description: 'Amount to convert, default 1',
+          },
         },
-        required: ['token_in', 'token_out'],
+        required: ['token_in'],
       },
     },
   },

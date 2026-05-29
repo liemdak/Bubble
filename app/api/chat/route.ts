@@ -14,7 +14,7 @@ PAYMENT CAPABILITIES (use tools for these):
 - Check balance → get_balance
 - Swap tokens → swap_tokens
 - Bridge across chains → bridge_tokens
-- Exchange rates → get_rate
+- Exchange rates or any crypto price (BTC, ETH, SOL...) → get_rate
 - Manage contacts → manage_contact
 - Look up Arc docs, contracts, APIs → search_arc_docs
 
@@ -240,17 +240,42 @@ async function handleGroq(
     }
 
     if (fnName === 'get_rate') {
-      const tokenIn  = args.token_in  ?? 'USDC'
-      const tokenOut = args.token_out ?? 'EURC'
-      const amount   = parseFloat(args.amount ?? '1')
-      const rate =
-        tokenIn === 'USDC' && tokenOut === 'EURC' ? 0.92
-        : tokenIn === 'EURC' && tokenOut === 'USDC' ? 1.087
-        : 1.00
-      return NextResponse.json({
-        type: 'text',
-        message: `📈 ${amount} ${tokenIn} ≈ ${(amount * rate).toFixed(4)} ${tokenOut}\n\nRates update every block (~0.5s on Arc).`,
-      })
+      const tokenIn  = (args.token_in  ?? 'USDC').toUpperCase()
+      const tokenOut = (args.token_out ?? 'USD').toUpperCase()
+      const amount   = parseFloat(args.amount ?? '1') || 1
+
+      try {
+        const { getExchangeRate, fetchPrices, formatRateMessage, formatPriceMessage, SYMBOL_TO_ID } =
+          await import('@/lib/market/coingecko')
+
+        // Single token price in USD
+        if (tokenOut === 'USD') {
+          const prices   = await fetchPrices([tokenIn])
+          const id       = SYMBOL_TO_ID[tokenIn] ?? tokenIn.toLowerCase()
+          const price    = prices[id]
+          if (!price || price.usd === 0) {
+            return NextResponse.json({ type: 'text', message: `❓ "${tokenIn}" not found on CoinGecko. Try the full coin name or check the symbol.` })
+          }
+          return NextResponse.json({ type: 'text', message: formatPriceMessage(tokenIn, price) })
+        }
+
+        // Exchange rate between two tokens
+        const { rate, priceIn, priceOut } = await getExchangeRate(tokenIn, tokenOut)
+        return NextResponse.json({
+          type: 'text',
+          message: formatRateMessage(tokenIn, tokenOut, amount, rate, priceIn, priceOut),
+        })
+      } catch (err) {
+        console.error('[get_rate] CoinGecko error:', err)
+        // Fallback to hardcoded rates for stablecoins
+        const { FALLBACK_RATE } = await import('@/lib/market/coingecko')
+        const key  = `${tokenIn}-${tokenOut}`
+        const rate = FALLBACK_RATE[key] ?? 1.00
+        return NextResponse.json({
+          type: 'text',
+          message: `📈 ${amount} ${tokenIn} ≈ ${(amount * rate).toFixed(4)} ${tokenOut}\n\n_(Estimated — live data temporarily unavailable)_`,
+        })
+      }
     }
 
     if (fnName === 'manage_contact') {
@@ -311,6 +336,15 @@ async function handleGroq(
       } catch { /* proceed, execution layer will validate */ }
     }
 
+    // Fetch real swap rate for confirm card display
+    if (fnName === 'swap_tokens') {
+      try {
+        const { getExchangeRate } = await import('@/lib/market/coingecko')
+        const { rate } = await getExchangeRate(args.token_in ?? 'USDC', args.token_out ?? 'EURC')
+        args._real_rate = rate.toString()
+      } catch { /* fallback rate used in buildConfirmCard */ }
+    }
+
     // Confirmation-required actions
     const card = buildConfirmCard(fnName, args)
 
@@ -351,11 +385,14 @@ function buildConfirmCard(intentType: string, args: Record<string, string>): Con
       const amountIn = args.amount_in ?? '0'
       const tokenIn  = (args.token_in  ?? 'USDC') as 'USDC' | 'EURC' | 'USYC'
       const tokenOut = (args.token_out ?? 'EURC') as 'USDC' | 'EURC' | 'USYC'
-      const rate = tokenIn === 'USDC' && tokenOut === 'EURC' ? 0.92 : 1.08
+      // Use real rate fetched before buildConfirmCard; fallback to hardcode
+      const rate = args._real_rate
+        ? parseFloat(args._real_rate)
+        : tokenIn === 'USDC' && tokenOut === 'EURC' ? 0.92 : 1.087
       return {
         intent: { type: 'swap_tokens', token_in: tokenIn, token_out: tokenOut, amount_in: amountIn, chain: 'arc' },
         gas_fee:      gas,
-        total_display: `≈ ${(parseFloat(amountIn) * rate).toFixed(2)} ${tokenOut}`,
+        total_display: `≈ ${(parseFloat(amountIn) * rate).toFixed(4)} ${tokenOut}`,
       }
     }
     case 'bridge_tokens': {
