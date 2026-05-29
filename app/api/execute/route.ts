@@ -72,7 +72,7 @@ async function sendTokenDirect(
     const txRes = await client.getTransaction({ id: txId })
     const tx    = txRes.data?.transaction
     if (!tx) continue
-    if (tx.state === 'CONFIRMED' && tx.txHash) return tx.txHash
+    if ((tx.state === 'CONFIRMED' || tx.state === 'COMPLETE') && tx.txHash) return tx.txHash
     if (tx.state === 'FAILED') {
       throw new Error(`Transfer failed on-chain: ${tx.errorReason ?? 'unknown reason'}`)
     }
