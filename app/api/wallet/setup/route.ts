@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCircleClient } from '@/lib/circle/client'
+import { getSession } from '@/lib/auth/session'
 
 /**
  * POST /api/wallet/setup
@@ -11,6 +12,11 @@ import { getCircleClient } from '@/lib/circle/client'
  * Protected: only works if CIRCLE_DEMO_WALLET_ID is NOT already set.
  */
 export async function POST() {
+  const session = await getSession()
+  if (!session?.address) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
   // Prevent accidental re-creation
   if (process.env.CIRCLE_DEMO_WALLET_ID) {
     return NextResponse.json({
@@ -56,6 +62,11 @@ export async function POST() {
  * Returns current wallet info (if configured).
  */
 export async function GET() {
+  const session = await getSession()
+  if (!session?.address) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
   try {
     const client = getCircleClient()
     const res = await client.listWallets({ pageSize: 10 })

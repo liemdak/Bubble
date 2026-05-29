@@ -55,7 +55,7 @@ export function CTABanner() {
           marginBottom: 40,
           lineHeight: 1.6,
         }}>
-          On Arc Testnet — no real money needed.
+          On Arc Testnet - no real money needed.
           Get free USDC from the faucet and experience instant cross-chain payments.
         </p>
 

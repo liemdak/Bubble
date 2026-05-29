@@ -92,7 +92,7 @@ export function Hero() {
           }}>
             &quot;send 100 USDC to Mike&quot;
           </span>
-          {' '}— Bubble handles the rest.
+          {' '}- Bubble handles the rest.
         </p>
 
         {/* CTAs */}

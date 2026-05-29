@@ -162,12 +162,6 @@ export async function GET() {
       }],
       contracts:  TOKEN_CONTRACTS,
       fetchedAt:  new Date().toISOString(),
-      // Expose which addresses were resolved (for debugging)
-      _debug: {
-        metaMaskAddress: userAddress,
-        agentAddress,
-        sessionHealed: !session.circleWalletAddress ? false : true,
-      },
     })
 
   } catch (err) {

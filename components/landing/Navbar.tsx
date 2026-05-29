@@ -28,7 +28,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" style={{
           fontWeight: 600,
-          fontSize: 22,
+          fontSize: 28,
           color: '#ffffff',
           letterSpacing: '-0.5px',
         }}>

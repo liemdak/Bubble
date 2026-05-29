@@ -36,7 +36,7 @@ export function Testimonial() {
           color: 'rgba(255,255,255,0.80)',
         }}>
           &ldquo;Finally an app where I just type what I want and it works.
-          No confusing wallet UI, no network switching. Type, confirm, done.&rdquo;
+          No confusing wallet UI. Type, confirm, done.&rdquo;
         </blockquote>
 
         <p style={{
@@ -63,7 +63,7 @@ export function Testimonial() {
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
         }}>
-          Testnet — free to try
+          Testnet - free to try
         </div>
       </div>
     </section>

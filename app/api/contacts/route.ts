@@ -39,6 +39,12 @@ export async function POST(req: NextRequest) {
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     }
+    if (name.trim().length > 64) {
+      return NextResponse.json({ error: 'Name must be 64 characters or less' }, { status: 400 })
+    }
+    if (note && note.length > 200) {
+      return NextResponse.json({ error: 'Note must be 200 characters or less' }, { status: 400 })
+    }
     if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
       return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 })
     }

@@ -8,7 +8,7 @@ const STEPS = [
   {
     num: '02',
     title: 'Review the card',
-    detail: 'Amount, recipient, fee — all shown clearly',
+    detail: 'Amount, recipient, fee - all shown clearly',
     desc: 'Nothing moves until you confirm.',
   },
   {
