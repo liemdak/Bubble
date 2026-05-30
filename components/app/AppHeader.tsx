@@ -20,6 +20,14 @@ export function AppHeader({ address }: AppHeaderProps) {
   const pathname = usePathname()
   const [loggingOut,  setLoggingOut]  = useState(false)
   const [hoverLogout, setHoverLogout] = useState(false)
+  const [copiedAddr,  setCopiedAddr]  = useState(false)
+
+  async function handleCopyAddress() {
+    if (!address) return
+    await navigator.clipboard.writeText(address)
+    setCopiedAddr(true)
+    setTimeout(() => setCopiedAddr(false), 2000)
+  }
 
   async function handleLogout() {
     playBubbleTap()
@@ -126,26 +134,33 @@ export function AppHeader({ address }: AppHeaderProps) {
           })}
         </nav>
 
-        {/* Wallet address pill */}
+        {/* Wallet address pill — click to copy */}
         {shortAddr ? (
-          <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            borderRadius: 100,
-            padding: '4px 11px',
-            fontSize: 11,
-            fontWeight: 400,
-            color: 'rgba(255,255,255,0.50)',
-            display: 'flex', alignItems: 'center', gap: 6,
-            letterSpacing: '0.02em',
-          }}>
+          <button
+            onClick={handleCopyAddress}
+            title="Click to copy address"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: 100,
+              padding: '4px 11px',
+              fontSize: 11,
+              fontWeight: 400,
+              color: copiedAddr ? '#a3e635' : 'rgba(255,255,255,0.50)',
+              display: 'flex', alignItems: 'center', gap: 6,
+              letterSpacing: '0.02em',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'color 0.15s',
+            }}
+          >
             <div style={{
               width: 5, height: 5, borderRadius: '50%',
               background: '#a3e635',
               boxShadow: '0 0 6px rgba(163,230,53,0.7)',
             }} />
-            {shortAddr}
-          </div>
+            {copiedAddr ? 'Copied!' : shortAddr}
+          </button>
         ) : (
           <Link href="/login" style={{
             background: '#a3e635',
