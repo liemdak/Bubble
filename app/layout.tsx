@@ -11,8 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Bubble — Send money the way you talk',
-  description: 'Just type "send 100 USDC to Mike" — Bubble handles the rest. Powered by Arc and Circle.',
+  title: 'Bubble - Send USDC the way you talk',
+  description: 'Just type "send 100 USDC to Mike" - Bubble handles the rest. Powered by Arc and Circle.',
   manifest: '/manifest.json',
 }
 
