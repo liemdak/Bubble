@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         type: 'text',
         message:
-          `⚡ Quick commands\n\n` +
+          `Quick commands\n\n` +
           `  /p BTC        price + 7d chart\n` +
           `  /p ETH 30d    30-day chart\n` +
           `  /p SOL 1d     24h chart\n` +
@@ -63,8 +63,18 @@ export async function POST(req: NextRequest) {
           `  /help         show this\n\n` +
           `Supports BTC, ETH, SOL, BNB, ADA, XRP, DOGE, SHIB, PEPE, SUI, APT, PYTH and more.\n\n` +
           `Natural language works too:\n` +
-          `"send 50 USDC to Mike"  "swap 100 USDC to EURC"\n` +
-          `"bridge to Ethereum"  "check balance"  "my QR"`,
+          `"send 50 USDC to Mike"   "swap 100 USDC to EURC"\n` +
+          `"bridge to Ethereum"   "check balance"   "my QR"\n\n` +
+          `How it works\n\n` +
+          `  Send         uses your Agent wallet. No MetaMask popup needed.\n` +
+          `               Fund your Agent wallet first via the "Fund Agent" button.\n` +
+          `               Save contacts so you can send by name, not address.\n\n` +
+          `  Swap         uses your MetaMask wallet directly.\n` +
+          `               Make sure you are on Arc Testnet and have USDC in MetaMask.\n\n` +
+          `  Bridge       uses your MetaMask wallet.\n` +
+          `               Moves USDC between chains via Circle CCTP.\n\n` +
+          `  Balance      shows both your Agent wallet and MetaMask balances.\n\n` +
+          `Tip: get free testnet USDC at faucet.circle.com`,
       })
     }
 
