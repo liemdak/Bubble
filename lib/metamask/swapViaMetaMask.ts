@@ -377,10 +377,7 @@ export async function swapViaMetaMask(
     return origFetch(input, init)
   }
 
-  // 8. Execute swap.
-  //    allowanceStrategy: "approve" — uses the on-chain Permit2 approval we set in step 6.
-  //    This ensures the simulation (eth_call) sees a real allowance in state and passes,
-  //    instead of failing on an unsigned placeholder permit.
+  // 8. Execute swap — let the Circle SDK handle permit2 signing internally.
   try {
     const kit = new AppKit()
     const result = await kit.swap({
@@ -388,7 +385,7 @@ export async function swapViaMetaMask(
       tokenIn:  tokenIn  as 'USDC' | 'EURC',
       tokenOut: tokenOut as 'USDC' | 'EURC',
       amountIn,
-      config:   { kitKey, allowanceStrategy: 'approve' },
+      config:   { kitKey },
     })
 
     const arcScanUrl = result.txHash
