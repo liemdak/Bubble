@@ -266,8 +266,90 @@ export function ChatWindow() {
     }))
   }
 
+  function clearChat() {
+    setMessages([])
+    try { localStorage.removeItem(CHAT_KEY) } catch { /* ignore */ }
+  }
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+      {/* ── Chat toolbar — only when messages exist ── */}
+      <AnimatePresence>
+        {hasMessages && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: 4,
+              padding: '6px 14px 0',
+              flexShrink: 0,
+            }}
+          >
+            {/* New chat */}
+            <button
+              onClick={clearChat}
+              title="New chat"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'none', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 100, padding: '4px 10px',
+                fontSize: 11, color: 'rgba(255,255,255,0.35)',
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.7)'
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.18)'
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)'
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)'
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.375 2.625a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+              </svg>
+              New chat
+            </button>
+
+            {/* Clear / trash */}
+            <button
+              onClick={clearChat}
+              title="Clear chat"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 100, width: 26, height: 26,
+                color: 'rgba(255,255,255,0.35)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,80,80,0.7)'
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,80,80,0.25)'
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)'
+                ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.08)'
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Messages area ── */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
