@@ -59,8 +59,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof Error && err.message.includes('Firebase Admin env vars')) {
       return NextResponse.json({ error: 'Database not configured. Add Firebase env vars.' }, { status: 503 })
     }
-    const detail = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: 'Failed to save contact', detail }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save contact' }, { status: 500 })
   }
 }
 

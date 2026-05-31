@@ -49,13 +49,14 @@ export async function addContact(
   const id  = crypto.randomUUID()
   const now = Date.now()
 
+  const trimmedNote = contact.note?.trim() || ''
   const doc: Contact & { nameLower: string } = {
     id,
     name:      contact.name.trim(),
     nameLower: contact.name.trim().toLowerCase(),
     address:   contact.address.toLowerCase(),
     chain:     contact.chain ?? 'arc',
-    note:      contact.note?.trim() || undefined,
+    ...(trimmedNote ? { note: trimmedNote } : {}),
     createdAt: now,
   }
 
