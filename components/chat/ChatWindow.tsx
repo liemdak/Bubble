@@ -8,6 +8,7 @@ import { ConfirmCard } from './ConfirmCard'
 import { SuccessPill } from './SuccessPill'
 import { EmptySuggestions } from './EmptySuggestions'
 import { QRCard } from './QRCard'
+import { BookCard } from './BookCard'
 import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import type { ChartPoint } from './PriceChart'
@@ -22,6 +23,7 @@ type ChatMessage =
   | { id: string; type: 'success'; txHash: string; message: string; arcScanUrl?: string }
   | { id: string; type: 'qr'; address: string; message: string }
   | { id: string; type: 'chart'; symbol: string; currentPrice: number; change24h: number; chartData: ChartPoint[]; period: string; high: number; low: number; marketCap?: number; volume24h?: number }
+  | { id: string; type: 'book'; subtype: 'list' | 'author'; data: unknown; message: string }
   | { id: string; type: 'typing' }
 
 function getGreeting() {
@@ -113,6 +115,14 @@ export function ChatWindow() {
             low:          data.low,
             marketCap:    data.marketCap,
             volume24h:    data.volume24h,
+          }]
+        }
+        if (data.type === 'book') {
+          return [...without, {
+            id: crypto.randomUUID(), type: 'book' as const,
+            subtype: data.subtype,
+            data:    data.data,
+            message: data.message,
           }]
         }
         return [...without, { id: crypto.randomUUID(), type: 'assistant', content: data.message ?? 'Done.' }]
@@ -446,6 +456,13 @@ export function ChatWindow() {
               return (
                 <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
                   <QRCard address={msg.address} message={msg.message} />
+                </div>
+              )
+            }
+            if (msg.type === 'book') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                  <BookCard subtype={msg.subtype} data={msg.data} />
                 </div>
               )
             }

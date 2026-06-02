@@ -47,6 +47,7 @@ PAYMENT CAPABILITIES (use tools ONLY for clear payment intent):
 - Crypto price / exchange rate → get_rate
 - Manage contacts (add/lookup/list) → manage_contact — only when user explicitly asks about contacts
 - Look up Arc docs → search_arc_docs
+- Book search / author info / genre / quote → get_book
 
 PAYMENT RULES:
 - Never invent wallet addresses
@@ -423,6 +424,59 @@ async function handleGroq(
     if (fnName === 'search_arc_docs') {
       const result = await searchArcDocs(args.query ?? '')
       return NextResponse.json({ type: 'text', message: result })
+    }
+
+    if (fnName === 'get_book') {
+      try {
+        const { searchBooks, searchByQuote, getAuthorInfo, getGenreBooks, formatBookList, formatAuthor } =
+          await import('@/lib/data/books')
+        const query = args.query ?? ''
+        const limit = parseInt(args.limit ?? '5') || 5
+        const type  = args.type ?? 'search'
+
+        if (type === 'author') {
+          const author = await getAuthorInfo(query)
+          if (!author) return NextResponse.json({ type: 'text', message: `Could not find author "${query}". Try a different spelling.` })
+          return NextResponse.json({
+            type: 'book',
+            subtype: 'author',
+            data: author,
+            message: formatAuthor(author),
+          })
+        }
+
+        if (type === 'quote') {
+          const books = await searchByQuote(query, limit)
+          return NextResponse.json({
+            type: 'book',
+            subtype: 'list',
+            data: books,
+            message: formatBookList(books, `Books matching: "${query.slice(0, 40)}..."`),
+          })
+        }
+
+        if (type === 'genre') {
+          const books = await getGenreBooks(query, limit)
+          return NextResponse.json({
+            type: 'book',
+            subtype: 'list',
+            data: books,
+            message: formatBookList(books, `Top ${query} books`),
+          })
+        }
+
+        // default: search
+        const books = await searchBooks(query, limit)
+        return NextResponse.json({
+          type: 'book',
+          subtype: 'list',
+          data: books,
+          message: formatBookList(books),
+        })
+      } catch (err) {
+        console.error('[get_book]', err)
+        return NextResponse.json({ type: 'text', message: 'Could not fetch book data right now. Please try again.' })
+      }
     }
 
     // ── Contact resolution for send_payment ──────────────────────────────────

@@ -117,6 +117,35 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_book',
+      description:
+        'Find books, author info, genre rankings, or search by quote/excerpt. ' +
+        'Use for: "Stephen King books", "horror bestsellers", "who is Haruki Murakami", ' +
+        '"find book with this quote: ...", "top sci-fi books", "books about AI".',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['search', 'author', 'genre', 'quote'],
+            description: 'search=by title/keyword, author=author info+works, genre=genre ranking, quote=find book by excerpt',
+          },
+          query: {
+            type: 'string',
+            description: 'Search term, author name, genre, or quote text',
+          },
+          limit: {
+            type: 'number',
+            description: 'Number of results, default 5',
+          },
+        },
+        required: ['type', 'query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'search_arc_docs',
       description: 'Search Arc blockchain documentation for technical info: contract addresses, APIs, gas, CCTP, Arc network specs, Circle SDK usage, testnet details',
       parameters: {
