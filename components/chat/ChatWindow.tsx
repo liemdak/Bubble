@@ -12,6 +12,7 @@ import { BookCard } from './BookCard'
 import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import type { ChartPoint } from './PriceChart'
+import type { BookResult, AuthorResult } from '@/lib/data/books'
 import type { ConfirmationCard } from '@/types/intent'
 
 // Dynamic import prevents recharts from being bundled in SSR pass
@@ -23,7 +24,7 @@ type ChatMessage =
   | { id: string; type: 'success'; txHash: string; message: string; arcScanUrl?: string }
   | { id: string; type: 'qr'; address: string; message: string }
   | { id: string; type: 'chart'; symbol: string; currentPrice: number; change24h: number; chartData: ChartPoint[]; period: string; high: number; low: number; marketCap?: number; volume24h?: number }
-  | { id: string; type: 'book'; subtype: 'list' | 'author'; data: unknown; message: string }
+  | { id: string; type: 'book'; subtype: 'list' | 'author'; data: BookResult[] | AuthorResult; message: string }
   | { id: string; type: 'typing' }
 
 function getGreeting() {
