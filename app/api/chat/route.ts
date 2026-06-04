@@ -75,6 +75,13 @@ export async function POST(req: NextRequest) {
     // Circle wallet address = nơi funds thực sự nằm
     const circleWalletAddress = session?.circleWalletAddress ?? null
 
+    // ── Book intent pre-detection ────────────────────────────────────
+    // Groq doesn't know famous authors by name — detect here and route directly
+    const bookIntent = detectBookIntent(message)
+    if (bookIntent) {
+      return handleBookQuery(bookIntent.type, bookIntent.query)
+    }
+
     // ── /help — list all quick commands ─────────────────────────────
     if (/^\/help$/i.test(message.trim())) {
       return NextResponse.json({
@@ -671,4 +678,148 @@ async function searchArcDocs(query: string): Promise<string> {
   }
 
   return `📚 **Arc Docs**\n\nI couldn't fetch live Arc docs for "${query}" right now.\n\nTry visiting: https://docs.arc.io\n\nOr ask me something specific like "Arc gas fees", "USDC contract address", "how to bridge", or "testnet RPC".`
+}
+
+// ── Book intent detection ─────────────────────────────────────────────────────
+
+const BOOK_GENRE_KEYWORDS: Record<string, string> = {
+  // English
+  'horror': 'horror', 'thriller': 'thriller', 'mystery': 'mystery',
+  'sci-fi': 'science fiction', 'science fiction': 'science fiction',
+  'fantasy': 'fantasy', 'romance': 'romance', 'biography': 'biography',
+  'self-help': 'self help', 'non-fiction': 'nonfiction', 'fiction': 'fiction',
+  'bestseller': 'bestsellers', 'best seller': 'bestsellers',
+  // Vietnamese
+  'kinh dị': 'horror', 'trinh thám': 'mystery', 'lãng mạn': 'romance',
+  'khoa học viễn tưởng': 'science fiction', 'viễn tưởng': 'science fiction',
+  'tự truyện': 'biography', 'hồi ký': 'memoir', 'kỹ năng': 'self help',
+  'bán chạy': 'bestsellers', 'bán chạy nhất': 'bestsellers',
+}
+
+const FAMOUS_AUTHORS = [
+  'stephen king', 'haruki murakami', 'agatha christie', 'j.k. rowling', 'jk rowling',
+  'george orwell', 'ernest hemingway', 'f. scott fitzgerald', 'jane austen',
+  'leo tolstoy', 'fyodor dostoevsky', 'gabriel garcia marquez', 'paulo coelho',
+  'dan brown', 'james patterson', 'john grisham', 'nicholas sparks',
+  'george r.r. martin', 'tolkien', 'j.r.r. tolkien', 'orwell',
+  'dostoevsky', 'tolstoy', 'kafka', 'hemingway', 'fitzgerald',
+]
+
+const BOOK_TRIGGER_WORDS = [
+  // English
+  'book', 'books', 'novel', 'author', 'writer', 'read', 'reading', 'literature',
+  'fiction', 'nonfiction', 'bestseller', 'recommend', 'suggest book',
+  // Vietnamese
+  'sách', 'tác giả', 'đọc sách', 'truyện', 'tiểu thuyết', 'văn học',
+  'đề xuất sách', 'gợi ý sách', 'top sách', 'bảng xếp hạng sách',
+]
+
+interface BookIntentResult {
+  type: 'search' | 'author' | 'genre' | 'quote'
+  query: string
+}
+
+function detectBookIntent(message: string): BookIntentResult | null {
+  const lower = message.toLowerCase().trim()
+
+  // Check famous authors first
+  for (const author of FAMOUS_AUTHORS) {
+    if (lower.includes(author)) {
+      return { type: 'author', query: author.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }
+    }
+  }
+
+  // Check genre keywords
+  for (const [keyword, genre] of Object.entries(BOOK_GENRE_KEYWORDS)) {
+    if (lower.includes(keyword)) {
+      return { type: 'genre', query: genre }
+    }
+  }
+
+  // Check general book trigger words
+  const hasBookTrigger = BOOK_TRIGGER_WORDS.some(w => lower.includes(w))
+  if (hasBookTrigger) {
+    // Extract search query — remove trigger words to get the actual subject
+    let query = message.trim()
+    for (const w of ['sách', 'book', 'books', 'tìm sách', 'find book', 'top sách', 'top books']) {
+      query = query.replace(new RegExp(w, 'gi'), '').trim()
+    }
+    query = query || message.trim()
+    return { type: 'search', query }
+  }
+
+  return null
+}
+
+async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote', query: string): Promise<Response> {
+  try {
+    const { searchBooks, searchByQuote, getAuthorInfo, getGenreBooks } = await import('@/lib/data/books')
+    const limit = 6
+
+    if (type === 'author') {
+      const author = await getAuthorInfo(query)
+      if (!author) return NextResponse.json({ type: 'text', message: `Could not find author "${query}". Try a different spelling.` })
+
+      const analysisPrompt = `You are a literary expert. Based on this data about ${author.name}:
+Bio: ${author.bio?.slice(0, 600) ?? 'Not available'}
+Works: ${author.topBooks.map(b => b.title).join(', ')}
+Write a rich analysis (150-200 words): literary significance, writing style, most important works, who should read them and where to start. Flowing prose, no bullet points.`
+
+      let analysis = ''
+      try {
+        const { getGroqClient } = await import('@/lib/groq/client')
+        const groq = getGroqClient()
+        const res  = await groq.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: analysisPrompt }],
+          max_tokens: 300, temperature: 0.7,
+        })
+        analysis = res.choices[0]?.message?.content ?? ''
+      } catch { /* optional */ }
+
+      return NextResponse.json({
+        type: 'multi',
+        messages: [
+          ...(author.bio ? [{ type: 'author-profile', data: { name: author.name, bio: author.bio, photoUrl: author.photoUrl, bookCount: author.bookCount } }] : []),
+          ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
+          ...(analysis ? [{ type: 'text', content: analysis }] : []),
+        ],
+      })
+    }
+
+    if (type === 'quote') {
+      const books = await searchByQuote(query, limit)
+      return NextResponse.json({
+        type: 'multi',
+        messages: [
+          { type: 'text', content: `Here are the closest matches for your quote:` },
+          { type: 'book-grid', books, title: 'Search Results' },
+        ],
+      })
+    }
+
+    if (type === 'genre') {
+      const books = await getGenreBooks(query, limit)
+      return NextResponse.json({
+        type: 'multi',
+        messages: [
+          { type: 'text', content: `Top **${query}** books:` },
+          { type: 'book-grid', books, title: query.charAt(0).toUpperCase() + query.slice(1) },
+        ],
+      })
+    }
+
+    // search
+    const books = await searchBooks(query, limit)
+    return NextResponse.json({
+      type: 'multi',
+      messages: [
+        { type: 'text', content: `Found ${books.length} results for "${query}":` },
+        { type: 'book-grid', books },
+      ],
+    })
+  } catch (err) {
+    console.error('[handleBookQuery]', err)
+    return NextResponse.json({ type: 'text', message: 'Could not fetch book data right now. Please try again.' })
+  }
 }

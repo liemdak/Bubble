@@ -120,8 +120,11 @@ export const PAYMENT_TOOLS: Groq.Chat.ChatCompletionTool[] = [
       name: 'get_book',
       description:
         'Find books, author info, genre rankings, or search by quote/excerpt. ' +
-        'Use for: "Stephen King books", "horror bestsellers", "who is Haruki Murakami", ' +
-        '"find book with this quote: ...", "top sci-fi books", "books about AI".',
+        'Use for ANY book-related query in ANY language including Vietnamese. ' +
+        'English: "Stephen King books", "horror bestsellers", "who is Murakami", "top sci-fi", "books about love". ' +
+        'Vietnamese: "sách kinh dị", "top sách bán chạy", "sách của Murakami", "tác giả này là ai", ' +
+        '"tìm sách tình yêu", "sách hay nhất", "đề xuất sách", "bảng xếp hạng sách". ' +
+        'ALWAYS call this tool when user mentions sách/book/tác giả/author/đọc/read.',
       parameters: {
         type: 'object',
         properties: {
