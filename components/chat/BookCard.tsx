@@ -9,9 +9,7 @@ interface BookCardProps {
 }
 
 export function BookCard({ subtype, data }: BookCardProps) {
-  if (subtype === 'author') {
-    return <AuthorCard author={data as AuthorResult} />
-  }
+  if (subtype === 'author') return <AuthorCard author={data as AuthorResult} />
   return <BookListCard books={data as BookResult[]} />
 }
 
@@ -29,18 +27,19 @@ function BookListCard({ books }: { books: BookResult[] }) {
         border: '1px solid rgba(255,255,255,0.10)',
         borderLeft: '3px solid #a3e635',
         borderRadius: 12,
-        padding: '14px 16px',
+        padding: '16px 18px',
         marginBottom: 8,
-        maxWidth: 360,
+        width: 'min(calc(100vw - 56px), 460px)',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(163,230,53,0.7)', letterSpacing: '0.12em', marginBottom: 12, textTransform: 'uppercase' }}>
+      <div style={{
+        fontSize: 10, fontWeight: 600, color: 'rgba(163,230,53,0.7)',
+        letterSpacing: '0.12em', marginBottom: 14, textTransform: 'uppercase',
+      }}>
         📚 Books
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {books.map((book, i) => (
-          <BookRow key={i} book={book} index={i} />
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {books.map((book, i) => <BookRow key={book.id || i} book={book} index={i} />)}
       </div>
     </motion.div>
   )
@@ -49,15 +48,15 @@ function BookListCard({ books }: { books: BookResult[] }) {
 function BookRow({ book, index }: { book: BookResult; index: number }) {
   return (
     <a
-      href={book.pageUrl ?? `https://openlibrary.org/search?q=${encodeURIComponent(book.title)}`}
+      href={book.pageUrl}
       target="_blank"
       rel="noopener noreferrer"
-      style={{ textDecoration: 'none', display: 'flex', gap: 10, alignItems: 'flex-start' }}
+      style={{ textDecoration: 'none', display: 'flex', gap: 12, alignItems: 'flex-start' }}
     >
       {/* Cover */}
       <div style={{
-        width: 36, height: 52, flexShrink: 0,
-        borderRadius: 4, overflow: 'hidden',
+        width: 52, height: 72, flexShrink: 0,
+        borderRadius: 6, overflow: 'hidden',
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.08)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -66,27 +65,41 @@ function BookRow({ book, index }: { book: BookResult; index: number }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <span style={{ fontSize: 16 }}>📖</span>
+          <span style={{ fontSize: 22 }}>📖</span>
         )}
       </div>
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#ffffff', lineHeight: 1.35, marginBottom: 3 }}>
-          <span style={{ opacity: 0.35, marginRight: 5, fontSize: 10 }}>{index + 1}.</span>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#ffffff', lineHeight: 1.35, marginBottom: 4 }}>
+          <span style={{ opacity: 0.30, marginRight: 6, fontSize: 11 }}>{index + 1}.</span>
           {book.title}
         </div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 2 }}>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', marginBottom: 5 }}>
           {book.author}{book.year ? ` · ${book.year}` : ''}
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {book.description && (
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, marginBottom: 5 }}>
+            {book.description}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {book.rating && (
-            <span style={{ fontSize: 10, color: '#fbbf24' }}>⭐ {book.rating}</span>
-          )}
-          {book.subjects?.[0] && (
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.30)', background: 'rgba(255,255,255,0.05)', padding: '1px 6px', borderRadius: 4 }}>
-              {book.subjects[0]}
+            <span style={{ fontSize: 11, color: '#fbbf24' }}>
+              ⭐ {book.rating}{book.ratingCount ? ` (${book.ratingCount.toLocaleString()})` : ''}
             </span>
+          )}
+          {book.categories?.[0] && (
+            <span style={{
+              fontSize: 10, color: 'rgba(255,255,255,0.35)',
+              background: 'rgba(255,255,255,0.06)',
+              padding: '2px 8px', borderRadius: 4,
+            }}>
+              {book.categories[0]}
+            </span>
+          )}
+          {book.pageCount && (
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>{book.pageCount} pages</span>
           )}
         </div>
       </div>
@@ -107,19 +120,22 @@ function AuthorCard({ author }: { author: AuthorResult }) {
         border: '1px solid rgba(255,255,255,0.10)',
         borderLeft: '3px solid #a3e635',
         borderRadius: 12,
-        padding: '14px 16px',
+        padding: '16px 18px',
         marginBottom: 8,
-        maxWidth: 360,
+        width: 'min(calc(100vw - 56px), 460px)',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(163,230,53,0.7)', letterSpacing: '0.12em', marginBottom: 12, textTransform: 'uppercase' }}>
+      <div style={{
+        fontSize: 10, fontWeight: 600, color: 'rgba(163,230,53,0.7)',
+        letterSpacing: '0.12em', marginBottom: 14, textTransform: 'uppercase',
+      }}>
         ✍️ Author
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
-        {/* Photo */}
+      {/* Author header */}
+      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 12 }}>
         <div style={{
-          width: 48, height: 48, flexShrink: 0,
+          width: 64, height: 64, flexShrink: 0,
           borderRadius: '50%', overflow: 'hidden',
           background: 'rgba(255,255,255,0.06)',
           border: '1px solid rgba(255,255,255,0.10)',
@@ -129,46 +145,51 @@ function AuthorCard({ author }: { author: AuthorResult }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={author.photoUrl} alt={author.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <span style={{ fontSize: 20 }}>👤</span>
+            <span style={{ fontSize: 28 }}>👤</span>
           )}
         </div>
-
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', marginBottom: 2 }}>{author.name}</div>
-          {author.born && (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)' }}>
-              {author.born}{author.died ? ` - ${author.died}` : ''}
-            </div>
-          )}
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#ffffff', marginBottom: 4 }}>{author.name}</div>
           {author.bookCount && (
-            <div style={{ fontSize: 11, color: 'rgba(163,230,53,0.6)' }}>{author.bookCount} works</div>
+            <div style={{ fontSize: 12, color: 'rgba(163,230,53,0.7)' }}>{author.bookCount}+ works</div>
           )}
         </div>
       </div>
 
+      {/* Bio */}
       {author.bio && (
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', lineHeight: 1.6, marginBottom: 12 }}>
+        <div style={{
+          fontSize: 12, color: 'rgba(255,255,255,0.50)',
+          lineHeight: 1.65, marginBottom: 14,
+          padding: '10px 12px',
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: 8,
+        }}>
           {author.bio}
         </div>
       )}
 
-      {author.topBooks && author.topBooks.length > 0 && (
+      {/* Books */}
+      {author.topBooks.length > 0 && (
         <>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.30)', letterSpacing: '0.08em', marginBottom: 8, textTransform: 'uppercase' }}>
+          <div style={{
+            fontSize: 10, color: 'rgba(255,255,255,0.30)',
+            letterSpacing: '0.08em', marginBottom: 10, textTransform: 'uppercase',
+          }}>
             Notable works
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {author.topBooks.slice(0, 4).map((book, i) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {author.topBooks.slice(0, 5).map((book, i) => (
               <a
-                key={i}
-                href={book.pageUrl ?? '#'}
+                key={book.id || i}
+                href={book.pageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: 'flex', gap: 8, alignItems: 'center', textDecoration: 'none' }}
+                style={{ display: 'flex', gap: 10, alignItems: 'center', textDecoration: 'none' }}
               >
                 <div style={{
-                  width: 26, height: 36, flexShrink: 0,
-                  borderRadius: 3, overflow: 'hidden',
+                  width: 36, height: 50, flexShrink: 0,
+                  borderRadius: 4, overflow: 'hidden',
                   background: 'rgba(255,255,255,0.06)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -176,10 +197,13 @@ function AuthorCard({ author }: { author: AuthorResult }) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <span style={{ fontSize: 12 }}>📖</span>
+                    <span style={{ fontSize: 16 }}>📖</span>
                   )}
                 </div>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>{book.title}</span>
+                <div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{book.title}</div>
+                  {book.year && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>{book.year}</div>}
+                </div>
               </a>
             ))}
           </div>
