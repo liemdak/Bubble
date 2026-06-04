@@ -48,9 +48,12 @@ PAYMENT CAPABILITIES (use tools ONLY for clear payment intent):
 - Manage contacts (add/lookup/list) → manage_contact — only when user explicitly asks about contacts
 - Look up Arc docs → search_arc_docs
 - Book search / author info / genre / quote → get_book
-  Examples: "Stephen King books", "sách của Murakami", "top sách kinh dị", "who is Agatha Christie",
-  "tìm sách về tình yêu", "horror bestsellers", "sách bán chạy", "tác giả này là ai",
-  "find book with quote...", "tìm câu trích dẫn này trong sách..."
+  ALWAYS use get_book when user mentions: sách, book, tác giả, author, đọc, read, truyện, novel
+  Vietnamese examples: "top sách kinh dị" → get_book(type=genre, query=horror)
+  "sách của Murakami" → get_book(type=author, query=Haruki Murakami)
+  "sách bán chạy" → get_book(type=genre, query=bestsellers)
+  "tìm sách tình yêu" → get_book(type=search, query=love)
+  "đề xuất sách hay" → get_book(type=genre, query=popular fiction)
 
 PAYMENT RULES:
 - Never invent wallet addresses
@@ -431,50 +434,81 @@ async function handleGroq(
 
     if (fnName === 'get_book') {
       try {
-        const { searchBooks, searchByQuote, getAuthorInfo, getGenreBooks, formatBookList, formatAuthor } =
+        const { searchBooks, searchByQuote, getAuthorInfo, getGenreBooks } =
           await import('@/lib/data/books')
         const query = args.query ?? ''
-        const limit = parseInt(args.limit ?? '5') || 5
+        const limit = 6
         const type  = args.type ?? 'search'
 
         if (type === 'author') {
           const author = await getAuthorInfo(query)
           if (!author) return NextResponse.json({ type: 'text', message: `Could not find author "${query}". Try a different spelling.` })
+
+          // Generate rich analysis via Groq
+          const analysisPrompt = `You are a literary expert. Based on this data about ${author.name}:
+Bio: ${author.bio?.slice(0, 600) ?? 'Not available'}
+Works: ${author.topBooks.map(b => b.title).join(', ')}
+
+Write a rich, engaging analysis (150-200 words) covering:
+- Their literary significance and style
+- Most important works and why they matter
+- Who should read them and where to start
+Be specific and insightful. No bullet points — flowing prose.`
+
+          let analysis = ''
+          try {
+            const { getGroqClient } = await import('@/lib/groq/client')
+            const groq = getGroqClient()
+            const res  = await groq.chat.completions.create({
+              model: 'llama-3.3-70b-versatile',
+              messages: [{ role: 'user', content: analysisPrompt }],
+              max_tokens: 300,
+              temperature: 0.7,
+            })
+            analysis = res.choices[0]?.message?.content ?? ''
+          } catch { /* analysis optional */ }
+
           return NextResponse.json({
-            type: 'book',
-            subtype: 'author',
-            data: author,
-            message: formatAuthor(author),
+            type: 'multi',
+            messages: [
+              ...(author.bio ? [{ type: 'author-profile', data: { name: author.name, bio: author.bio, photoUrl: author.photoUrl, bookCount: author.bookCount } }] : []),
+              ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
+              ...(analysis ? [{ type: 'text', content: analysis }] : []),
+            ],
           })
         }
 
         if (type === 'quote') {
           const books = await searchByQuote(query, limit)
           return NextResponse.json({
-            type: 'book',
-            subtype: 'list',
-            data: books,
-            message: formatBookList(books, `Books matching: "${query.slice(0, 40)}..."`),
+            type: 'multi',
+            messages: [
+              { type: 'text', content: `Here are the closest matches for your quote:` },
+              { type: 'book-grid', books, title: 'Search Results' },
+            ],
           })
         }
 
         if (type === 'genre') {
           const books = await getGenreBooks(query, limit)
+          const intro = `Top **${query}** books — ${books.length} results from Google Books.`
           return NextResponse.json({
-            type: 'book',
-            subtype: 'list',
-            data: books,
-            message: formatBookList(books, `Top ${query} books`),
+            type: 'multi',
+            messages: [
+              { type: 'text', content: intro },
+              { type: 'book-grid', books, title: query.charAt(0).toUpperCase() + query.slice(1) },
+            ],
           })
         }
 
         // default: search
         const books = await searchBooks(query, limit)
         return NextResponse.json({
-          type: 'book',
-          subtype: 'list',
-          data: books,
-          message: formatBookList(books),
+          type: 'multi',
+          messages: [
+            { type: 'text', content: `Found ${books.length} results for "${query}":` },
+            { type: 'book-grid', books },
+          ],
         })
       } catch (err) {
         console.error('[get_book]', err)

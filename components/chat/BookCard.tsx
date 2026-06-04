@@ -29,7 +29,7 @@ function BookListCard({ books }: { books: BookResult[] }) {
         borderRadius: 12,
         padding: '16px 18px',
         marginBottom: 8,
-        width: 'min(calc(100vw - 56px), 460px)',
+        width: 'min(calc(100vw - 32px), 560px)',
       }}
     >
       <div style={{
@@ -122,7 +122,7 @@ function AuthorCard({ author }: { author: AuthorResult }) {
         borderRadius: 12,
         padding: '16px 18px',
         marginBottom: 8,
-        width: 'min(calc(100vw - 56px), 460px)',
+        width: 'min(calc(100vw - 32px), 560px)',
       }}
     >
       <div style={{

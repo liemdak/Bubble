@@ -13,18 +13,21 @@ function apiKey() {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface BookResult {
-  id:          string
-  title:       string
-  author:      string
-  year?:       string
+  id:           string
+  title:        string
+  author:       string
+  year?:        string
   description?: string
-  categories?: string[]
-  cover?:      string
-  rating?:     number
+  categories?:  string[]
+  cover?:       string
+  coverLarge?:  string
+  rating?:      number
   ratingCount?: number
-  pageCount?:  number
-  language?:   string
-  pageUrl:     string
+  pageCount?:   number
+  language?:    string
+  price?:       string
+  currency?:    string
+  pageUrl:      string
 }
 
 export interface AuthorResult {
@@ -40,27 +43,37 @@ export interface AuthorResult {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapVolume(item: any): BookResult {
   const info = item.volumeInfo ?? {}
-  const cover = info.imageLinks?.thumbnail
-    ?? info.imageLinks?.smallThumbnail
-  // Force HTTPS and larger image
-  const coverUrl = cover
-    ? cover.replace('http://', 'https://').replace('zoom=1', 'zoom=2')
+  const sale = item.saleInfo ?? {}
+
+  const thumb = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail
+  const cover      = thumb ? thumb.replace('http://', 'https://').replace('zoom=1', 'zoom=1') : undefined
+  const coverLarge = thumb ? thumb.replace('http://', 'https://').replace('zoom=1', 'zoom=3') : undefined
+
+  const rawDesc = info.description ?? ''
+  const description = rawDesc
+    ? rawDesc.replace(/<[^>]*>/g, '').slice(0, 400) + (rawDesc.length > 400 ? '…' : '')
     : undefined
+
+  // Price from Google Books saleInfo
+  const listPrice = sale.listPrice ?? sale.retailPrice
+  const price    = listPrice?.amount ? `${listPrice.amount}` : undefined
+  const currency = listPrice?.currencyCode
 
   return {
     id:          item.id ?? '',
     title:       info.title ?? 'Unknown title',
     author:      Array.isArray(info.authors) ? info.authors.join(', ') : 'Unknown author',
     year:        info.publishedDate?.slice(0, 4),
-    description: info.description
-      ? info.description.replace(/<[^>]*>/g, '').slice(0, 200) + (info.description.length > 200 ? '…' : '')
-      : undefined,
+    description,
     categories:  info.categories?.slice(0, 2),
-    cover:       coverUrl,
+    cover,
+    coverLarge,
     rating:      info.averageRating,
     ratingCount: info.ratingsCount,
     pageCount:   info.pageCount,
     language:    info.language,
+    price,
+    currency,
     pageUrl:     info.infoLink ?? `https://books.google.com/books?id=${item.id}`,
   }
 }
@@ -130,7 +143,7 @@ export async function getAuthorInfo(name: string): Promise<AuthorResult | null> 
       const page  = pages[0]
       photoUrl = page?.thumbnail?.source
       const rawBio = page?.extract ?? ''
-      bio = rawBio.replace(/<[^>]*>/g, '').slice(0, 350) + (rawBio.length > 350 ? '…' : '')
+      bio = rawBio.replace(/<[^>]*>/g, '').trim()
     }
   } catch { /* Wikipedia optional — continue without */ }
 

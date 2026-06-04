@@ -9,6 +9,7 @@ import { SuccessPill } from './SuccessPill'
 import { EmptySuggestions } from './EmptySuggestions'
 import { QRCard } from './QRCard'
 import { BookCard } from './BookCard'
+import { BookGrid } from './BookGrid'
 import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import type { ChartPoint } from './PriceChart'
@@ -25,6 +26,8 @@ type ChatMessage =
   | { id: string; type: 'qr'; address: string; message: string }
   | { id: string; type: 'chart'; symbol: string; currentPrice: number; change24h: number; chartData: ChartPoint[]; period: string; high: number; low: number; marketCap?: number; volume24h?: number }
   | { id: string; type: 'book'; subtype: 'list' | 'author'; data: BookResult[] | AuthorResult; message: string }
+  | { id: string; type: 'book-grid'; books: BookResult[]; title?: string }
+  | { id: string; type: 'author-profile'; data: { name: string; bio: string; photoUrl?: string; bookCount?: number } }
   | { id: string; type: 'typing' }
 
 function getGreeting() {
@@ -125,6 +128,15 @@ export function ChatWindow() {
             data:    data.data,
             message: data.message,
           }]
+        }
+        if (data.type === 'multi' && Array.isArray(data.messages)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const newMsgs: ChatMessage[] = data.messages.map((m: any) => {
+            if (m.type === 'book-grid')      return { id: crypto.randomUUID(), type: 'book-grid'      as const, books: m.books, title: m.title }
+            if (m.type === 'author-profile') return { id: crypto.randomUUID(), type: 'author-profile' as const, data: m.data }
+            return { id: crypto.randomUUID(), type: 'assistant' as const, content: m.content ?? m.message ?? '' }
+          })
+          return [...without, ...newMsgs]
         }
         return [...without, { id: crypto.randomUUID(), type: 'assistant', content: data.message ?? 'Done.' }]
       })
@@ -467,6 +479,20 @@ export function ChatWindow() {
                 </div>
               )
             }
+            if (msg.type === 'book-grid') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                  <BookGrid books={msg.books} title={msg.title} />
+                </div>
+              )
+            }
+            if (msg.type === 'author-profile') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                  <AuthorProfileCard data={msg.data} />
+                </div>
+              )
+            }
             if (msg.type === 'chart') {
               return (
                 <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
@@ -498,6 +524,63 @@ export function ChatWindow() {
 
       {/* ── Input bar ── */}
       <ChatInput ref={chatInputRef} onSend={handleSend} disabled={loading} />
+    </div>
+  )
+}
+
+// ── Author Profile Card ───────────────────────────────────────────────────────
+function AuthorProfileCard({ data }: { data: { name: string; bio: string; photoUrl?: string; bookCount?: number } }) {
+  const [expanded, setExpanded] = useState(false)
+  const SHORT = 300
+  const isLong = data.bio.length > SHORT
+
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.09)',
+      borderLeft: '3px solid #a3e635',
+      borderRadius: 12,
+      padding: '16px 18px',
+      width: 'min(calc(100vw - 32px), 580px)',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+        <div style={{
+          width: 64, height: 64, flexShrink: 0, borderRadius: '50%',
+          overflow: 'hidden', background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {data.photoUrl
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={data.photoUrl} alt={data.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <span style={{ fontSize: 28 }}>👤</span>
+          }
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#ffffff', marginBottom: 3 }}>{data.name}</div>
+          {data.bookCount && (
+            <div style={{ fontSize: 12, color: 'rgba(163,230,53,0.7)' }}>{data.bookCount.toLocaleString()}+ works</div>
+          )}
+        </div>
+      </div>
+
+      {/* Bio */}
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.60)', lineHeight: 1.7 }}>
+        {isLong && !expanded ? data.bio.slice(0, SHORT) + '…' : data.bio}
+      </div>
+      {isLong && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            marginTop: 8, background: 'none', border: 'none',
+            color: '#a3e635', fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', padding: 0,
+          }}
+        >
+          {expanded ? 'Show less ↑' : 'Read more ↓'}
+        </button>
+      )}
     </div>
   )
 }
