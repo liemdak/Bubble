@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     // Groq doesn't know famous authors by name — detect here and route directly
     const bookIntent = detectBookIntent(message)
     if (bookIntent) {
-      return handleBookQuery(bookIntent.type, bookIntent.query)
+      return await handleBookQuery(bookIntent.type, bookIntent.query)
     }
 
     // ── /help — list all quick commands ─────────────────────────────
