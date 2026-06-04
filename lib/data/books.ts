@@ -82,7 +82,7 @@ function mapVolume(item: any): BookResult {
 
 export async function searchBooks(query: string, limit = 6): Promise<BookResult[]> {
   const url = `${GBOOKS}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}&printType=books&key=${apiKey()}`
-  const res  = await fetch(url, { next: { revalidate: 300 } })
+  const res  = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Google Books search failed: ${res.status}`)
   const data = await res.json()
   return (data.items ?? []).map(mapVolume)
@@ -93,7 +93,7 @@ export async function searchBooks(query: string, limit = 6): Promise<BookResult[
 export async function searchByQuote(quote: string, limit = 4): Promise<BookResult[]> {
   // Use full-text search with the quote
   const url = `${GBOOKS}/volumes?q=${encodeURIComponent(quote)}&maxResults=${limit}&printType=books&key=${apiKey()}`
-  const res  = await fetch(url, { next: { revalidate: 300 } })
+  const res  = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Quote search failed: ${res.status}`)
   const data = await res.json()
   return (data.items ?? []).map(mapVolume)
@@ -103,7 +103,7 @@ export async function searchByQuote(quote: string, limit = 4): Promise<BookResul
 
 export async function getGenreBooks(genre: string, limit = 6): Promise<BookResult[]> {
   const url = `${GBOOKS}/volumes?q=subject:${encodeURIComponent(genre)}&maxResults=${limit}&orderBy=relevance&printType=books&key=${apiKey()}`
-  const res  = await fetch(url, { next: { revalidate: 300 } })
+  const res  = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Genre search failed: ${res.status}`)
   const data = await res.json()
   return (data.items ?? []).map(mapVolume)
@@ -114,7 +114,7 @@ export async function getGenreBooks(genre: string, limit = 6): Promise<BookResul
 export async function getAuthorInfo(name: string): Promise<AuthorResult | null> {
   // 1. Get author's books from Google Books
   const booksUrl = `${GBOOKS}/volumes?q=inauthor:${encodeURIComponent(`"${name}"`)}&maxResults=6&orderBy=relevance&printType=books&key=${apiKey()}`
-  const booksRes = await fetch(booksUrl, { next: { revalidate: 600 } })
+  const booksRes = await fetch(booksUrl, { cache: 'no-store' })
   if (!booksRes.ok) return null
   const booksData = await booksRes.json()
   const topBooks: BookResult[] = (booksData.items ?? []).map(mapVolume)
@@ -127,7 +127,7 @@ export async function getAuthorInfo(name: string): Promise<AuthorResult | null> 
   try {
     const wikiSearch = await fetch(
       `${WIKI}?action=query&list=search&srsearch=${encodeURIComponent(name)}&format=json&origin=*`,
-      { next: { revalidate: 600 } }
+      { cache: 'no-store' }
     )
     const wikiSearchData = await wikiSearch.json()
     const pageTitle = wikiSearchData.query?.search?.[0]?.title
@@ -136,7 +136,7 @@ export async function getAuthorInfo(name: string): Promise<AuthorResult | null> 
       // Get page image
       const wikiImg = await fetch(
         `${WIKI}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageimages|extracts&exintro=true&exchars=400&format=json&pithumbsize=200&origin=*`,
-        { next: { revalidate: 600 } }
+        { cache: 'no-store' }
       )
       const wikiImgData = await wikiImg.json()
       const pages = Object.values(wikiImgData.query?.pages ?? {}) as any[] // eslint-disable-line
