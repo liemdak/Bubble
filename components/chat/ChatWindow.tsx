@@ -10,6 +10,7 @@ import { EmptySuggestions } from './EmptySuggestions'
 import { QRCard } from './QRCard'
 import { BookCard } from './BookCard'
 import { BookGrid } from './BookGrid'
+import { BookDetailCard } from './BookDetailCard'
 import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import type { ChartPoint } from './PriceChart'
@@ -27,6 +28,7 @@ type ChatMessage =
   | { id: string; type: 'chart'; symbol: string; currentPrice: number; change24h: number; chartData: ChartPoint[]; period: string; high: number; low: number; marketCap?: number; volume24h?: number }
   | { id: string; type: 'book'; subtype: 'list' | 'author'; data: BookResult[] | AuthorResult; message: string }
   | { id: string; type: 'book-grid'; books: BookResult[]; title?: string }
+  | { id: string; type: 'book-detail'; book: BookResult }
   | { id: string; type: 'author-profile'; data: { name: string; bio: string; photoUrl?: string; bookCount?: number } }
   | { id: string; type: 'typing' }
 
@@ -48,11 +50,13 @@ export function ChatWindow() {
   const [messages, setMessages]           = useState<ChatMessage[]>([])
   const [loading, setLoading]             = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
-  const bottomRef          = useRef<HTMLDivElement>(null)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const chatInputRef       = useRef<ChatInputHandle>(null)
-  // For multi-message responses: scroll to first new message, not the last
-  const firstNewMsgIdRef   = useRef<string | null>(null)
+  const bottomRef              = useRef<HTMLDivElement>(null)
+  const scrollContainerRef     = useRef<HTMLDivElement>(null)
+  const chatInputRef           = useRef<ChatInputHandle>(null)
+  // Scroll fix for multi-message responses:
+  // Record scrollHeight BEFORE sending — that position = start of new content
+  const preApiScrollHeightRef  = useRef(0)
+  const preserveScrollRef      = useRef(false)
 
   useEffect(() => {
     try {
@@ -82,17 +86,15 @@ export function ChatWindow() {
     const el = scrollContainerRef.current
     if (!el) return
 
-    // Multi-message response: scroll to first new message so user reads from top
-    if (firstNewMsgIdRef.current) {
-      const targetId = firstNewMsgIdRef.current
-      firstNewMsgIdRef.current = null
+    if (preserveScrollRef.current) {
+      // Multi-message response: scroll to where the first new message starts
+      // = the scrollHeight recorded before the API call
+      preserveScrollRef.current = false
+      const target = preApiScrollHeightRef.current
       requestAnimationFrame(() => {
-        const target = document.getElementById(`msg-${targetId}`)
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          return
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = target
         }
-        el.scrollTop = el.scrollHeight
       })
       return
     }
@@ -102,6 +104,9 @@ export function ChatWindow() {
 
   async function handleSend(text: string) {
     if (loading) return
+
+    // Record current scrollHeight so multi-message responses scroll to here (first new msg)
+    preApiScrollHeightRef.current = scrollContainerRef.current?.scrollHeight ?? 0
 
     const userMsg: ChatMessage   = { id: crypto.randomUUID(), type: 'user', content: text }
     const typingMsg: ChatMessage = { id: 'typing', type: 'typing' }
@@ -150,14 +155,13 @@ export function ChatWindow() {
         if (data.type === 'multi' && Array.isArray(data.messages)) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const newMsgs: ChatMessage[] = data.messages.map((m: any) => {
-            if (m.type === 'book-grid')      return { id: crypto.randomUUID(), type: 'book-grid'      as const, books: m.books, title: m.title }
+            if (m.type === 'book-grid')      return { id: crypto.randomUUID(), type: 'book-grid'      as const, books: m.books,  title: m.title }
             if (m.type === 'author-profile') return { id: crypto.randomUUID(), type: 'author-profile' as const, data: m.data }
+            if (m.type === 'book-detail')    return { id: crypto.randomUUID(), type: 'book-detail'    as const, book: m.book }
             return { id: crypto.randomUUID(), type: 'assistant' as const, content: m.content ?? m.message ?? '' }
           })
-          // Scroll to first new message so user reads from the beginning
-          if (newMsgs.length > 1) {
-            firstNewMsgIdRef.current = newMsgs[0].id
-          }
+          // Multi-message: scroll to first new message (preApiScrollHeightRef position)
+          if (newMsgs.length > 1) preserveScrollRef.current = true
           return [...without, ...newMsgs]
         }
         return [...without, { id: crypto.randomUUID(), type: 'assistant', content: data.message ?? 'Done.' }]
@@ -498,6 +502,13 @@ export function ChatWindow() {
               return (
                 <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
                   <BookCard subtype={msg.subtype} data={msg.data} />
+                </div>
+              )
+            }
+            if (msg.type === 'book-detail') {
+              return (
+                <div key={msg.id} id={`msg-${msg.id}`} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                  <BookDetailCard book={msg.book} />
                 </div>
               )
             }

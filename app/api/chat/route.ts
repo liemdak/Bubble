@@ -666,6 +666,52 @@ async function searchArcDocs(query: string): Promise<string> {
   return `📚 **Arc Docs**\n\nI couldn't fetch live Arc docs for "${query}" right now.\n\nTry visiting: https://docs.arc.io\n\nOr ask me something specific like "Arc gas fees", "USDC contract address", "how to bridge", or "testnet RPC".`
 }
 
+// ── Claude book review ────────────────────────────────────────────────────────
+
+async function generateBookReview(book: {
+  title: string
+  author: string
+  description?: string
+  categories?: string[]
+  year?: string
+}): Promise<string> {
+  const prompt = `You are a passionate literary critic. Write a compelling 150-200 word review of "${book.title}" by ${book.author}.
+
+Cover:
+- Brief overview of what the book is about (no major spoilers)
+- What makes this book special or significant
+- The themes and ideas it explores
+- Who should read it and why
+- One-line overall verdict
+
+${book.description ? `Publisher description: ${book.description}\n` : ''}${book.categories ? `Genre: ${book.categories.join(', ')}\n` : ''}${book.year ? `Published: ${book.year}\n` : ''}
+Flowing prose only — no bullet points, no headers. Be enthusiastic, specific, and make the reader want to pick it up immediately.`
+
+  // Try Claude first
+  try {
+    const AnthropicSDK = (await import('@anthropic-ai/sdk')).default
+    const client = new AnthropicSDK({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const msg = await client.messages.create({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    return msg.content[0].type === 'text' ? msg.content[0].text : ''
+  } catch { /* fall through */ }
+
+  // Fallback: Groq
+  try {
+    const { getGroqClient } = await import('@/lib/groq/client')
+    const groq = getGroqClient()
+    const res  = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 300, temperature: 0.7,
+    })
+    return res.choices[0]?.message?.content ?? ''
+  } catch { return '' }
+}
+
 // ── Claude author analysis ────────────────────────────────────────────────────
 
 async function generateAuthorAnalysis(author: {
@@ -773,9 +819,30 @@ const BOOK_TRIGGER_WORDS = [
 ]
 
 interface BookIntentResult {
-  type: 'search' | 'author' | 'genre' | 'quote'
+  type: 'search' | 'author' | 'genre' | 'quote' | 'book-detail'
   query: string
 }
+
+const FAMOUS_BOOKS = [
+  // International
+  'harry potter', 'lord of the rings', 'the hobbit', 'hunger games',
+  '1984', 'brave new world', 'animal farm', 'to kill a mockingbird',
+  'the great gatsby', 'pride and prejudice', 'jane eyre',
+  'the alchemist', 'twilight', 'the da vinci code',
+  'gone with the wind', 'the catcher in the rye',
+  'little women', 'wuthering heights', 'frankenstein',
+  'the count of monte cristo', 'les miserables',
+  'crime and punishment', 'war and peace', 'the trial',
+  'one hundred years of solitude', 'love in the time of cholera',
+  'atomic habits', 'thinking fast and slow', 'sapiens',
+  'the subtle art of not giving a fuck', 'rich dad poor dad',
+  'how to win friends and influence people', 'the power of habit',
+  // Vietnamese
+  'số đỏ', 'chí phèo', 'tắt đèn', 'đất rừng phương nam',
+  'mắt biếc', 'tôi thấy hoa vàng trên cỏ xanh',
+  'cho tôi xin một vé đi tuổi thơ', 'đắc nhân tâm',
+  'nhà giả kim', 'hoàng tử bé',
+]
 
 function detectBookIntent(message: string): BookIntentResult | null {
   const lower = message.toLowerCase().trim()
@@ -788,6 +855,30 @@ function detectBookIntent(message: string): BookIntentResult | null {
 
   function toTitleCase(s: string) {
     return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }
+
+  // ── Explicit book detail patterns ─────────────────────────────────
+  // "thông tin về X" / "giới thiệu X" / "review X" / "X là gì"
+  const bookDetailPatterns: RegExp[] = [
+    /^(?:thông\s+tin(?:\s+về)?|giới\s+thiệu(?:\s+(?:sách|về))?|nội\s+dung(?:\s+sách)?|tóm\s+tắt(?:\s+sách)?)\s+(.+?)(?:\s*\?)?$/,
+    /^(?:review|đánh\s+giá|nhận\s+xét)\s+(?:sách\s+)?(.+?)(?:\s*\?)?$/,
+    /^(.+?)\s+(?:là\s+(?:sách\s+)?gì|nội\s+dung\s+(?:là\s+)?gì|có\s+hay\s+không|đáng\s+đọc\s+không)(?:\s*\?)?$/,
+    /^(?:tell\s+me\s+about|summary\s+of|review\s+of|about\s+(?:the\s+book)?)\s+(.+?)(?:\s*\?)?$/i,
+    /^(?:what\s+is|what\'s)\s+(?:the\s+book\s+)?(.+?)\s+about(?:\s*\?)?$/i,
+  ]
+  for (const pattern of bookDetailPatterns) {
+    const match = lower.match(pattern)
+    if (match) {
+      const title = match[1].trim().replace(/['"]/g, '').trim()
+      if (title.length > 2) return { type: 'book-detail', query: toTitleCase(title) }
+    }
+  }
+
+  // ── Famous book titles (exact match) ─────────────────────────────
+  for (const book of FAMOUS_BOOKS) {
+    if (lower === book || lower === `sách ${book}` || lower === `book ${book}`) {
+      return { type: 'book-detail', query: toTitleCase(book) }
+    }
   }
 
   // ── Explicit author patterns ──────────────────────────────────────
@@ -840,10 +931,36 @@ function detectBookIntent(message: string): BookIntentResult | null {
   return null
 }
 
-async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote', query: string): Promise<Response> {
+async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote' | 'book-detail', query: string): Promise<Response> {
   try {
     const { searchBooks, searchByQuote, getAuthorInfo, getGenreBooks } = await import('@/lib/data/books')
     const limit = 6
+
+    // ── Book detail: specific title lookup ────────────────────────────
+    if (type === 'book-detail') {
+      const books = await searchBooks(query, 4)
+      if (books.length === 0) {
+        // No results — fallback to search
+        return handleBookQuery('search', query)
+      }
+      const book = books[0]
+      const review = await generateBookReview({
+        title:       book.title,
+        author:      book.author,
+        description: book.description,
+        categories:  book.categories,
+        year:        book.year,
+      })
+      const related = books.slice(1).filter(b => b.title !== book.title)
+      return NextResponse.json({
+        type: 'multi',
+        messages: [
+          { type: 'book-detail', book },
+          ...(review ? [{ type: 'text', content: review }] : []),
+          ...(related.length ? [{ type: 'book-grid', books: related, title: 'Related Books' }] : []),
+        ],
+      })
+    }
 
     if (type === 'author') {
       const author = await getAuthorInfo(query)
