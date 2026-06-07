@@ -46,8 +46,18 @@ function mapVolume(item: any): BookResult {
   const sale = item.saleInfo ?? {}
 
   const thumb = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail
-  const cover      = thumb ? thumb.replace('http://', 'https://').replace('zoom=1', 'zoom=1') : undefined
-  const coverLarge = thumb ? thumb.replace('http://', 'https://').replace('zoom=1', 'zoom=3') : undefined
+  let cover      = thumb ? thumb.replace('http://', 'https://') : undefined
+  let coverLarge = thumb ? thumb.replace('http://', 'https://').replace('zoom=1', 'zoom=3') : undefined
+
+  // Fallback: Open Library cover via ISBN when Google Books has no image
+  if (!cover) {
+    const isbn = (info.industryIdentifiers as Array<{ type: string; identifier: string }> | undefined)
+      ?.find(id => id.type === 'ISBN_13' || id.type === 'ISBN_10')?.identifier
+    if (isbn) {
+      cover      = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`
+      coverLarge = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`
+    }
+  }
 
   const rawDesc = info.description ?? ''
   const description = rawDesc
@@ -135,7 +145,7 @@ export async function getAuthorInfo(name: string): Promise<AuthorResult | null> 
     if (pageTitle) {
       // Get page image
       const wikiImg = await fetch(
-        `${WIKI}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageimages|extracts&exintro=true&exchars=400&format=json&pithumbsize=200&origin=*`,
+        `${WIKI}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageimages|extracts&exintro=true&exchars=3000&format=json&pithumbsize=300&origin=*`,
         { cache: 'no-store' }
       )
       const wikiImgData = await wikiImg.json()

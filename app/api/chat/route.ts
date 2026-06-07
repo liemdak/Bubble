@@ -451,34 +451,17 @@ async function handleGroq(
           const author = await getAuthorInfo(query)
           if (!author) return NextResponse.json({ type: 'text', message: `Could not find author "${query}". Try a different spelling.` })
 
-          // Generate rich analysis via Groq
-          const analysisPrompt = `You are a literary expert. Based on this data about ${author.name}:
-Bio: ${author.bio?.slice(0, 600) ?? 'Not available'}
-Works: ${author.topBooks.map(b => b.title).join(', ')}
-
-Write a rich, engaging analysis (150-200 words) covering:
-- Their literary significance and style
-- Most important works and why they matter
-- Who should read them and where to start
-Be specific and insightful. No bullet points — flowing prose.`
-
-          let analysis = ''
-          try {
-            const { getGroqClient } = await import('@/lib/groq/client')
-            const groq = getGroqClient()
-            const res  = await groq.chat.completions.create({
-              model: 'llama-3.3-70b-versatile',
-              messages: [{ role: 'user', content: analysisPrompt }],
-              max_tokens: 300,
-              temperature: 0.7,
-            })
-            analysis = res.choices[0]?.message?.content ?? ''
-          } catch { /* analysis optional */ }
+          const analysis = await generateAuthorAnalysis(author)
 
           return NextResponse.json({
             type: 'multi',
             messages: [
-              ...(author.bio ? [{ type: 'author-profile', data: { name: author.name, bio: author.bio, photoUrl: author.photoUrl, bookCount: author.bookCount } }] : []),
+              { type: 'author-profile', data: {
+                name:      author.name,
+                bio:       author.bio ?? `${author.name} is a notable author with ${author.bookCount ?? author.topBooks.length}+ works.`,
+                photoUrl:  author.photoUrl,
+                bookCount: author.bookCount,
+              }},
               ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
               ...(analysis ? [{ type: 'text', content: analysis }] : []),
             ],
@@ -680,6 +663,52 @@ async function searchArcDocs(query: string): Promise<string> {
   return `📚 **Arc Docs**\n\nI couldn't fetch live Arc docs for "${query}" right now.\n\nTry visiting: https://docs.arc.io\n\nOr ask me something specific like "Arc gas fees", "USDC contract address", "how to bridge", or "testnet RPC".`
 }
 
+// ── Claude author analysis ────────────────────────────────────────────────────
+
+async function generateAuthorAnalysis(author: {
+  name: string
+  bio?: string
+  topBooks: Array<{ title: string; year?: string }>
+}): Promise<string> {
+  const prompt = `You are an expert literary critic and passionate book recommender.
+
+Author: ${author.name}
+${author.bio ? `Biography: ${author.bio.slice(0, 1500)}\n` : ''}Notable works: ${author.topBooks.map(b => `"${b.title}"${b.year ? ` (${b.year})` : ''}`).join(', ')}
+
+Write a compelling 200-250 word author profile that covers:
+- Their unique writing style and what makes them truly distinctive
+- 2-3 most significant works and why readers love them
+- Who this author is perfect for (type of reader)
+- The single best book to start with and why
+
+Be specific, enthusiastic, and genuinely helpful. Flowing prose only — no bullet points, no headers. Make the reader want to pick up a book immediately.`
+
+  // Try Claude first (higher quality)
+  try {
+    const AnthropicSDK = (await import('@anthropic-ai/sdk')).default
+    const client = new AnthropicSDK({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const msg = await client.messages.create({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 500,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    return msg.content[0].type === 'text' ? msg.content[0].text : ''
+  } catch { /* fall through to Groq */ }
+
+  // Fallback: Groq
+  try {
+    const { getGroqClient } = await import('@/lib/groq/client')
+    const groq = getGroqClient()
+    const res  = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 400,
+      temperature: 0.7,
+    })
+    return res.choices[0]?.message?.content ?? ''
+  } catch { return '' }
+}
+
 // ── Book intent detection ─────────────────────────────────────────────────────
 
 const BOOK_GENRE_KEYWORDS: Record<string, string> = {
@@ -689,29 +718,55 @@ const BOOK_GENRE_KEYWORDS: Record<string, string> = {
   'fantasy': 'fantasy', 'romance': 'romance', 'biography': 'biography',
   'self-help': 'self help', 'non-fiction': 'nonfiction', 'fiction': 'fiction',
   'bestseller': 'bestsellers', 'best seller': 'bestsellers',
+  'philosophy': 'philosophy', 'psychology': 'psychology',
+  'history': 'history', 'business': 'business', 'personal development': 'personal development',
+  'young adult': 'young adult', 'children': 'children', 'graphic novel': 'graphic novel',
+  'classic': 'classics', 'poetry': 'poetry', 'short stories': 'short stories',
   // Vietnamese
   'kinh dị': 'horror', 'trinh thám': 'mystery', 'lãng mạn': 'romance',
   'khoa học viễn tưởng': 'science fiction', 'viễn tưởng': 'science fiction',
   'tự truyện': 'biography', 'hồi ký': 'memoir', 'kỹ năng': 'self help',
   'bán chạy': 'bestsellers', 'bán chạy nhất': 'bestsellers',
+  'triết học': 'philosophy', 'tâm lý': 'psychology', 'lịch sử': 'history',
+  'kinh doanh': 'business', 'phát triển bản thân': 'personal development',
+  'thiếu nhi': 'children', 'cổ điển': 'classics', 'thơ': 'poetry',
+  'tình yêu': 'love romance', 'phiêu lưu': 'adventure', 'hành động': 'action adventure',
+  'văn học việt': 'vietnamese literature', 'văn học nước ngoài': 'world literature',
 }
 
 const FAMOUS_AUTHORS = [
+  // English / International
   'stephen king', 'haruki murakami', 'agatha christie', 'j.k. rowling', 'jk rowling',
   'george orwell', 'ernest hemingway', 'f. scott fitzgerald', 'jane austen',
   'leo tolstoy', 'fyodor dostoevsky', 'gabriel garcia marquez', 'paulo coelho',
   'dan brown', 'james patterson', 'john grisham', 'nicholas sparks',
   'george r.r. martin', 'tolkien', 'j.r.r. tolkien', 'orwell',
   'dostoevsky', 'tolstoy', 'kafka', 'hemingway', 'fitzgerald',
+  'mark twain', 'charles dickens', 'virginia woolf', 'oscar wilde',
+  'albert camus', 'franz kafka', 'yuval noah harari',
+  'malcolm gladwell', 'brene brown', 'james clear', 'dale carnegie',
+  'napoleon hill', 'robin sharma', 'eckhart tolle', 'ryan holiday',
+  'walter isaacson', 'simon sinek', 'cal newport', 'adam grant',
+  'michelle obama', 'elon musk', 'steve jobs',
+  // Vietnamese authors
+  'nguyễn nhật ánh', 'nguyen nhat anh',
+  'tô hoài', 'to hoai',
+  'nam cao', 'nguyễn du', 'nguyen du',
+  'bảo ninh', 'bao ninh',
+  'nguyễn huy thiệp', 'nguyen huy thiep',
+  'dương thu hương', 'duong thu huong',
+  'nguyễn ngọc tư', 'nguyen ngoc tu',
 ]
 
 const BOOK_TRIGGER_WORDS = [
   // English
   'book', 'books', 'novel', 'author', 'writer', 'read', 'reading', 'literature',
   'fiction', 'nonfiction', 'bestseller', 'recommend', 'suggest book',
+  'what to read', 'good book', 'great book',
   // Vietnamese
   'sách', 'tác giả', 'đọc sách', 'truyện', 'tiểu thuyết', 'văn học',
   'đề xuất sách', 'gợi ý sách', 'top sách', 'bảng xếp hạng sách',
+  'cuốn sách', 'quyển sách', 'nên đọc', 'hay nhất', 'đáng đọc',
 ]
 
 interface BookIntentResult {
@@ -722,29 +777,60 @@ interface BookIntentResult {
 function detectBookIntent(message: string): BookIntentResult | null {
   const lower = message.toLowerCase().trim()
 
-  // Check famous authors first
-  for (const author of FAMOUS_AUTHORS) {
-    if (lower.includes(author)) {
-      return { type: 'author', query: author.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }
+  // Non-author words to skip when extracting author from patterns
+  const SKIP_WORDS = new Set([
+    'hay', 'tốt', 'good', 'best', 'popular', 'new', 'old', 'free', 'cheap',
+    'my', 'your', 'tôi', 'mình', 'bạn', 'nào', 'gì', 'đó', 'nổi tiếng',
+  ])
+
+  function toTitleCase(s: string) {
+    return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }
+
+  // ── Explicit author patterns ──────────────────────────────────────
+  // "sách của X" / "tác giả X" / "X viết gì" / "books by X" / "about author X"
+  const authorPatterns: RegExp[] = [
+    /^(?:top\s+)?sách\s+của\s+(.+?)(?:\s*\?)?$/,
+    /^(?:giới thiệu\s+)?(?:về\s+)?tác\s+giả\s+(.+?)(?:\s*\?)?$/,
+    /^(.+?)\s+(?:viết|có)\s+(?:sách|cuốn|quyển|những sách)/,
+    /^books?\s+by\s+(.+?)(?:\s*\?)?$/i,
+    /^(?:tell me about\s+)?(.+?)'s?\s+books?(?:\s*\?)?$/i,
+    /^(?:author|writer)\s+(.+?)(?:\s*\?)?$/i,
+    /^about\s+author\s+(.+?)(?:\s*\?)?$/i,
+  ]
+
+  for (const pattern of authorPatterns) {
+    const match = lower.match(pattern)
+    if (match) {
+      const candidate = match[1].trim().replace(/\?$/, '').trim()
+      if (candidate.length > 2 && !SKIP_WORDS.has(candidate)) {
+        return { type: 'author', query: toTitleCase(candidate) }
+      }
     }
   }
 
-  // Check genre keywords
+  // ── Famous authors ────────────────────────────────────────────────
+  for (const author of FAMOUS_AUTHORS) {
+    if (lower.includes(author)) {
+      return { type: 'author', query: toTitleCase(author) }
+    }
+  }
+
+  // ── Genre keywords ────────────────────────────────────────────────
   for (const [keyword, genre] of Object.entries(BOOK_GENRE_KEYWORDS)) {
     if (lower.includes(keyword)) {
       return { type: 'genre', query: genre }
     }
   }
 
-  // Check general book trigger words
+  // ── General book trigger ──────────────────────────────────────────
   const hasBookTrigger = BOOK_TRIGGER_WORDS.some(w => lower.includes(w))
   if (hasBookTrigger) {
-    // Extract search query — remove trigger words to get the actual subject
     let query = message.trim()
-    for (const w of ['sách', 'book', 'books', 'tìm sách', 'find book', 'top sách', 'top books']) {
+    for (const w of ['sách', 'cuốn sách', 'quyển sách', 'book', 'books', 'tìm sách', 'find book', 'top sách', 'top books', 'đề xuất', 'gợi ý', 'recommend']) {
       query = query.replace(new RegExp(w, 'gi'), '').trim()
     }
-    query = query || message.trim()
+    query = query.trim() || message.trim()
     return { type: 'search', query }
   }
 
@@ -760,28 +846,21 @@ async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote', qu
       const author = await getAuthorInfo(query)
       if (!author) return NextResponse.json({ type: 'text', message: `Could not find author "${query}". Try a different spelling.` })
 
-      const analysisPrompt = `You are a literary expert. Based on this data about ${author.name}:
-Bio: ${author.bio?.slice(0, 600) ?? 'Not available'}
-Works: ${author.topBooks.map(b => b.title).join(', ')}
-Write a rich analysis (150-200 words): literary significance, writing style, most important works, who should read them and where to start. Flowing prose, no bullet points.`
-
-      let analysis = ''
-      try {
-        const { getGroqClient } = await import('@/lib/groq/client')
-        const groq = getGroqClient()
-        const res  = await groq.chat.completions.create({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: analysisPrompt }],
-          max_tokens: 300, temperature: 0.7,
-        })
-        analysis = res.choices[0]?.message?.content ?? ''
-      } catch { /* optional */ }
+        const analysis = await generateAuthorAnalysis(author)
 
       return NextResponse.json({
         type: 'multi',
         messages: [
-          ...(author.bio ? [{ type: 'author-profile', data: { name: author.name, bio: author.bio, photoUrl: author.photoUrl, bookCount: author.bookCount } }] : []),
+          // Author profile card (photo + bio)
+          { type: 'author-profile', data: {
+            name:      author.name,
+            bio:       author.bio ?? `${author.name} is a notable author with ${author.bookCount ?? author.topBooks.length}+ works.`,
+            photoUrl:  author.photoUrl,
+            bookCount: author.bookCount,
+          }},
+          // Book grid
           ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
+          // Claude analysis
           ...(analysis ? [{ type: 'text', content: analysis }] : []),
         ],
       })
