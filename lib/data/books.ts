@@ -74,9 +74,8 @@ function mapVolume(item: any): BookResult {
   }
 
   const rawDesc = info.description ?? ''
-  const description = rawDesc
-    ? rawDesc.replace(/<[^>]*>/g, '').slice(0, 400) + (rawDesc.length > 400 ? '…' : '')
-    : undefined
+  // Store full description — UI components handle their own truncation with expand/collapse
+  const description = rawDesc ? rawDesc.replace(/<[^>]*>/g, '').trim() : undefined
 
   // Price from Google Books saleInfo
   const listPrice = sale.listPrice ?? sale.retailPrice

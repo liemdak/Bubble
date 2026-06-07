@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { playBubbleTap } from '@/lib/sounds'
 
 interface AppHeaderProps {
@@ -70,43 +71,56 @@ export function AppHeader({ address }: AppHeaderProps) {
           Bubble
         </Link>
 
-        {/* Agent chip — sits right next to logo */}
-        <Link
-          href="/agent"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            background: pathname === '/agent' ? 'rgba(96,165,250,0.15)' : 'rgba(96,165,250,0.07)',
-            border: `1px solid ${pathname === '/agent' ? 'rgba(96,165,250,0.45)' : 'rgba(96,165,250,0.20)'}`,
-            borderRadius: 100,
-            padding: '3px 10px 3px 8px',
-            fontSize: 11,
-            fontWeight: 500,
-            color: pathname === '/agent' ? '#93c5fd' : 'rgba(147,197,253,0.55)',
-            textDecoration: 'none',
-            transition: 'all 0.18s',
-            letterSpacing: '0.01em',
-          }}
-          onMouseEnter={(e) => {
-            if (pathname !== '/agent') {
-              e.currentTarget.style.background = 'rgba(96,165,250,0.12)'
-              e.currentTarget.style.color = 'rgba(147,197,253,0.80)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (pathname !== '/agent') {
-              e.currentTarget.style.background = 'rgba(96,165,250,0.07)'
-              e.currentTarget.style.color = 'rgba(147,197,253,0.55)'
-            }
-          }}
+        {/* Agent chip — animated, sits right next to logo */}
+        <motion.div
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.96 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
-          <div style={{
-            width: 5, height: 5, borderRadius: '50%',
-            background: pathname === '/agent' ? '#60a5fa' : 'rgba(96,165,250,0.4)',
-            boxShadow: pathname === '/agent' ? '0 0 5px rgba(96,165,250,0.7)' : 'none',
-            transition: 'all 0.18s',
-          }} />
-          Agent
-        </Link>
+          <Link
+            href="/agent"
+            onClick={() => playBubbleTap()}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: pathname === '/agent'
+                ? 'rgba(96,165,250,0.20)'
+                : 'rgba(96,165,250,0.10)',
+              border: `1.5px solid ${pathname === '/agent' ? 'rgba(96,165,250,0.60)' : 'rgba(96,165,250,0.28)'}`,
+              borderRadius: 100,
+              padding: '4px 12px 4px 9px',
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: '-0.2px',
+              color: pathname === '/agent' ? '#bfdbfe' : 'rgba(147,197,253,0.75)',
+              textDecoration: 'none',
+              transition: 'background 0.18s, border-color 0.18s, color 0.18s',
+              boxShadow: pathname === '/agent'
+                ? '0 0 14px rgba(96,165,250,0.30)'
+                : '0 0 8px rgba(96,165,250,0.10)',
+            }}
+          >
+            {/* Pulsing dot */}
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 8, height: 8 }}>
+              <motion.span
+                animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
+                transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+                style={{
+                  position: 'absolute',
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: '#60a5fa',
+                  display: 'block',
+                }}
+              />
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: pathname === '/agent' ? '#93c5fd' : '#60a5fa',
+                display: 'block',
+                flexShrink: 0,
+              }} />
+            </span>
+            Agent
+          </Link>
+        </motion.div>
 
         {/* ARC Testnet — small, muted, right next to the logo group */}
         <div style={{

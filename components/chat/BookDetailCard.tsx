@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import type { BookResult } from '@/lib/data/books'
 
@@ -7,7 +8,15 @@ interface BookDetailCardProps {
   book: BookResult
 }
 
+const DESC_SHORT = 400
+
 export function BookDetailCard({ book }: BookDetailCardProps) {
+  const [descExpanded, setDescExpanded] = useState(false)
+  const isLongDesc = (book.description?.length ?? 0) > DESC_SHORT
+  const displayDesc = isLongDesc && !descExpanded
+    ? book.description!.slice(0, DESC_SHORT) + '…'
+    : book.description
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -105,15 +114,29 @@ export function BookDetailCard({ book }: BookDetailCardProps) {
       </div>
 
       {/* Description */}
-      {book.description && (
+      {displayDesc && (
         <div style={{
-          padding: '0 18px 14px',
-          fontSize: 13, color: 'rgba(255,255,255,0.52)',
-          lineHeight: 1.7,
+          padding: '14px 18px',
           borderTop: '1px solid rgba(255,255,255,0.05)',
-          paddingTop: 14,
         }}>
-          {book.description}
+          <div style={{
+            fontSize: 13, color: 'rgba(255,255,255,0.55)',
+            lineHeight: 1.75,
+          }}>
+            {displayDesc}
+          </div>
+          {isLongDesc && (
+            <button
+              onClick={() => setDescExpanded(e => !e)}
+              style={{
+                marginTop: 8, background: 'none', border: 'none',
+                color: '#a3e635', fontSize: 12, cursor: 'pointer',
+                fontFamily: 'inherit', padding: 0, fontWeight: 500,
+              }}
+            >
+              {descExpanded ? 'Rút gọn ↑' : 'Xem thêm ↓'}
+            </button>
+          )}
         </div>
       )}
 
