@@ -45,11 +45,23 @@ function mapVolume(item: any): BookResult {
   const info = item.volumeInfo ?? {}
   const sale = item.saleInfo ?? {}
 
-  const thumb = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail
-  let cover      = thumb ? thumb.replace('http://', 'https://') : undefined
-  let coverLarge = thumb ? thumb.replace('http://', 'https://').replace('zoom=1', 'zoom=3') : undefined
+  const thumb  = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail
+  const bookId = item.id ?? ''
 
-  // Fallback: Open Library cover via ISBN when Google Books has no image
+  let cover:      string | undefined
+  let coverLarge: string | undefined
+
+  if (thumb) {
+    // API thumbnail = confirmed cover exists; normalise to HTTPS and request larger zoom
+    cover      = thumb.replace('http://', 'https://')
+    coverLarge = thumb.replace('http://', 'https://').replace(/zoom=\d/, 'zoom=0')
+  } else if (bookId) {
+    // No thumbnail field — construct directly from bookId
+    cover      = `https://books.google.com/books/content?id=${bookId}&printsec=frontcover&img=1&zoom=2&source=gbs_api`
+    coverLarge = `https://books.google.com/books/content?id=${bookId}&printsec=frontcover&img=1&zoom=0&source=gbs_api`
+  }
+
+  // Tertiary fallback: Open Library via ISBN
   if (!cover) {
     const isbn = (info.industryIdentifiers as Array<{ type: string; identifier: string }> | undefined)
       ?.find(id => id.type === 'ISBN_13' || id.type === 'ISBN_10')?.identifier

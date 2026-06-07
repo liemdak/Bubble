@@ -7,6 +7,7 @@ interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
   isTyping?: boolean
+  accentColor?: string   // default #a3e635 (payment), pass #60a5fa for agent
 }
 
 /** Render text with clickable https:// links */
@@ -38,7 +39,7 @@ function RichText({ text }: { text: string }) {
   )
 }
 
-export function MessageBubble({ role, content, isTyping = false }: MessageBubbleProps) {
+export function MessageBubble({ role, content, isTyping = false, accentColor = '#a3e635' }: MessageBubbleProps) {
   const isUser = role === 'user'
   const [hovered, setHovered] = useState(false)
   const [copied,  setCopied]  = useState(false)
@@ -67,22 +68,22 @@ export function MessageBubble({ role, content, isTyping = false }: MessageBubble
         position: 'relative',
       }}
     >
-      {/* Green dot — assistant only */}
+      {/* Accent dot — assistant only */}
       {!isUser && (
         <div style={{
           width: 5, height: 5,
           borderRadius: '50%',
-          background: '#a3e635',
+          background: accentColor,
           flexShrink: 0,
           marginBottom: 8,
-          boxShadow: '0 0 6px rgba(163,230,53,0.6)',
+          boxShadow: `0 0 6px ${accentColor}99`,
         }} />
       )}
 
       <div style={{ position: 'relative', maxWidth: '100%' }}>
         <div style={{
           background: isUser
-            ? '#a3e635'
+            ? accentColor
             : 'rgba(255,255,255,0.055)',
           border: isUser
             ? 'none'
@@ -96,7 +97,7 @@ export function MessageBubble({ role, content, isTyping = false }: MessageBubble
           backdropFilter: isUser ? 'none' : 'blur(20px)',
           WebkitBackdropFilter: isUser ? 'none' : 'blur(20px)',
           boxShadow: isUser
-            ? '0 2px 10px rgba(163,230,53,0.20)'
+            ? `0 2px 10px ${accentColor}33`
             : '0 1px 8px rgba(0,0,0,0.20)',
           wordBreak: 'break-word',
           whiteSpace: 'pre-line',
@@ -123,7 +124,7 @@ export function MessageBubble({ role, content, isTyping = false }: MessageBubble
               alignItems: 'center',
               gap: 4,
               fontSize: 10,
-              color: copied ? '#a3e635' : 'rgba(255,255,255,0.35)',
+              color: copied ? accentColor : 'rgba(255,255,255,0.35)',
               transition: 'color 0.15s',
               whiteSpace: 'nowrap',
             }}

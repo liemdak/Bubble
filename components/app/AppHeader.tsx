@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/balance',  label: 'Balance'  },
   { href: '/contacts', label: 'Contacts' },
   { href: '/history',  label: 'History'  },
+  { href: '/agent',    label: 'Agent',   accent: '#60a5fa' },
 ]
 
 export function AppHeader({ address }: AppHeaderProps) {
@@ -90,8 +91,9 @@ export function AppHeader({ address }: AppHeaderProps) {
 
         {/* Nav links */}
         <nav style={{ display: 'flex', alignItems: 'center', gap: 2, marginRight: 8 }}>
-          {NAV_LINKS.map(({ href, label }) => {
-            const active = pathname === href
+          {NAV_LINKS.map(({ href, label, accent }) => {
+            const active      = pathname === href
+            const activeColor = accent ?? '#a3e635'
             return (
               <Link
                 key={href}
@@ -105,10 +107,12 @@ export function AppHeader({ address }: AppHeaderProps) {
                   color: active ? '#ffffff' : 'rgba(255,255,255,0.35)',
                   textDecoration: 'none',
                   background: active
-                    ? 'linear-gradient(135deg, rgba(12,95,48,0.55), rgba(185,105,8,0.35))'
+                    ? accent
+                      ? `${accent}18`
+                      : 'linear-gradient(135deg, rgba(12,95,48,0.55), rgba(185,105,8,0.35))'
                     : 'transparent',
                   border: active
-                    ? '1px solid rgba(163,230,53,0.22)'
+                    ? `1px solid ${activeColor}38`
                     : '1px solid rgba(255,255,255,0.07)',
                   transition: 'all 0.18s',
                   letterSpacing: active ? '-0.1px' : '0',

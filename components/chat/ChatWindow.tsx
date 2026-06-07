@@ -46,7 +46,12 @@ function isPersistable(m: ChatMessage): boolean {
   return m.type === 'user' || m.type === 'assistant' || m.type === 'success' || m.type === 'qr'
 }
 
-export function ChatWindow() {
+interface ChatWindowProps {
+  mode?: 'payment' | 'agent'
+}
+
+export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
+  const accent = mode === 'agent' ? '#60a5fa' : '#a3e635'
   const [messages, setMessages]           = useState<ChatMessage[]>([])
   const [loading, setLoading]             = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
@@ -121,7 +126,7 @@ export function ChatWindow() {
       const res  = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, mode }),
       })
       const data = await res.json()
 
@@ -442,16 +447,16 @@ export function ChatWindow() {
                       justifyContent: 'center',
                       width: 52, height: 52,
                       borderRadius: '50%',
-                      background: 'radial-gradient(circle at 35% 35%, rgba(163,230,53,0.22), rgba(163,230,53,0.03) 70%)',
-                      border: '1px solid rgba(163,230,53,0.20)',
+                      background: `radial-gradient(circle at 35% 35%, ${accent}38, ${accent}08 70%)`,
+                      border: `1px solid ${accent}33`,
                       marginBottom: 18,
-                      boxShadow: '0 0 24px rgba(163,230,53,0.15)',
+                      boxShadow: `0 0 24px ${accent}26`,
                     }}
                   >
                     <div style={{
                       width: 8, height: 8, borderRadius: '50%',
-                      background: '#a3e635',
-                      boxShadow: '0 0 10px rgba(163,230,53,0.8)',
+                      background: accent,
+                      boxShadow: `0 0 10px ${accent}cc`,
                     }} />
                   </motion.div>
 
@@ -476,7 +481,7 @@ export function ChatWindow() {
             if (msg.type === 'user' || msg.type === 'assistant') {
               return (
                 <div key={msg.id} id={`msg-${msg.id}`}>
-                  <MessageBubble role={msg.type} content={msg.content} />
+                  <MessageBubble role={msg.type} content={msg.content} accentColor={accent} />
                 </div>
               )
             }

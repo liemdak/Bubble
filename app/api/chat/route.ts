@@ -64,7 +64,9 @@ Be concise. For payments always confirm before executing.`
 
 export async function POST(req: NextRequest) {
   try {
-    const { message } = await req.json()
+    const body = await req.json()
+    const message: string = body.message
+    const mode:    string = body.mode ?? 'payment'   // 'payment' | 'agent'
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ type: 'text', message: 'No message received.' }, { status: 400 })
     }
@@ -82,17 +84,66 @@ export async function POST(req: NextRequest) {
       return await handleBookQuery(bookIntent.type, bookIntent.query)
     }
 
+    // ── /save <name> <0x address> ────────────────────────────────────
+    const saveCmd = message.match(/^\/save\s+(\S+)\s+(0x[0-9a-fA-F]{40})\s*$/i)
+    if (saveCmd) {
+      const [, name, address] = saveCmd
+      if (!userAddress) {
+        return NextResponse.json({ type: 'text', message: '⚠️ Please connect your wallet first.' })
+      }
+      try {
+        const { addContact } = await import('@/lib/firebase/db')
+        await addContact(userAddress, { name, address, chain: 'arc' })
+        return NextResponse.json({
+          type: 'text',
+          message: `✅ Saved! **${name}** → \`${address.slice(0, 6)}...${address.slice(-4)}\`\n\nYou can now send with: "send 10 USDC to ${name}"`,
+        })
+      } catch (err) {
+        const isDup = err instanceof Error && err.message.startsWith('DUPLICATE')
+        return NextResponse.json({
+          type: 'text',
+          message: isDup
+            ? `⚠️ Contact **${name}** already exists. Use a different name.`
+            : '❌ Could not save contact. Please try again.',
+        })
+      }
+    }
+
+    // ── /book <query> — precise book search ──────────────────────────
+    // /book @murakami        → author
+    // /book #horror          → genre
+    // /book "a quote here"   → quote search
+    // /book kafka on shore   → book-detail / search
+    const bookCmd = message.match(/^\/book\s+(.+)/i)
+    if (bookCmd) {
+      const raw = bookCmd[1].trim()
+      if (raw.startsWith('@'))
+        return await handleBookQuery('author', raw.slice(1).trim())
+      if (raw.startsWith('#'))
+        return await handleBookQuery('genre', raw.slice(1).trim())
+      if (/^["'](.+)["']$/.test(raw))
+        return await handleBookQuery('quote', raw.replace(/^["']|["']$/g, ''))
+      const intent = detectBookIntent(raw)
+      if (intent) return await handleBookQuery(intent.type, intent.query)
+      return await handleBookQuery('book-detail', raw)
+    }
+
     // ── /help — list all quick commands ─────────────────────────────
     if (/^\/help$/i.test(message.trim())) {
       return NextResponse.json({
         type: 'text',
         message:
           `Quick commands\n\n` +
-          `  /p BTC        price + 7d chart\n` +
-          `  /p ETH 30d    30-day chart\n` +
-          `  /p SOL 1d     24h chart\n` +
-          `  /p USDC EURC  exchange rate\n` +
-          `  /help         show this\n\n` +
+          `  /p BTC             price + 7d chart\n` +
+          `  /p ETH 30d         30-day chart\n` +
+          `  /p SOL 1d          24h chart\n` +
+          `  /p USDC EURC       exchange rate\n` +
+          `  /book @murakami    author profile\n` +
+          `  /book #horror      genre top books\n` +
+          `  /book kafka shore  book detail\n` +
+          `  /book "a quote"    find book by quote\n` +
+          `  /save Name 0x...   save contact instantly\n` +
+          `  /help              show this\n\n` +
           `Supports BTC, ETH, SOL, BNB, ADA, XRP, DOGE, SHIB, PEPE, SUI, APT, PYTH and more.\n\n` +
           `Natural language works too:\n` +
           `"send 50 USDC to Mike"   "swap 100 USDC to EURC"\n` +
@@ -249,7 +300,7 @@ export async function POST(req: NextRequest) {
     // ── Groq (primary) ───────────────────────────────────────────────
     if (process.env.GROQ_API_KEY) {
       try {
-        return await handleGroq(message, userAddress, circleWalletId, circleWalletAddress)
+        return await handleGroq(message, userAddress, circleWalletId, circleWalletAddress, mode)
       } catch (err) {
         console.error('[/api/chat] Groq error — falling back to mock:', err)
       }
@@ -313,11 +364,37 @@ async function fetchRealBalance(
   }
 }
 
+const AGENT_SYSTEM_PROMPT = `You are Bubble Agent — an intelligent research and knowledge assistant.
+
+LANGUAGE: Default English. Always match the user's language exactly.
+PERSONALITY: Curious, knowledgeable, enthusiastic. Deep diver into topics.
+
+YOUR CAPABILITIES:
+- Books: author profiles, reviews, recommendations, genres, quotes → use get_book tool
+- General knowledge: history, science, culture, technology, philosophy, art
+- Recommendations: what to read/watch/listen, places, activities
+- Writing & creativity: drafting, editing, brainstorming ideas
+- Explanations: break down complex topics clearly and engagingly
+- Language: translation, grammar help
+
+IMPORTANT — PAYMENTS:
+If user asks to send/transfer/swap/bridge crypto → kindly redirect:
+"For payments, use the Payment Chat (the 💚 tab). I'm focused on research and knowledge here!"
+
+BOOK COMMANDS (always available):
+  /book @author    → author profile
+  /book #genre     → genre recommendations
+  /book "quote"    → find book by quote
+  /book title      → book detail + review
+
+Be concise, specific, and make every answer genuinely useful. No filler.`
+
 async function handleGroq(
   message: string,
   userAddress: string | null,
   circleWalletId: string | null,
   circleWalletAddress: string | null = null,
+  mode = 'payment',
 ) {
   const { getGroqClient } = await import('@/lib/groq/client')
   const { PAYMENT_TOOLS } = await import('@/lib/groq/tools')
@@ -330,7 +407,7 @@ async function handleGroq(
       ? `\n\nUser wallet address: ${userAddress}`
       : ''
 
-  const system = SYSTEM_PROMPT + walletContext
+  const system = (mode === 'agent' ? AGENT_SYSTEM_PROMPT : SYSTEM_PROMPT) + walletContext
 
   // Giới hạn độ dài message để tránh spam
   const safeMessage = message.slice(0, 2000)
@@ -864,6 +941,20 @@ function detectBookIntent(message: string): BookIntentResult | null {
 
   function toTitleCase(s: string) {
     return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }
+
+  // ── "Title by/của Author" pattern ────────────────────────────────
+  // e.g. "kafka của murakami" → search "kafka murakami" as book-detail
+  // This must run BEFORE famous-author check to prevent "kafka" → author Kafka
+  const byAuthorPattern = /^(.+?)\s+(?:của|bởi|by)\s+(.+?)(?:\s*\?)?$/
+  const byMatch = lower.match(byAuthorPattern)
+  if (byMatch) {
+    const titlePart  = byMatch[1].trim()
+    const authorPart = byMatch[2].trim()
+    const GENERIC = new Set(['sách', 'cuốn', 'quyển', 'truyện', 'tác giả', 'nhà văn', 'tôi', 'bạn', 'mình'])
+    if (!GENERIC.has(titlePart) && titlePart.length > 1) {
+      return { type: 'book-detail', query: `${toTitleCase(titlePart)} ${toTitleCase(authorPart)}` }
+    }
   }
 
   // ── Explicit book detail patterns ─────────────────────────────────
