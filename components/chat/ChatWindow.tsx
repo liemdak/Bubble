@@ -39,7 +39,6 @@ function getGreeting() {
   return 'Good evening'
 }
 
-const CHAT_KEY  = 'bubblepay:chat'
 const MAX_SAVED = 60
 
 function isPersistable(m: ChatMessage): boolean {
@@ -51,7 +50,8 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
-  const accent = mode === 'agent' ? '#60a5fa' : '#a3e635'
+  const accent    = mode === 'agent' ? '#60a5fa' : '#a3e635'
+  const CHAT_KEY  = mode === 'agent' ? 'bubblepay:chat:agent' : 'bubblepay:chat:payment'
   const [messages, setMessages]           = useState<ChatMessage[]>([])
   const [loading, setLoading]             = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
@@ -463,12 +463,16 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
                   <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.3px', marginBottom: 7, color: '#fff' }}>
                     {getGreeting()}
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,0.40)', lineHeight: 1.8, maxWidth: 220, margin: '0 auto' }}>
-                    Your payment assistant.<br />Type what you need.
+                  <div style={{ fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,0.40)', lineHeight: 1.8, maxWidth: 260, margin: '0 auto' }}>
+                    {mode === 'agent'
+                      ? <>Ask about books, authors, genres.<br />Type <span style={{ color: accent, opacity: 0.8 }}>/book</span> to start.</>
+                      : <>Your payment assistant.<br />Type what you need.</>
+                    }
                   </div>
                 </motion.div>
 
-                <EmptySuggestions onSelect={handleSend} onPrefill={handlePrefill} />
+                {mode !== 'agent' && <EmptySuggestions onSelect={handleSend} onPrefill={handlePrefill} />}
+                {mode === 'agent'  && <AgentSuggestions onSelect={handleSend} accent={accent} />}
               </motion.div>
             )}
           </AnimatePresence>
@@ -564,11 +568,63 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
         </div>{/* end scroll container */}
       </div>{/* end messages area */}
 
-      {/* ── Quick actions ── */}
-      <QuickActions onAction={handleSend} onPrefill={handlePrefill} />
+      {/* ── Quick actions (payment only) ── */}
+      {mode !== 'agent' && <QuickActions onAction={handleSend} onPrefill={handlePrefill} />}
 
       {/* ── Input bar ── */}
-      <ChatInput ref={chatInputRef} onSend={handleSend} disabled={loading} />
+      <ChatInput
+        ref={chatInputRef}
+        onSend={handleSend}
+        disabled={loading}
+        mode={mode}
+        placeholder={mode === 'agent' ? 'Ask about a book, author, or genre…' : 'Send 50 USDC to Sarah…'}
+        accentColor={accent}
+      />
+    </div>
+  )
+}
+
+// ── Agent empty-state suggestions ────────────────────────────────────────────
+function AgentSuggestions({ onSelect, accent }: { onSelect: (t: string) => void; accent: string }) {
+  const items = [
+    { text: '/book @stephen king',     desc: 'Tác giả + danh sách sách' },
+    { text: '/book #thriller',         desc: 'Sách theo thể loại' },
+    { text: '/book harry potter',      desc: 'Thông tin chi tiết một cuốn sách' },
+    { text: '/book @haruki murakami',  desc: 'Phân tích tác giả bằng AI' },
+  ]
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 0 20px' }}>
+      {items.map((item, i) => {
+        const [hover, setHover] = useState(false) // eslint-disable-line react-hooks/rules-of-hooks
+        return (
+          <motion.div
+            key={item.text}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.20, delay: i * 0.05 + 0.08 }}
+          >
+            <button
+              onClick={() => onSelect(item.text)}
+              onMouseEnter={() => setHover(true)}
+              onMouseLeave={() => setHover(false)}
+              style={{
+                width: '100%', textAlign: 'left',
+                background: hover ? `${accent}0d` : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${hover ? `${accent}30` : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: 12, padding: '11px 13px',
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.12s',
+                transform: hover ? 'translateY(-2px)' : 'none',
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 600, color: accent, marginBottom: 2, fontFamily: 'monospace' }}>
+                {item.text}
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>{item.desc}</div>
+            </button>
+          </motion.div>
+        )
+      })}
     </div>
   )
 }
@@ -576,7 +632,7 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
 // ── Author Profile Card ───────────────────────────────────────────────────────
 function AuthorProfileCard({ data }: { data: { name: string; bio: string; photoUrl?: string; bookCount?: number } }) {
   const [expanded, setExpanded] = useState(false)
-  const SHORT = 1000
+  const SHORT = 2000
   const isLong = data.bio.length > SHORT
 
   return (

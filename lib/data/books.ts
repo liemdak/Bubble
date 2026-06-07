@@ -52,13 +52,15 @@ function mapVolume(item: any): BookResult {
   let coverLarge: string | undefined
 
   if (thumb) {
-    // API thumbnail = confirmed cover exists; normalise to HTTPS and request larger zoom
-    cover      = thumb.replace('http://', 'https://')
-    coverLarge = thumb.replace('http://', 'https://').replace(/zoom=\d/, 'zoom=0')
+    // API thumbnail confirmed cover — keep zoom=1 for reliable cover art (zoom=0 can show page scan)
+    const httpsThumb = thumb.replace('http://', 'https://')
+    cover      = httpsThumb
+    // zoom=2 is slightly larger but still guaranteed to be the cover image
+    coverLarge = httpsThumb.replace(/zoom=\d/, 'zoom=2')
   } else if (bookId) {
-    // No thumbnail field — construct directly from bookId
-    cover      = `https://books.google.com/books/content?id=${bookId}&printsec=frontcover&img=1&zoom=2&source=gbs_api`
-    coverLarge = `https://books.google.com/books/content?id=${bookId}&printsec=frontcover&img=1&zoom=0&source=gbs_api`
+    // No thumbnail field — construct directly from bookId; zoom=1 for reliable cover
+    cover      = `https://books.google.com/books/content?id=${bookId}&printsec=frontcover&img=1&zoom=1&source=gbs_api`
+    coverLarge = `https://books.google.com/books/content?id=${bookId}&printsec=frontcover&img=1&zoom=2&source=gbs_api`
   }
 
   // Tertiary fallback: Open Library via ISBN
@@ -157,7 +159,7 @@ export async function getAuthorInfo(name: string): Promise<AuthorResult | null> 
     if (pageTitle) {
       // Get page image
       const wikiImg = await fetch(
-        `${WIKI}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageimages|extracts&exintro=true&exchars=3000&format=json&pithumbsize=300&origin=*`,
+        `${WIKI}?action=query&titles=${encodeURIComponent(pageTitle)}&prop=pageimages|extracts&exintro=true&exchars=8000&format=json&pithumbsize=400&origin=*`,
         { cache: 'no-store' }
       )
       const wikiImgData = await wikiImg.json()

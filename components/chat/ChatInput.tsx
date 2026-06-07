@@ -9,6 +9,8 @@ interface ChatInputProps {
   onSend: (message: string) => void
   disabled?: boolean
   placeholder?: string
+  mode?: 'payment' | 'agent'
+  accentColor?: string
 }
 
 export interface ChatInputHandle {
@@ -16,22 +18,31 @@ export interface ChatInputHandle {
 }
 
 // ── Slash command definitions ─────────────────────────────────────────────────
-const SLASH_COMMANDS = [
-  { cmd: '/p',         fill: '/p ',          label: '/p <TOKEN>',         desc: 'Price + 7d chart  e.g. /p BTC' },
-  { cmd: '/p 30d',     fill: '/p ',          label: '/p <TOKEN> 30d',     desc: '30-day chart  e.g. /p ETH 30d' },
-  { cmd: '/p 1d',      fill: '/p ',          label: '/p <TOKEN> 1d',      desc: '24h chart  e.g. /p SOL 1d' },
-  { cmd: '/p rate',    fill: '/p ',          label: '/p <TOKEN> <TOKEN>',  desc: 'Exchange rate  e.g. /p USDC EURC' },
-  { cmd: '/help',      fill: '/help',        label: '/help',               desc: 'List all quick commands' },
-] as const
+const PAYMENT_COMMANDS = [
+  { cmd: '/p',         fill: '/p ',          label: '/p <TOKEN>',          desc: 'Price + 7d chart  e.g. /p BTC'     },
+  { cmd: '/p 30d',     fill: '/p ',          label: '/p <TOKEN> 30d',      desc: '30-day chart  e.g. /p ETH 30d'     },
+  { cmd: '/p 1d',      fill: '/p ',          label: '/p <TOKEN> 1d',       desc: '24h chart  e.g. /p SOL 1d'         },
+  { cmd: '/p rate',    fill: '/p ',          label: '/p <TOKEN> <TOKEN>',  desc: 'Exchange rate  e.g. /p USDC EURC'  },
+  { cmd: '/save',      fill: '/save ',       label: '/save <Name> <0x…>',  desc: 'Save a contact  e.g. /save Mike 0xAbc…' },
+  { cmd: '/help',      fill: '/help',        label: '/help',               desc: 'List all quick commands'            },
+]
 
-// what to match against when filtering
-const CMD_KEYS = SLASH_COMMANDS.map(c => c.cmd)
+const AGENT_COMMANDS = [
+  { cmd: '/book',      fill: '/book ',       label: '/book <title>',       desc: 'Book details  e.g. /book harry potter'     },
+  { cmd: '/book @',    fill: '/book @',      label: '/book @<author>',     desc: 'Author info  e.g. /book @stephen king'     },
+  { cmd: '/book #',    fill: '/book #',      label: '/book #<genre>',      desc: 'Books by genre  e.g. /book #thriller'      },
+  { cmd: '/save',      fill: '/save ',       label: '/save <Name> <0x…>',  desc: 'Save a contact  e.g. /save Mike 0xAbc…'   },
+  { cmd: '/help',      fill: '/help',        label: '/help',               desc: 'List all quick commands'                   },
+]
 
 export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({
   onSend,
   disabled = false,
   placeholder = 'Send 50 USDC to Sarah…',
+  mode = 'payment',
+  accentColor = '#a3e635',
 }, ref) {
+  const SLASH_COMMANDS = mode === 'agent' ? AGENT_COMMANDS : PAYMENT_COMMANDS
   const [value, setValue]           = useState('')
   const [scannerOpen, setScannerOpen] = useState(false)
   const [hoverScan, setHoverScan]   = useState(false)
@@ -167,8 +178,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                   gap:         10,
                   padding:    '9px 14px',
                   cursor:     'pointer',
-                  background:  i === selectedIdx ? 'rgba(163,230,53,0.08)' : 'transparent',
-                  borderLeft:  i === selectedIdx ? '2px solid #a3e635' : '2px solid transparent',
+                  background:  i === selectedIdx ? `${accentColor}14` : 'transparent',
+                  borderLeft:  i === selectedIdx ? `2px solid ${accentColor}` : '2px solid transparent',
                   transition: 'background 0.1s',
                 }}
               >
@@ -176,7 +187,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                   fontFamily:   'monospace',
                   fontSize:      13,
                   fontWeight:    600,
-                  color:         i === selectedIdx ? '#a3e635' : 'rgba(163,230,53,0.7)',
+                  color:         i === selectedIdx ? accentColor : `${accentColor}b0`,
                   minWidth:      140,
                   flexShrink:    0,
                 }}>
@@ -241,13 +252,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             display: 'flex', alignItems: 'center',
             background: 'rgba(255,255,255,0.07)',
             border: `1.5px solid ${showSuggestions && filtered.length > 0
-              ? 'rgba(163,230,53,0.4)'
-              : hasValue ? 'rgba(163,230,53,0.55)' : 'rgba(255,255,255,0.10)'}`,
+              ? `${accentColor}66`
+              : hasValue ? `${accentColor}8c` : 'rgba(255,255,255,0.10)'}`,
             borderRadius: 14,
             padding: '0 14px',
             height: 46,
             transition: 'border-color 0.15s, box-shadow 0.15s',
-            boxShadow: hasValue ? 'rgba(163,230,53,0.18) 0 0 16px 0' : 'none',
+            boxShadow: hasValue ? `${accentColor}2e 0 0 16px 0` : 'none',
           }}>
             <input
               ref={inputRef}
@@ -279,13 +290,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
               borderRadius: 12,
               padding: '0 18px',
               background: hasValue
-                ? hoverSend ? '#b3ef50' : '#a3e635'
+                ? accentColor
                 : 'rgba(255,255,255,0.07)',
               border: hasValue ? 'none' : '1px solid rgba(255,255,255,0.10)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: hasValue ? 'pointer' : 'not-allowed',
               transition: 'all 0.12s',
-              boxShadow: hasValue && !pressSend ? 'rgba(163,230,53,0.25) 0 4px 16px' : 'none',
+              boxShadow: hasValue && !pressSend ? `${accentColor}40 0 4px 16px` : 'none',
               transform: pressSend ? 'translate(2px,2px)' : hoverSend ? 'translateY(-1px)' : 'none',
               fontSize: 13, fontWeight: 700,
               color: hasValue ? '#000' : 'rgba(255,255,255,0.25)',
