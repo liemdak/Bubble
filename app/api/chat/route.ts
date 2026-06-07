@@ -837,11 +837,20 @@ const FAMOUS_BOOKS = [
   'atomic habits', 'thinking fast and slow', 'sapiens',
   'the subtle art of not giving a fuck', 'rich dad poor dad',
   'how to win friends and influence people', 'the power of habit',
-  // Vietnamese
-  'số đỏ', 'chí phèo', 'tắt đèn', 'đất rừng phương nam',
+  'the hitchhiker\'s guide', 'dune', 'ender\'s game',
+  'the martian', 'ready player one', 'the fault in our stars',
+  // Vietnamese — titles that contain genre words (must be checked before genre detection)
+  'dế mèn phiêu lưu ký', 'dế mèn',
+  'đất rừng phương nam',
   'mắt biếc', 'tôi thấy hoa vàng trên cỏ xanh',
-  'cho tôi xin một vé đi tuổi thơ', 'đắc nhân tâm',
-  'nhà giả kim', 'hoàng tử bé',
+  'cho tôi xin một vé đi tuổi thơ',
+  'số đỏ', 'chí phèo', 'tắt đèn', 'lão hạc', 'vợ nhặt',
+  'truyện kiều', 'đoạn trường tân thanh',
+  'bình ngô đại cáo', 'nam quốc sơn hà',
+  'đắc nhân tâm', 'nhà giả kim', 'hoàng tử bé',
+  'tuổi thơ dữ dội', 'kính vạn hoa',
+  'conan', 'thám tử lừng danh conan',
+  'doraemon', 'dragon ball', 'naruto', 'one piece',
 ]
 
 function detectBookIntent(message: string): BookIntentResult | null {
@@ -874,9 +883,11 @@ function detectBookIntent(message: string): BookIntentResult | null {
     }
   }
 
-  // ── Famous book titles (exact match) ─────────────────────────────
+  // ── Famous book titles (includes match — runs BEFORE genre keywords) ─
+  // This prevents book titles containing genre words (e.g. "phiêu lưu")
+  // from being misdetected as genre queries
   for (const book of FAMOUS_BOOKS) {
-    if (lower === book || lower === `sách ${book}` || lower === `book ${book}`) {
+    if (lower.includes(book)) {
       return { type: 'book-detail', query: toTitleCase(book) }
     }
   }

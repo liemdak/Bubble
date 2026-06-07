@@ -53,10 +53,8 @@ export function ChatWindow() {
   const bottomRef              = useRef<HTMLDivElement>(null)
   const scrollContainerRef     = useRef<HTMLDivElement>(null)
   const chatInputRef           = useRef<ChatInputHandle>(null)
-  // Scroll fix for multi-message responses:
-  // Record scrollHeight BEFORE sending — that position = start of new content
-  const preApiScrollHeightRef  = useRef(0)
-  const preserveScrollRef      = useRef(false)
+  // For multi-message responses: ID of the first new message to scroll to
+  const firstNewMsgIdRef       = useRef<string | null>(null)
 
   useEffect(() => {
     try {
@@ -86,15 +84,23 @@ export function ChatWindow() {
     const el = scrollContainerRef.current
     if (!el) return
 
-    if (preserveScrollRef.current) {
-      // Multi-message response: scroll to where the first new message starts
-      // = the scrollHeight recorded before the API call
-      preserveScrollRef.current = false
-      const target = preApiScrollHeightRef.current
+    if (firstNewMsgIdRef.current) {
+      const id = firstNewMsgIdRef.current
+      firstNewMsgIdRef.current = null
+      // Double rAF: first frame commits DOM, second frame has layout measurements
       requestAnimationFrame(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = target
-        }
+        requestAnimationFrame(() => {
+          const container = scrollContainerRef.current
+          const target    = document.getElementById(`msg-${id}`)
+          if (container && target) {
+            const containerRect = container.getBoundingClientRect()
+            const targetRect    = target.getBoundingClientRect()
+            // Scroll so first new message appears 12px from the top
+            container.scrollTop += targetRect.top - containerRect.top - 12
+          } else if (container) {
+            container.scrollTop = container.scrollHeight
+          }
+        })
       })
       return
     }
@@ -104,9 +110,6 @@ export function ChatWindow() {
 
   async function handleSend(text: string) {
     if (loading) return
-
-    // Record current scrollHeight so multi-message responses scroll to here (first new msg)
-    preApiScrollHeightRef.current = scrollContainerRef.current?.scrollHeight ?? 0
 
     const userMsg: ChatMessage   = { id: crypto.randomUUID(), type: 'user', content: text }
     const typingMsg: ChatMessage = { id: 'typing', type: 'typing' }
@@ -160,8 +163,8 @@ export function ChatWindow() {
             if (m.type === 'book-detail')    return { id: crypto.randomUUID(), type: 'book-detail'    as const, book: m.book }
             return { id: crypto.randomUUID(), type: 'assistant' as const, content: m.content ?? m.message ?? '' }
           })
-          // Multi-message: scroll to first new message (preApiScrollHeightRef position)
-          if (newMsgs.length > 1) preserveScrollRef.current = true
+          // Multi-message: save first msg ID to scroll to it after render
+          if (newMsgs.length > 1) firstNewMsgIdRef.current = newMsgs[0].id
           return [...without, ...newMsgs]
         }
         return [...without, { id: crypto.randomUUID(), type: 'assistant', content: data.message ?? 'Done.' }]
@@ -471,7 +474,11 @@ export function ChatWindow() {
               return <MessageBubble key="typing" role="assistant" content="" isTyping />
             }
             if (msg.type === 'user' || msg.type === 'assistant') {
-              return <MessageBubble key={msg.id} role={msg.type} content={msg.content} />
+              return (
+                <div key={msg.id} id={`msg-${msg.id}`}>
+                  <MessageBubble role={msg.type} content={msg.content} />
+                </div>
+              )
             }
             if (msg.type === 'confirm') {
               return (
