@@ -48,9 +48,11 @@ export function ChatWindow() {
   const [messages, setMessages]           = useState<ChatMessage[]>([])
   const [loading, setLoading]             = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
-  const bottomRef       = useRef<HTMLDivElement>(null)
+  const bottomRef          = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const chatInputRef    = useRef<ChatInputHandle>(null)
+  const chatInputRef       = useRef<ChatInputHandle>(null)
+  // For multi-message responses: scroll to first new message, not the last
+  const firstNewMsgIdRef   = useRef<string | null>(null)
 
   useEffect(() => {
     try {
@@ -79,6 +81,22 @@ export function ChatWindow() {
   useEffect(() => {
     const el = scrollContainerRef.current
     if (!el) return
+
+    // Multi-message response: scroll to first new message so user reads from top
+    if (firstNewMsgIdRef.current) {
+      const targetId = firstNewMsgIdRef.current
+      firstNewMsgIdRef.current = null
+      requestAnimationFrame(() => {
+        const target = document.getElementById(`msg-${targetId}`)
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          return
+        }
+        el.scrollTop = el.scrollHeight
+      })
+      return
+    }
+
     el.scrollTop = el.scrollHeight
   }, [messages])
 
@@ -136,6 +154,10 @@ export function ChatWindow() {
             if (m.type === 'author-profile') return { id: crypto.randomUUID(), type: 'author-profile' as const, data: m.data }
             return { id: crypto.randomUUID(), type: 'assistant' as const, content: m.content ?? m.message ?? '' }
           })
+          // Scroll to first new message so user reads from the beginning
+          if (newMsgs.length > 1) {
+            firstNewMsgIdRef.current = newMsgs[0].id
+          }
           return [...without, ...newMsgs]
         }
         return [...without, { id: crypto.randomUUID(), type: 'assistant', content: data.message ?? 'Done.' }]
@@ -481,14 +503,14 @@ export function ChatWindow() {
             }
             if (msg.type === 'book-grid') {
               return (
-                <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                <div key={msg.id} id={`msg-${msg.id}`} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
                   <BookGrid books={msg.books} title={msg.title} />
                 </div>
               )
             }
             if (msg.type === 'author-profile') {
               return (
-                <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                <div key={msg.id} id={`msg-${msg.id}`} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
                   <AuthorProfileCard data={msg.data} />
                 </div>
               )
@@ -531,7 +553,7 @@ export function ChatWindow() {
 // ── Author Profile Card ───────────────────────────────────────────────────────
 function AuthorProfileCard({ data }: { data: { name: string; bio: string; photoUrl?: string; bookCount?: number } }) {
   const [expanded, setExpanded] = useState(false)
-  const SHORT = 300
+  const SHORT = 1000
   const isLong = data.bio.length > SHORT
 
   return (

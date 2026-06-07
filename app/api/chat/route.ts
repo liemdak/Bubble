@@ -456,14 +456,17 @@ async function handleGroq(
           return NextResponse.json({
             type: 'multi',
             messages: [
+              // 1. Author profile card (photo + full bio)
               { type: 'author-profile', data: {
                 name:      author.name,
                 bio:       author.bio ?? `${author.name} is a notable author with ${author.bookCount ?? author.topBooks.length}+ works.`,
                 photoUrl:  author.photoUrl,
                 bookCount: author.bookCount,
               }},
-              ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
+              // 2. Claude analysis right after bio
               ...(analysis ? [{ type: 'text', content: analysis }] : []),
+              // 3. Book grid last
+              ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
             ],
           })
         }
@@ -851,17 +854,17 @@ async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote', qu
       return NextResponse.json({
         type: 'multi',
         messages: [
-          // Author profile card (photo + bio)
+          // 1. Author profile card (photo + full bio)
           { type: 'author-profile', data: {
             name:      author.name,
             bio:       author.bio ?? `${author.name} is a notable author with ${author.bookCount ?? author.topBooks.length}+ works.`,
             photoUrl:  author.photoUrl,
             bookCount: author.bookCount,
           }},
-          // Book grid
-          ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
-          // Claude analysis
+          // 2. Claude analysis (right after bio)
           ...(analysis ? [{ type: 'text', content: analysis }] : []),
+          // 3. Book grid last
+          ...(author.topBooks.length ? [{ type: 'book-grid', books: author.topBooks, title: 'Notable Works' }] : []),
         ],
       })
     }
