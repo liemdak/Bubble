@@ -585,46 +585,59 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
 }
 
 // ── Agent empty-state suggestions ────────────────────────────────────────────
+const AGENT_SUGGESTION_ITEMS = [
+  { text: '/book @stephen king',    desc: 'Tác giả + danh sách sách' },
+  { text: '/book #thriller',        desc: 'Sách theo thể loại' },
+  { text: '/book harry potter',     desc: 'Thông tin chi tiết một cuốn sách' },
+  { text: '/book @haruki murakami', desc: 'Phân tích tác giả bằng AI' },
+]
+
+function AgentSuggestionCard({
+  text, desc, accent, onSelect, delay,
+}: { text: string; desc: string; accent: string; onSelect: (t: string) => void; delay: number }) {
+  const [hover, setHover] = useState(false)
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.20, delay }}
+    >
+      <button
+        onClick={() => onSelect(text)}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          width: '100%', textAlign: 'left',
+          background: hover ? `${accent}0d` : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${hover ? `${accent}30` : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: 12, padding: '11px 13px',
+          cursor: 'pointer', fontFamily: 'inherit',
+          transition: 'all 0.12s',
+          transform: hover ? 'translateY(-2px)' : 'none',
+        }}
+      >
+        <div style={{ fontSize: 12, fontWeight: 600, color: accent, marginBottom: 2, fontFamily: 'monospace' }}>
+          {text}
+        </div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>{desc}</div>
+      </button>
+    </motion.div>
+  )
+}
+
 function AgentSuggestions({ onSelect, accent }: { onSelect: (t: string) => void; accent: string }) {
-  const items = [
-    { text: '/book @stephen king',     desc: 'Tác giả + danh sách sách' },
-    { text: '/book #thriller',         desc: 'Sách theo thể loại' },
-    { text: '/book harry potter',      desc: 'Thông tin chi tiết một cuốn sách' },
-    { text: '/book @haruki murakami',  desc: 'Phân tích tác giả bằng AI' },
-  ]
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 0 20px' }}>
-      {items.map((item, i) => {
-        const [hover, setHover] = useState(false) // eslint-disable-line react-hooks/rules-of-hooks
-        return (
-          <motion.div
-            key={item.text}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.20, delay: i * 0.05 + 0.08 }}
-          >
-            <button
-              onClick={() => onSelect(item.text)}
-              onMouseEnter={() => setHover(true)}
-              onMouseLeave={() => setHover(false)}
-              style={{
-                width: '100%', textAlign: 'left',
-                background: hover ? `${accent}0d` : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${hover ? `${accent}30` : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 12, padding: '11px 13px',
-                cursor: 'pointer', fontFamily: 'inherit',
-                transition: 'all 0.12s',
-                transform: hover ? 'translateY(-2px)' : 'none',
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 600, color: accent, marginBottom: 2, fontFamily: 'monospace' }}>
-                {item.text}
-              </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>{item.desc}</div>
-            </button>
-          </motion.div>
-        )
-      })}
+      {AGENT_SUGGESTION_ITEMS.map((item, i) => (
+        <AgentSuggestionCard
+          key={item.text}
+          text={item.text}
+          desc={item.desc}
+          accent={accent}
+          onSelect={onSelect}
+          delay={i * 0.05 + 0.08}
+        />
+      ))}
     </div>
   )
 }
