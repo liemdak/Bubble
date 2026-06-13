@@ -889,10 +889,15 @@ const BOOK_TRIGGER_WORDS = [
   'book', 'books', 'novel', 'author', 'writer', 'read', 'reading', 'literature',
   'fiction', 'nonfiction', 'bestseller', 'recommend', 'suggest book',
   'what to read', 'good book', 'great book',
+  // Manga / anime
+  'manga', 'anime', 'manhwa', 'manhua', 'light novel', 'ln', 'webtoon',
+  'shounen', 'shoujo', 'seinen', 'isekai', 'one piece', 'naruto', 'bleach',
+  'attack on titan', 'demon slayer', 'jujutsu kaisen', 'my hero academia',
   // Vietnamese
   'sách', 'tác giả', 'đọc sách', 'truyện', 'tiểu thuyết', 'văn học',
   'đề xuất sách', 'gợi ý sách', 'top sách', 'bảng xếp hạng sách',
   'cuốn sách', 'quyển sách', 'nên đọc', 'hay nhất', 'đáng đọc',
+  'truyện tranh', 'truyện manga', 'đọc truyện',
 ]
 
 interface BookIntentResult {
@@ -1035,17 +1040,14 @@ function detectBookIntent(message: string): BookIntentResult | null {
 
 async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote' | 'book-detail', query: string): Promise<Response> {
   try {
-    const { searchBooks, searchByQuote, getAuthorInfo, getGenreBooks } = await import('@/lib/data/books')
+    const { searchBooks, searchByQuote, getAuthorInfo, getGenreBooks, getBookDetail, getMangaBooks } = await import('@/lib/data/books')
     const limit = 6
 
-    // ── Book detail: specific title lookup ────────────────────────────
+    // ── Book detail: precise single-book lookup ───────────────────────
     if (type === 'book-detail') {
-      const books = await searchBooks(query, 4)
-      if (books.length === 0) {
-        // No results — fallback to search
-        return handleBookQuery('search', query)
-      }
-      const book = books[0]
+      const book = await getBookDetail(query)
+      if (!book) return handleBookQuery('search', query)
+
       const review = await generateBookReview({
         title:       book.title,
         author:      book.author,
@@ -1053,7 +1055,11 @@ async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote' | '
         categories:  book.categories,
         year:        book.year,
       })
-      const related = books.slice(1).filter(b => b.title !== book.title)
+      // Fetch related books separately so they're actually related
+      const related = await searchBooks(`${book.title} ${book.author}`, 4)
+        .then(r => r.filter(b => b.id !== book.id).slice(0, 3))
+        .catch(() => [])
+
       return NextResponse.json({
         type: 'multi',
         messages: [
@@ -1100,22 +1106,26 @@ async function handleBookQuery(type: 'search' | 'author' | 'genre' | 'quote' | '
     }
 
     if (type === 'genre') {
-      const books = await getGenreBooks(query, limit)
+      const isManga = /manga|anime|manhwa|manhua|light.?novel/i.test(query)
+      const books = isManga
+        ? await getMangaBooks(query, limit)
+        : await getGenreBooks(query, limit)
+      const label = query.charAt(0).toUpperCase() + query.slice(1)
       return NextResponse.json({
         type: 'multi',
         messages: [
-          { type: 'text', content: `Top **${query}** books:` },
-          { type: 'book-grid', books, title: query.charAt(0).toUpperCase() + query.slice(1) },
+          { type: 'text', content: `Top **${label}** — ${books.length} results:` },
+          { type: 'book-grid', books, title: label },
         ],
       })
     }
 
-    // search
+    // search — sort by popularity
     const books = await searchBooks(query, limit)
     return NextResponse.json({
       type: 'multi',
       messages: [
-        { type: 'text', content: `Found ${books.length} results for "${query}":` },
+        { type: 'text', content: `Results for **"${query}"**:` },
         { type: 'book-grid', books },
       ],
     })

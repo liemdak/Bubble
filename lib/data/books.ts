@@ -104,9 +104,49 @@ function mapVolume(item: any): BookResult {
 // ── Search books ──────────────────────────────────────────────────────────────
 
 export async function searchBooks(query: string, limit = 6): Promise<BookResult[]> {
-  const url = `${GBOOKS}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}&printType=books&key=${apiKey()}`
+  const url = `${GBOOKS}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}&orderBy=relevance&printType=books&key=${apiKey()}`
   const res  = await fetch(url, { cache: 'no-store' })
   if (!res.ok) throw new Error(`Google Books search failed: ${res.status}`)
+  const data = await res.json()
+  const items: BookResult[] = (data.items ?? []).map(mapVolume)
+  // Sort by popularity so the most well-known books appear first
+  return items.sort((a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0))
+}
+
+// ── Precise single-book lookup ────────────────────────────────────────────────
+// Uses intitle: for exact match, then picks the most popular result by ratingCount.
+// This avoids returning random books that happen to share a keyword.
+export async function getBookDetail(query: string): Promise<BookResult | null> {
+  // 1. Exact title search
+  const exactUrl = `${GBOOKS}/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=10&orderBy=relevance&printType=books&key=${apiKey()}`
+  const res = await fetch(exactUrl, { cache: 'no-store' })
+  if (!res.ok) return null
+  const data = await res.json()
+  let items: BookResult[] = (data.items ?? []).map(mapVolume)
+
+  // 2. Fallback: broader search if intitle returns nothing
+  if (items.length === 0) {
+    const broadUrl = `${GBOOKS}/volumes?q=${encodeURIComponent(query)}&maxResults=8&orderBy=relevance&printType=books&key=${apiKey()}`
+    const broadRes = await fetch(broadUrl, { cache: 'no-store' })
+    if (!broadRes.ok) return null
+    const broadData = await broadRes.json()
+    items = (broadData.items ?? []).map(mapVolume)
+  }
+
+  if (items.length === 0) return null
+  // Return the most-rated version (most popular/well-known edition)
+  return items.sort((a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0))[0]
+}
+
+// ── Manga / anime / light novel search ───────────────────────────────────────
+export async function getMangaBooks(query: string, limit = 6): Promise<BookResult[]> {
+  const isGenericManga = !query || ['manga', 'anime', 'light novel', 'manhwa'].includes(query.toLowerCase())
+  const q = isGenericManga
+    ? 'subject:manga subject:comics'
+    : `intitle:${encodeURIComponent(query)} manga`
+  const url = `${GBOOKS}/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&orderBy=relevance&printType=books&key=${apiKey()}`
+  const res  = await fetch(url, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`Manga search failed: ${res.status}`)
   const data = await res.json()
   return (data.items ?? []).map(mapVolume)
 }

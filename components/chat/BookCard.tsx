@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import type { BookResult, AuthorResult } from '@/lib/data/books'
 
@@ -46,6 +47,7 @@ function BookListCard({ books }: { books: BookResult[] }) {
 }
 
 function BookRow({ book, index }: { book: BookResult; index: number }) {
+  const [imgFailed, setImgFailed] = useState(false)
   return (
     <a
       href={book.pageUrl}
@@ -61,9 +63,9 @@ function BookRow({ book, index }: { book: BookResult; index: number }) {
         border: '1px solid rgba(255,255,255,0.08)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        {book.cover ? (
+        {book.cover && !imgFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setImgFailed(true)} />
         ) : (
           <span style={{ fontSize: 22 }}>📖</span>
         )}
@@ -102,6 +104,38 @@ function BookRow({ book, index }: { book: BookResult; index: number }) {
             <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>{book.pageCount} pages</span>
           )}
         </div>
+      </div>
+    </a>
+  )
+}
+
+// ── Author book row (with own image error state) ──────────────────────────────
+
+function AuthorBookRow({ book }: { book: BookResult }) {
+  const [imgFailed, setImgFailed] = useState(false)
+  return (
+    <a
+      href={book.pageUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ display: 'flex', gap: 10, alignItems: 'center', textDecoration: 'none' }}
+    >
+      <div style={{
+        width: 36, height: 50, flexShrink: 0,
+        borderRadius: 4, overflow: 'hidden',
+        background: 'rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {book.cover && !imgFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setImgFailed(true)} />
+        ) : (
+          <span style={{ fontSize: 16 }}>📖</span>
+        )}
+      </div>
+      <div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{book.title}</div>
+        {book.year && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>{book.year}</div>}
       </div>
     </a>
   )
@@ -180,31 +214,7 @@ function AuthorCard({ author }: { author: AuthorResult }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {author.topBooks.slice(0, 5).map((book, i) => (
-              <a
-                key={book.id || i}
-                href={book.pageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'flex', gap: 10, alignItems: 'center', textDecoration: 'none' }}
-              >
-                <div style={{
-                  width: 36, height: 50, flexShrink: 0,
-                  borderRadius: 4, overflow: 'hidden',
-                  background: 'rgba(255,255,255,0.06)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {book.cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={book.cover} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ fontSize: 16 }}>📖</span>
-                  )}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{book.title}</div>
-                  {book.year && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>{book.year}</div>}
-                </div>
-              </a>
+              <AuthorBookRow key={book.id || i} book={book} />
             ))}
           </div>
         </>

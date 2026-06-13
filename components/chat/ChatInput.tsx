@@ -31,8 +31,8 @@ const AGENT_COMMANDS = [
   { cmd: '/book',      fill: '/book ',       label: '/book <title>',       desc: 'Book details  e.g. /book harry potter'     },
   { cmd: '/book @',    fill: '/book @',      label: '/book @<author>',     desc: 'Author info  e.g. /book @stephen king'     },
   { cmd: '/book #',    fill: '/book #',      label: '/book #<genre>',      desc: 'Books by genre  e.g. /book #thriller'      },
-  { cmd: '/save',      fill: '/save ',       label: '/save <Name> <0x…>',  desc: 'Save a contact  e.g. /save Mike 0xAbc…'   },
-  { cmd: '/help',      fill: '/help',        label: '/help',               desc: 'List all quick commands'                   },
+  { cmd: '/book #manga', fill: '/book #manga', label: '/book #manga',      desc: 'Manga & anime  e.g. /book #manga'          },
+  { cmd: '/help',      fill: '/help',        label: '/help',               desc: 'List all commands'                         },
 ]
 
 export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({

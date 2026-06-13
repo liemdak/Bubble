@@ -12,6 +12,7 @@ const DESC_SHORT = 400
 
 export function BookDetailCard({ book }: BookDetailCardProps) {
   const [descExpanded, setDescExpanded] = useState(false)
+  const [imgFailed, setImgFailed] = useState(false)
   const isLongDesc = (book.description?.length ?? 0) > DESC_SHORT
   const displayDesc = isLongDesc && !descExpanded
     ? book.description!.slice(0, DESC_SHORT) + '…'
@@ -42,12 +43,13 @@ export function BookDetailCard({ book }: BookDetailCardProps) {
           overflow: 'hidden',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          {(book.coverLarge ?? book.cover) ? (
+          {(book.coverLarge ?? book.cover) && !imgFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={book.coverLarge ?? book.cover}
               alt={book.title}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={() => setImgFailed(true)}
             />
           ) : (
             <span style={{ fontSize: 32, opacity: 0.4 }}>📖</span>
