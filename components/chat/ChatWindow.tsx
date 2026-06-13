@@ -586,21 +586,23 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
 
 // ── Agent empty-state suggestions ────────────────────────────────────────────
 const AGENT_SUGGESTION_ITEMS = [
-  { text: '/book @stephen king',    desc: 'Tác giả + danh sách sách' },
-  { text: '/book #thriller',        desc: 'Sách theo thể loại' },
-  { text: '/book harry potter',     desc: 'Thông tin chi tiết một cuốn sách' },
-  { text: '/book @haruki murakami', desc: 'Phân tích tác giả bằng AI' },
+  { text: '/book @stephen king',    desc: 'Author profile + book list',  span: false },
+  { text: '/book #thriller',        desc: 'Top books by genre',           span: false },
+  { text: '/book harry potter',     desc: 'Book detail + review',         span: false },
+  { text: '/book @haruki murakami', desc: 'AI author analysis',           span: false },
+  { text: 'Show my QR code',        desc: 'Display your main wallet QR',  span: true  },
 ]
 
 function AgentSuggestionCard({
-  text, desc, accent, onSelect, delay,
-}: { text: string; desc: string; accent: string; onSelect: (t: string) => void; delay: number }) {
+  text, desc, accent, onSelect, delay, span,
+}: { text: string; desc: string; accent: string; onSelect: (t: string) => void; delay: number; span?: boolean }) {
   const [hover, setHover] = useState(false)
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.20, delay }}
+      style={span ? { gridColumn: '1 / -1' } : undefined}
     >
       <button
         onClick={() => onSelect(text)}
@@ -636,6 +638,7 @@ function AgentSuggestions({ onSelect, accent }: { onSelect: (t: string) => void;
           accent={accent}
           onSelect={onSelect}
           delay={i * 0.05 + 0.08}
+          span={item.span}
         />
       ))}
     </div>
