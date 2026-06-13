@@ -286,8 +286,8 @@ export async function POST(req: NextRequest) {
 
     // ── QR shortcut — hiển thị Circle wallet address để nhận tiền ────
     if (/\bqr\b|my qr|receive|payment link/i.test(message)) {
-      // Dùng Circle wallet address (nơi nhận tiền), không phải MetaMask
-      const address = circleWalletAddress ?? userAddress ?? '0x0000000000000000000000000000000000000000'
+      // Dùng MetaMask address (ví chính) để nhận tiền
+      const address = userAddress ?? circleWalletAddress ?? '0x0000000000000000000000000000000000000000'
       return NextResponse.json({
         type: 'qr',
         address,

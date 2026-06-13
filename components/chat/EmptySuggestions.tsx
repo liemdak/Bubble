@@ -5,12 +5,12 @@ import { motion } from 'framer-motion'
 import { playBubbleTap } from '@/lib/sounds'
 
 const SUGGESTIONS = [
-  { text: 'Send 50 USDC to ',      desc: 'Transfer stablecoins instantly',   prefillOnly: true  },
-  { text: 'Swap 100 USDC to EURC', desc: 'Exchange between tokens',           prefillOnly: true  },
+  { text: 'Send USDC to ',         desc: 'Transfer stablecoins instantly',   prefillOnly: true  },
+  { text: 'Swap USDC to EURC',     desc: 'Exchange between tokens',           prefillOnly: true  },
   { text: 'Show my QR code',       desc: 'Share your receive address',         prefillOnly: false },
   { text: 'Check my balance',      desc: 'USDC · EURC · USYC',                prefillOnly: false },
-  { text: '/save Mike 0x',         desc: 'Save a contact by name',             prefillOnly: true  },
-  { text: '/p BTC',                desc: 'Price chart + 7-day history',        prefillOnly: false },
+  { text: '/save ',                desc: 'Save a contact by name',             prefillOnly: true  },
+  { text: '/p ',                   desc: 'Price chart + 7-day history',        prefillOnly: true  },
 ]
 
 interface EmptySuggestionsProps {
