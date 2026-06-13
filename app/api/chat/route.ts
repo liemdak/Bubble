@@ -134,20 +134,24 @@ export async function POST(req: NextRequest) {
         type: 'text',
         message:
           `Quick commands\n\n` +
+          `  💸 Payments\n` +
+          `  /save Mike 0xAbc…  save a contact by name\n` +
           `  /p BTC             price + 7d chart\n` +
           `  /p ETH 30d         30-day chart\n` +
           `  /p SOL 1d          24h chart\n` +
-          `  /p USDC EURC       exchange rate\n` +
-          `  /book @murakami    author profile\n` +
-          `  /book #horror      genre top books\n` +
-          `  /book kafka shore  book detail\n` +
-          `  /book "a quote"    find book by quote\n` +
-          `  /save Name 0x...   save contact instantly\n` +
-          `  /help              show this\n\n` +
-          `Supports BTC, ETH, SOL, BNB, ADA, XRP, DOGE, SHIB, PEPE, SUI, APT, PYTH and more.\n\n` +
+          `  /p USDC EURC       exchange rate\n\n` +
+          `  📚 Book Agent (switch to Agent tab)\n` +
+          `  /book harry potter  book detail + review\n` +
+          `  /book @murakami     author profile\n` +
+          `  /book #thriller     genre top books\n` +
+          `  /book #manga        manga & anime\n\n` +
+          `  /help               show this\n\n` +
           `Natural language works too:\n` +
-          `"send 50 USDC to Mike"   "swap 100 USDC to EURC"\n` +
-          `"bridge to Ethereum"   "check balance"   "my QR"\n\n` +
+          `  "send 50 USDC to Mike"  →  confirm & send\n` +
+          `  "swap 100 USDC to EURC"  →  swap preview\n` +
+          `  "bridge to Ethereum"  →  CCTP bridge\n` +
+          `  "check my balance"  →  all wallets\n` +
+          `  "show my QR code"  →  receive address\n\n` +
           `How it works\n\n` +
           `  Send         uses your Agent wallet. No MetaMask popup needed.\n` +
           `               Fund your Agent wallet first via the "Fund Agent" button.\n` +
