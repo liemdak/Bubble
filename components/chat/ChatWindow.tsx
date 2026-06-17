@@ -472,7 +472,6 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
                 </motion.div>
 
                 {mode !== 'agent' && <EmptySuggestions onSelect={handleSend} onPrefill={handlePrefill} />}
-                {mode === 'agent'  && <AgentSuggestions onSelect={handleSend} accent={accent} />}
               </motion.div>
             )}
           </AnimatePresence>
