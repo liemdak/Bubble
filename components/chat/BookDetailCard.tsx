@@ -136,7 +136,7 @@ export function BookDetailCard({ book }: BookDetailCardProps) {
                 fontFamily: 'inherit', padding: 0, fontWeight: 500,
               }}
             >
-              {descExpanded ? 'Rút gọn ↑' : 'Xem thêm ↓'}
+              {descExpanded ? 'Show less ↑' : 'Read more ↓'}
             </button>
           )}
         </div>

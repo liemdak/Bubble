@@ -2,8 +2,8 @@ const STEPS = [
   {
     num: '01',
     title: 'Type what you want',
-    detail: '"Send 50 USDC to Sarah"',
-    desc: 'Plain English. No wallet addresses, no forms.',
+    detail: '"Send 50 USDC to Sarah" or "/book dune"',
+    desc: 'Plain English or a command. Works for payments and book discovery.',
   },
   {
     num: '02',

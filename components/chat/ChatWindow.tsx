@@ -465,8 +465,8 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,0.40)', lineHeight: 1.8, maxWidth: 260, margin: '0 auto' }}>
                     {mode === 'agent'
-                      ? <>Ask about books, authors, genres.<br />Type <span style={{ color: accent, opacity: 0.8 }}>/book</span> to start.</>
-                      : <>Your payment assistant.<br />Type what you need.</>
+                      ? <>Your book and payment agent.<br />Type <span style={{ color: accent, opacity: 0.8 }}>/help</span> to see all commands.</>
+                      : <>Your payment assistant.<br />Type <span style={{ color: accent, opacity: 0.8 }}>/help</span> to see all commands.</>
                     }
                   </div>
                 </motion.div>
@@ -585,61 +585,42 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
 }
 
 // ── Agent empty-state suggestions ────────────────────────────────────────────
-const AGENT_SUGGESTION_ITEMS = [
-  { text: '/book @stephen king',    desc: 'Author profile + book list',  span: false },
-  { text: '/book #thriller',        desc: 'Top books by genre',           span: false },
-  { text: '/book harry potter',     desc: 'Book detail + review',         span: false },
-  { text: '/book @haruki murakami', desc: 'AI author analysis',           span: false },
-  { text: 'Show my QR code',        desc: 'Display your main wallet QR',  span: true  },
+const AGENT_SUGGESTIONS = [
+  { text: '/book harry potter', desc: 'Book detail + rating',     prefillOnly: false },
+  { text: 'Check my balance',   desc: 'USDC, EURC and USYC',      prefillOnly: false },
+  { text: '/book #thriller',    desc: 'Top books by genre',        prefillOnly: false },
+  { text: '/help',              desc: 'Show all commands',          prefillOnly: false },
 ]
 
-function AgentSuggestionCard({
-  text, desc, accent, onSelect, delay, span,
-}: { text: string; desc: string; accent: string; onSelect: (t: string) => void; delay: number; span?: boolean }) {
-  const [hover, setHover] = useState(false)
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.20, delay }}
-      style={span ? { gridColumn: '1 / -1' } : undefined}
-    >
-      <button
-        onClick={() => onSelect(text)}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        style={{
-          width: '100%', textAlign: 'left',
-          background: hover ? `${accent}0d` : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${hover ? `${accent}30` : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 12, padding: '11px 13px',
-          cursor: 'pointer', fontFamily: 'inherit',
-          transition: 'all 0.12s',
-          transform: hover ? 'translateY(-2px)' : 'none',
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 600, color: accent, marginBottom: 2, fontFamily: 'monospace' }}>
-          {text}
-        </div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)' }}>{desc}</div>
-      </button>
-    </motion.div>
-  )
-}
-
 function AgentSuggestions({ onSelect, accent }: { onSelect: (t: string) => void; accent: string }) {
+  const [hover, setHover] = useState<number | null>(null)
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 0 20px' }}>
-      {AGENT_SUGGESTION_ITEMS.map((item, i) => (
-        <AgentSuggestionCard
-          key={item.text}
-          text={item.text}
-          desc={item.desc}
-          accent={accent}
-          onSelect={onSelect}
-          delay={i * 0.05 + 0.08}
-          span={item.span}
-        />
+      {AGENT_SUGGESTIONS.map((s, i) => (
+        <motion.button
+          key={s.text}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.20, delay: i * 0.05 + 0.08 }}
+          onClick={() => onSelect(s.text)}
+          onMouseEnter={() => setHover(i)}
+          onMouseLeave={() => setHover(null)}
+          style={{
+            background: hover === i ? `${accent}09` : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${hover === i ? `${accent}28` : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 12, padding: '13px 14px',
+            textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+            transform: hover === i ? 'translateY(-2px)' : 'none',
+            transition: 'transform 0.12s, background 0.12s, border-color 0.12s',
+          }}
+        >
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,0.80)', marginBottom: 3, lineHeight: 1.3 }}>
+            {s.text}
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', fontWeight: 300 }}>
+            {s.desc}
+          </div>
+        </motion.button>
       ))}
     </div>
   )

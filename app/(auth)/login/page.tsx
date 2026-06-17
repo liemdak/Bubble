@@ -138,7 +138,7 @@ function LoginCard() {
           Connect wallet
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 300, lineHeight: 1.55 }}>
-          Sign in instantly — no account needed.
+          Sign in instantly. No account needed.
         </div>
       </div>
 

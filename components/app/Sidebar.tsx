@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { playBubbleTap } from '@/lib/sounds'
 import type { Contact } from '@/types/db'
 
@@ -9,6 +10,7 @@ export function Sidebar() {
   const [open, setOpen]         = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading]   = useState(false)
+  const pathname                = usePathname()
 
   useEffect(() => {
     if (!open) return
@@ -47,32 +49,67 @@ export function Sidebar() {
           gap: 2,
         }}
       >
-        {/* Back to chat — minimal mark */}
-        <Link
-          href="/chat"
-          onClick={() => playBubbleTap()}
-          title="Back to chat"
+        {/* Contacts toggle */}
+        <button
+          onClick={() => { playBubbleTap(); setOpen(v => !v) }}
+          title="Contacts"
           style={{
             width: 30, height: 30, borderRadius: 8,
-            background: 'transparent',
+            background: open ? 'rgba(163,230,53,0.10)' : 'transparent',
+            border: 'none',
             cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 16, fontWeight: 400,
-            color: 'rgba(255,255,255,0.20)',
+            color: open ? '#a3e635' : 'rgba(255,255,255,0.20)',
             transition: 'background 0.12s, color 0.12s',
-            textDecoration: 'none',
             letterSpacing: '2px',
+            fontFamily: 'inherit',
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(163,230,53,0.08)'
-            ;(e.currentTarget as HTMLAnchorElement).style.color = '#a3e635'
+            if (!open) {
+              e.currentTarget.style.background = 'rgba(163,230,53,0.08)'
+              e.currentTarget.style.color = '#a3e635'
+            }
           }}
           onMouseLeave={e => {
-            (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
-            ;(e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.20)'
+            if (!open) {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'rgba(255,255,255,0.20)'
+            }
           }}
         >
           ···
+        </button>
+
+        {/* Book Agent shortcut */}
+        <Link
+          href="/agent"
+          onClick={() => playBubbleTap()}
+          title="Book Agent"
+          style={{
+            width: 30, height: 30, borderRadius: 8,
+            background: pathname === '/agent' ? 'rgba(96,165,250,0.14)' : 'transparent',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15,
+            color: pathname === '/agent' ? '#93c5fd' : 'rgba(255,255,255,0.22)',
+            transition: 'background 0.12s, color 0.12s',
+            textDecoration: 'none',
+          }}
+          onMouseEnter={e => {
+            if (pathname !== '/agent') {
+              (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(96,165,250,0.10)'
+              ;(e.currentTarget as HTMLAnchorElement).style.color = '#93c5fd'
+            }
+          }}
+          onMouseLeave={e => {
+            if (pathname !== '/agent') {
+              (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
+              ;(e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.22)'
+            }
+          }}
+        >
+          📚
         </Link>
       </div>
 

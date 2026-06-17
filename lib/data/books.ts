@@ -115,8 +115,12 @@ export async function searchBooks(query: string, limit = 6): Promise<BookResult[
 
 // ── Precise single-book lookup ────────────────────────────────────────────────
 // Uses intitle: for exact match, then picks the most popular result by ratingCount.
-// This avoids returning random books that happen to share a keyword.
+// For volume queries ("naruto vol 7"), filters results to the exact volume number first.
 export async function getBookDetail(query: string): Promise<BookResult | null> {
+  // Detect "vol 7" / "volume 7" in query so we can match the exact volume
+  const volMatch = query.match(/\bvol(?:ume)?\.?\s*(\d+)\b/i)
+  const volumeNum = volMatch ? parseInt(volMatch[1], 10) : null
+
   // 1. Exact title search
   const exactUrl = `${GBOOKS}/volumes?q=intitle:${encodeURIComponent(query)}&maxResults=10&orderBy=relevance&printType=books&key=${apiKey()}`
   const res = await fetch(exactUrl, { cache: 'no-store' })
@@ -134,6 +138,14 @@ export async function getBookDetail(query: string): Promise<BookResult | null> {
   }
 
   if (items.length === 0) return null
+
+  // 3. If volume query, prefer items whose title contains the exact volume number
+  if (volumeNum !== null) {
+    const volPattern = new RegExp(`\\bvol(?:ume)?\\.?\\s*${volumeNum}\\b`, 'i')
+    const volumeMatches = items.filter(b => volPattern.test(b.title))
+    if (volumeMatches.length > 0) return volumeMatches[0]
+  }
+
   // Return the most-rated version (most popular/well-known edition)
   return items.sort((a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0))[0]
 }

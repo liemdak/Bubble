@@ -78,7 +78,7 @@ export function Hero() {
           fontWeight: 300,
           color: 'rgba(255,255,255,0.52)',
           lineHeight: 1.65,
-          maxWidth: 460,
+          maxWidth: 500,
           margin: '0 auto 44px',
         }}>
           Type{' '}
@@ -92,7 +92,18 @@ export function Hero() {
           }}>
             &quot;send 100 USDC to Mike&quot;
           </span>
-          {' '}- Bubble handles the rest.
+          {' '}to pay, or{' '}
+          <span style={{
+            background: 'rgba(163,230,53,0.18)',
+            color: '#a3e635',
+            border: '1px solid rgba(163,230,53,0.3)',
+            padding: '2px 9px',
+            borderRadius: 6,
+            fontStyle: 'normal',
+          }}>
+            &quot;/book dune&quot;
+          </span>
+          {' '}to find a book. Bubble handles the rest.
         </p>
 
         {/* CTAs */}

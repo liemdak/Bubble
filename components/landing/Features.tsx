@@ -7,7 +7,7 @@ const FEATURES = [
   {
     label: '02',
     title: 'Contacts',
-    body: 'Save wallet addresses as names. Send to "Mike" instead of 0x4A3f…',
+    body: 'Save wallet addresses as names. Send to "Mike" instead of 0x4A3f...',
   },
   {
     label: '03',
