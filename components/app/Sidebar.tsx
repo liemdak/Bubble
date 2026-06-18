@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { playBubbleTap } from '@/lib/sounds'
 import type { Contact } from '@/types/db'
 
@@ -10,7 +9,6 @@ export function Sidebar() {
   const [open, setOpen]         = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading]   = useState(false)
-  const pathname                = usePathname()
 
   useEffect(() => {
     if (!open) return
@@ -81,46 +79,6 @@ export function Sidebar() {
           ···
         </button>
 
-        {/* Book Agent shortcut */}
-        <Link
-          href="/agent"
-          onClick={() => playBubbleTap()}
-          title="Book Agent"
-          style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: pathname === '/agent' ? 'rgba(96,165,250,0.16)' : 'transparent',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'background 0.12s',
-            textDecoration: 'none',
-            opacity: pathname === '/agent' ? 1 : 0.45,
-          }}
-          onMouseEnter={e => {
-            if (pathname !== '/agent') {
-              (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(96,165,250,0.10)'
-              ;(e.currentTarget as HTMLAnchorElement).style.opacity = '0.85'
-            }
-          }}
-          onMouseLeave={e => {
-            if (pathname !== '/agent') {
-              (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
-              ;(e.currentTarget as HTMLAnchorElement).style.opacity = '0.45'
-            }
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Cover */}
-            <rect x="4" y="2" width="14" height="19" rx="2" fill="#3b82f6"/>
-            {/* Spine highlight */}
-            <rect x="4" y="2" width="3" height="19" rx="2" fill="#2563eb"/>
-            {/* White label on cover */}
-            <rect x="9" y="4" width="7" height="5" rx="1" fill="white" opacity="0.88"/>
-            {/* Pages edge */}
-            <rect x="6" y="4" width="12" height="17" rx="1.5" fill="white" opacity="0.08"/>
-            {/* Red bookmark */}
-            <path d="M15 21 L15 16 L17 16 L17 21 L16 19.5 Z" fill="#ef4444"/>
-          </svg>
-        </Link>
       </div>
 
       {/* ── Overlay + slide-in drawer ── */}

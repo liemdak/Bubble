@@ -30,6 +30,7 @@ type ChatMessage =
   | { id: string; type: 'book-grid'; books: BookResult[]; title?: string }
   | { id: string; type: 'book-detail'; book: BookResult }
   | { id: string; type: 'author-profile'; data: { name: string; bio: string; photoUrl?: string; bookCount?: number } }
+  | { id: string; type: 'help'; mode: 'payment' | 'agent' }
   | { id: string; type: 'typing' }
 
 function getGreeting() {
@@ -115,6 +116,35 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
 
   async function handleSend(text: string) {
     if (loading) return
+    const trimmed = text.trim()
+
+    // /help — render help card client-side, no API call
+    if (trimmed === '/help') {
+      setMessages(prev => [...prev,
+        { id: crypto.randomUUID(), type: 'user',  content: '/help' },
+        { id: crypto.randomUUID(), type: 'help',  mode },
+      ])
+      return
+    }
+
+    // /clear — wipe chat
+    if (trimmed === '/clear') {
+      clearChat()
+      return
+    }
+
+    // Slash command → natural language translation
+    const PAYMENT_CMDS: Record<string, string> = {
+      '/balance':  'Check my balance',
+      '/qr':       'Show my QR code',
+      '/history':  'Show my recent transactions',
+      '/contacts': 'List my contacts',
+    }
+    const AGENT_CMDS: Record<string, string> = {
+      '/balance': 'Check my balance',
+    }
+    const cmdMap = mode === 'payment' ? PAYMENT_CMDS : AGENT_CMDS
+    const messageToSend = cmdMap[trimmed] ?? text
 
     const userMsg: ChatMessage   = { id: crypto.randomUUID(), type: 'user', content: text }
     const typingMsg: ChatMessage = { id: 'typing', type: 'typing' }
@@ -126,7 +156,7 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
       const res  = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, mode }),
+        body: JSON.stringify({ message: messageToSend, mode }),
       })
       const data = await res.json()
 
@@ -465,7 +495,7 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,0.40)', lineHeight: 1.8, maxWidth: 260, margin: '0 auto' }}>
                     {mode === 'agent'
-                      ? <>Your book and payment agent.<br />Type <span style={{ color: accent, opacity: 0.8 }}>/help</span> to see all commands.</>
+                      ? <>Your personal agent.<br />Type <span style={{ color: accent, opacity: 0.8 }}>/help</span> to see all commands.</>
                       : <>Your payment assistant.<br />Type <span style={{ color: accent, opacity: 0.8 }}>/help</span> to see all commands.</>
                     }
                   </div>
@@ -541,6 +571,13 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
                 </div>
               )
             }
+            if (msg.type === 'help') {
+              return (
+                <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                  <HelpCard mode={msg.mode} />
+                </div>
+              )
+            }
             if (msg.type === 'chart') {
               return (
                 <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
@@ -576,7 +613,7 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
         onSend={handleSend}
         disabled={loading}
         mode={mode}
-        placeholder={mode === 'agent' ? 'Ask about a book, author, or genre…' : 'Send 50 USDC to Sarah…'}
+        placeholder={mode === 'agent' ? 'Ask anything, or type /help for commands…' : 'Send 50 USDC to Sarah…'}
         accentColor={accent}
       />
     </div>
@@ -621,6 +658,135 @@ function AgentSuggestions({ onSelect, accent }: { onSelect: (t: string) => void;
           </div>
         </motion.button>
       ))}
+    </div>
+  )
+}
+
+// ── Help Card ─────────────────────────────────────────────────────────────────
+function HelpCard({ mode }: { mode: 'payment' | 'agent' }) {
+  const accent = mode === 'agent' ? '#60a5fa' : '#a3e635'
+
+  const paymentCommands = [
+    { cmd: '/balance',  desc: 'Check your USDC, EURC, USYC balance' },
+    { cmd: '/qr',       desc: 'Show your receive QR code'            },
+    { cmd: '/history',  desc: 'Recent transactions'                  },
+    { cmd: '/contacts', desc: 'List saved contacts'                  },
+    { cmd: '/clear',    desc: 'Clear this chat'                      },
+  ]
+  const agentCommands = [
+    { cmd: '/book [title]',   desc: 'Search a book by title or author',  soon: false },
+    { cmd: '/research [coin]',desc: 'Full market briefing (5 tabs)',      soon: true  },
+    { cmd: '/price [coin]',   desc: 'Quick price + 24h change',          soon: true  },
+    { cmd: '/whales [coin]',  desc: 'Large wallet activity (>$500K)',     soon: true  },
+    { cmd: '/wallet [addr]',  desc: 'Analyze a specific wallet',         soon: true  },
+    { cmd: '/news [coin]',    desc: 'Latest news + sentiment',           soon: true  },
+    { cmd: '/clear',          desc: 'Clear this chat',                   soon: false },
+  ]
+
+  const paymentExamples = [
+    '"Send 100 USDC to Mike"',
+    '"Swap 50 USDC to EURC"',
+    '"Bridge 200 USDC to Ethereum"',
+  ]
+  const agentExamples = [
+    '"What\'s the RSI of SOL?"',
+    '"Who wrote Dune?"',
+    '"Show me top sci-fi books"',
+    '"Analyze whale activity for ETH"',
+  ]
+
+  const commands = mode === 'payment'
+    ? paymentCommands.map(c => ({ ...c, soon: false }))
+    : agentCommands
+  const examples = mode === 'payment' ? paymentExamples : agentExamples
+  const title    = mode === 'payment' ? 'Payment commands' : 'Agent commands'
+
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.09)',
+      borderRadius: 12,
+      overflow: 'hidden',
+      width: 'min(calc(100vw - 32px), 520px)',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '9px 14px',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{
+          fontSize: 10, fontWeight: 600,
+          color: 'rgba(255,255,255,0.30)',
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+        }}>
+          {title}
+        </span>
+      </div>
+
+      {/* Commands */}
+      {commands.map((c) => (
+        <div key={c.cmd} style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '9px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          flexWrap: 'wrap',
+        }}>
+          <span style={{
+            fontFamily: 'monospace', fontSize: 12, fontWeight: 500,
+            color: accent,
+            flexShrink: 0,
+            minWidth: 160,
+          }}>
+            {c.cmd}
+          </span>
+          <span style={{
+            fontSize: 12, color: 'rgba(255,255,255,0.45)',
+            flex: 1, minWidth: 120,
+          }}>
+            {c.desc}
+          </span>
+          {c.soon && (
+            <span style={{
+              fontSize: 10, padding: '2px 7px',
+              borderRadius: 100,
+              background: 'rgba(255,255,255,0.06)',
+              color: 'rgba(255,255,255,0.22)',
+              flexShrink: 0,
+            }}>
+              soon
+            </span>
+          )}
+        </div>
+      ))}
+
+      {/* Natural language section */}
+      <div style={{
+        padding: '10px 14px',
+        borderTop: '1px solid rgba(255,255,255,0.07)',
+      }}>
+        <div style={{
+          fontSize: 10, fontWeight: 600,
+          color: 'rgba(255,255,255,0.22)',
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          marginBottom: 8,
+        }}>
+          Natural language also works
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {examples.map((ex) => (
+            <span key={ex} style={{
+              fontSize: 11, padding: '3px 10px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              borderRadius: 100,
+              color: 'rgba(255,255,255,0.38)',
+            }}>
+              {ex}
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
