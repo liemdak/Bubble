@@ -11,13 +11,11 @@ import { QRCard } from './QRCard'
 import { BookCard } from './BookCard'
 import { BookGrid } from './BookGrid'
 import { BookDetailCard } from './BookDetailCard'
-import { ResearchCard } from './ResearchCard'
 import { ChatInput, type ChatInputHandle } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import type { ChartPoint } from './PriceChart'
 import type { BookResult, AuthorResult } from '@/lib/data/books'
 import type { ConfirmationCard } from '@/types/intent'
-import type { CoinDetail } from '@/lib/market/coingecko'
 
 // Dynamic import prevents recharts from being bundled in SSR pass
 const PriceChart = dynamic(() => import('./PriceChart').then(m => m.PriceChart), { ssr: false })
@@ -33,7 +31,6 @@ type ChatMessage =
   | { id: string; type: 'book-detail'; book: BookResult }
   | { id: string; type: 'author-profile'; data: { name: string; bio: string; photoUrl?: string; bookCount?: number } }
   | { id: string; type: 'help'; mode: 'payment' | 'agent' }
-  | { id: string; type: 'research'; data: CoinDetail }
   | { id: string; type: 'typing' }
 
 function getGreeting() {
@@ -184,9 +181,6 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
             marketCap:    data.marketCap,
             volume24h:    data.volume24h,
           }]
-        }
-        if (data.type === 'research') {
-          return [...without, { id: crypto.randomUUID(), type: 'research' as const, data: data.data }]
         }
         if (data.type === 'book') {
           return [...without, {
@@ -584,13 +578,6 @@ export function ChatWindow({ mode = 'payment' }: ChatWindowProps) {
                 </div>
               )
             }
-            if (msg.type === 'research') {
-              return (
-                <div key={msg.id} id={`msg-${msg.id}`} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
-                  <ResearchCard data={msg.data} />
-                </div>
-              )
-            }
             if (msg.type === 'chart') {
               return (
                 <div key={msg.id} style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
@@ -688,7 +675,7 @@ function HelpCard({ mode }: { mode: 'payment' | 'agent' }) {
   ]
   const agentCommands = [
     { cmd: '/book [title]',   desc: 'Search a book by title or author',  soon: false },
-    { cmd: '/research [coin]',desc: 'Full market briefing — price, RSI, social', soon: false },
+    { cmd: '/research [coin]',desc: 'Full market briefing (5 tabs)',      soon: true  },
     { cmd: '/price [coin]',   desc: 'Quick price + 24h change',          soon: true  },
     { cmd: '/whales [coin]',  desc: 'Large wallet activity (>$500K)',     soon: true  },
     { cmd: '/wallet [addr]',  desc: 'Analyze a specific wallet',         soon: true  },
