@@ -272,3 +272,124 @@ export const FALLBACK_RATE: Record<string, number> = {
   'EURC-USYC': 0.92,
   'USYC-EURC': 1.087,
 }
+
+// ── Comprehensive coin research ───────────────────────────────────────────────
+
+export interface CoinDetail {
+  id:           string
+  symbol:       string
+  name:         string
+  // Market
+  price:        number
+  change1h:     number
+  change24h:    number
+  change7d:     number
+  change30d:    number
+  marketCap:    number
+  volume24h:    number
+  rank:         number
+  circulatingSupply: number
+  totalSupply:       number | null
+  maxSupply:         number | null
+  ath:          number
+  athDate:      string
+  atl:          number
+  atlDate:      string
+  // Social (from CoinGecko)
+  twitterFollowers: number | null
+  redditSubscribers: number | null
+  // Description
+  description: string
+  homepage: string | null
+  // Technical — derived from market_chart 14d daily
+  rsi14:    number | null
+  // Chart data (14d)
+  chartPoints: ChartPoint[]
+  chartHigh:   number
+  chartLow:    number
+}
+
+/**
+ * Fetch comprehensive coin data for the /research command.
+ * Makes 2 CoinGecko requests in parallel (coin detail + 14d market chart).
+ */
+export async function fetchCoinDetail(token: string): Promise<CoinDetail> {
+  const id = SYMBOL_TO_ID[token.toUpperCase()] ?? token.toLowerCase()
+
+  const [detailRes, chartRes] = await Promise.all([
+    fetch(
+      `https://api.coingecko.com/api/v3/coins/${id}` +
+      `?localization=false&tickers=false&market_data=true` +
+      `&community_data=true&developer_data=false&sparkline=false`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8_000) }
+    ),
+    fetch(
+      `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=14&interval=daily`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8_000) }
+    ),
+  ])
+
+  if (!detailRes.ok) throw new Error(`CoinGecko detail HTTP ${detailRes.status}`)
+  if (!chartRes.ok)  throw new Error(`CoinGecko chart HTTP ${chartRes.status}`)
+
+  const d     = await detailRes.json()
+  const chart = await chartRes.json() as { prices: [number, number][] }
+
+  const md = d.market_data
+
+  // RSI-14 from 14 daily close prices
+  const closes = chart.prices.map((p: [number, number]) => p[1])
+  let rsi14: number | null = null
+  if (closes.length >= 15) {
+    const diffs  = closes.slice(1).map((p: number, i: number) => p - closes[i])
+    const gains  = diffs.map((x: number) => Math.max(x, 0))
+    const losses = diffs.map((x: number) => Math.max(-x, 0))
+    const avgGain = gains.slice(0, 14).reduce((a: number, b: number) => a + b, 0) / 14
+    const avgLoss = losses.slice(0, 14).reduce((a: number, b: number) => a + b, 0) / 14
+    rsi14 = avgLoss === 0 ? 100 : Math.round(100 - 100 / (1 + avgGain / avgLoss))
+  }
+
+  // Downsample to ~60 sparkline points
+  const step   = Math.max(1, Math.floor(chart.prices.length / 60))
+  const points: ChartPoint[] = []
+  for (let i = 0; i < chart.prices.length; i += step) {
+    points.push({ t: chart.prices[i][0], p: chart.prices[i][1] })
+  }
+  const vals = chart.prices.map((p: [number, number]) => p[1])
+
+  const rawDesc: string = d.description?.en ?? ''
+  const cleanDesc = rawDesc
+    .replace(/<[^>]+>/g, '')
+    .replace(/\r?\n/g, ' ')
+    .trim()
+  const shortDesc = cleanDesc.split('. ').slice(0, 3).join('. ') + (cleanDesc ? '.' : '')
+
+  return {
+    id,
+    symbol:   (d.symbol as string).toUpperCase(),
+    name:     d.name as string,
+    price:    md.current_price?.usd   ?? 0,
+    change1h:   md.price_change_percentage_1h_in_currency?.usd  ?? 0,
+    change24h:  md.price_change_percentage_24h_in_currency?.usd ?? md.price_change_percentage_24h ?? 0,
+    change7d:   md.price_change_percentage_7d_in_currency?.usd  ?? md.price_change_percentage_7d  ?? 0,
+    change30d:  md.price_change_percentage_30d_in_currency?.usd ?? md.price_change_percentage_30d ?? 0,
+    marketCap:         md.market_cap?.usd             ?? 0,
+    volume24h:         md.total_volume?.usd            ?? 0,
+    rank:              md.market_cap_rank              ?? 0,
+    circulatingSupply: md.circulating_supply           ?? 0,
+    totalSupply:       md.total_supply                 ?? null,
+    maxSupply:         md.max_supply                   ?? null,
+    ath:     md.ath?.usd      ?? 0,
+    athDate: md.ath_date?.usd ?? '',
+    atl:     md.atl?.usd      ?? 0,
+    atlDate: md.atl_date?.usd ?? '',
+    twitterFollowers:  d.community_data?.twitter_followers  ?? null,
+    redditSubscribers: d.community_data?.reddit_subscribers ?? null,
+    description: shortDesc,
+    homepage:    d.links?.homepage?.[0] ?? null,
+    rsi14,
+    chartPoints: points,
+    chartHigh:   vals.length ? Math.max(...vals) : 0,
+    chartLow:    vals.length ? Math.min(...vals) : 0,
+  }
+}

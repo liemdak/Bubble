@@ -226,6 +226,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── /research <token> — comprehensive coin briefing ─────────────────
+    const researchCmd = message.match(/^\/research\s+([A-Za-z0-9-]+)/i)
+    if (researchCmd) {
+      const token = researchCmd[1].trim()
+      try {
+        const { fetchCoinDetail } = await import('@/lib/market/coingecko')
+        const data = await fetchCoinDetail(token)
+        return NextResponse.json({ type: 'research', data })
+      } catch (err) {
+        console.error('[/research]', err)
+        return NextResponse.json({
+          type: 'text',
+          message: `❓ Couldn't find data for **${token.toUpperCase()}** on CoinGecko.\nTry: /research BTC  /research ETH  /research SOL`,
+        })
+      }
+    }
+
     // ── Fund agent shortcut ───────────────────────────────────────────
     // Detect: "nạp agent", "top up agent", "fund agent", "nạp ví agent", etc.
     if (/nạp.*(agent|ví agent)|top[\s-]?up.*(agent|wallet)|fund.*(agent|wallet)|chuyển.*agent|(agent|ví agent).*(nạp|tiền)/i.test(message)) {
